@@ -1475,6 +1475,7 @@ export default function Page() {
 
   const fork = (input: { sessionID: string; messageID: string }) => {
     const value = draft(input.messageID)
+    const dir = base64Encode(sdk.directory)
     return sdk.client.session
       .fork(input)
       .then((result) => {
@@ -1486,10 +1487,8 @@ export default function Page() {
           })
           return
         }
-        navigate(`/${base64Encode(sdk.directory)}/session/${next.id}`)
-        requestAnimationFrame(() => {
-          prompt.set(value)
-        })
+        prompt.set(value, undefined, { dir, id: next.id })
+        navigate(`/${dir}/session/${next.id}`)
       })
       .catch(fail)
   }
