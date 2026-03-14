@@ -4,26 +4,13 @@ import { usePrompt, type ContentPart, type ImageAttachmentPart } from "@/context
 import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
+import { normalizePaste, pasteMode } from "./paste"
 
 export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
 export const ACCEPTED_FILE_TYPES = [...ACCEPTED_IMAGE_TYPES, "application/pdf"]
-const LARGE_PASTE_CHARS = 8000
-const LARGE_PASTE_BREAKS = 120
-
-function largePaste(text: string) {
-  if (text.length >= LARGE_PASTE_CHARS) return true
-  let breaks = 0
-  for (const char of text) {
-    if (char !== "\n") continue
-    breaks += 1
-    if (breaks >= LARGE_PASTE_BREAKS) return true
-  }
-  return false
-}
 
 type PromptAttachmentsInput = {
   editor: () => HTMLDivElement | undefined
-  isFocused: () => boolean
   isDialogActive: () => boolean
   setDraggingType: (type: "image" | "@mention" | null) => void
   focusEditor: () => void
@@ -63,7 +50,6 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   }
 
   const handlePaste = async (event: ClipboardEvent) => {
-    if (!input.isFocused()) return
     const clipboardData = event.clipboardData
     if (!clipboardData) return
 
@@ -103,16 +89,23 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
     if (!plainText) return
 
-    if (largePaste(plainText)) {
-      if (input.addPart({ type: "text", content: plainText, start: 0, end: 0 })) return
+    const text = normalizePaste(plainText)
+
+    const put = () => {
+      if (input.addPart({ type: "text", content: text, start: 0, end: 0 })) return true
       input.focusEditor()
-      if (input.addPart({ type: "text", content: plainText, start: 0, end: 0 })) return
+      return input.addPart({ type: "text", content: text, start: 0, end: 0 })
     }
 
-    const inserted = typeof document.execCommand === "function" && document.execCommand("insertText", false, plainText)
+    if (pasteMode(text) === "manual") {
+      put()
+      return
+    }
+
+    const inserted = typeof document.execCommand === "function" && document.execCommand("insertText", false, text)
     if (inserted) return
 
-    input.addPart({ type: "text", content: plainText, start: 0, end: 0 })
+    put()
   }
 
   const handleGlobalDragOver = (event: DragEvent) => {
