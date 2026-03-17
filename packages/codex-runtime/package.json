@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@symbolic-ai/codex-runtime",
+  "version": "1.2.24",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "test": "bun test --timeout 30000"
+  },
+  "dependencies": {
+    "@symbolic-ai/plugin": "workspace:*",
+    "vscode-jsonrpc": "8.2.1"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "catalog:",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
+    "@typescript/native-preview": "catalog:",
+    "typescript": "catalog:"
+  }
+}

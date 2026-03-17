@@ -1,0 +1,18 @@
+{
+  "$schema": "https://symbolic.computer/config.json",
+  "provider": {
+    "symbolic": {
+      "options": {},
+    },
+  },
+  "permission": {
+    "edit": {
+      "packages/symbolic/migration/*": "deny",
+    },
+  },
+  "mcp": {},
+  "tools": {
+    "github-triage": false,
+    "github-pr-search": false,
+  },
+}

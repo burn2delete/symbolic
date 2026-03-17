@@ -2,10 +2,10 @@ export * from "./gen/types.gen.js"
 
 import { createClient } from "./gen/client/client.gen.js"
 import { type Config } from "./gen/client/types.gen.js"
-import { OpencodeClient } from "./gen/sdk.gen.js"
-export { type Config as OpencodeClientConfig, OpencodeClient }
+import { SymbolicClient } from "./gen/sdk.gen.js"
+export { type Config as SymbolicClientConfig, SymbolicClient }
 
-export function createOpencodeClient(config?: Config & { directory?: string; experimental_workspaceID?: string }) {
+export function createSymbolicClient(config?: Config & { directory?: string; experimental_workspaceID?: string }) {
   if (!config?.fetch) {
     const customFetch: any = (req: any) => {
       // @ts-ignore
@@ -23,17 +23,17 @@ export function createOpencodeClient(config?: Config & { directory?: string; exp
     const encodedDirectory = isNonASCII ? encodeURIComponent(config.directory) : config.directory
     config.headers = {
       ...config.headers,
-      "x-opencode-directory": encodedDirectory,
+      "x-symbolic-directory": encodedDirectory,
     }
   }
 
   if (config?.experimental_workspaceID) {
     config.headers = {
       ...config.headers,
-      "x-opencode-workspace": config.experimental_workspaceID,
+      "x-symbolic-workspace": config.experimental_workspaceID,
     }
   }
 
   const client = createClient(config)
-  return new OpencodeClient({ client })
+  return new SymbolicClient({ client })
 }

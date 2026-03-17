@@ -29,7 +29,7 @@ test("smoke settings dialog opens, switches tabs, closes", async ({ page, gotoSe
 
 test("changing language updates settings labels", async ({ page, gotoSession }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("opencode.global.dat:language", JSON.stringify({ locale: "en" }))
+    localStorage.setItem("symbolic.global.dat:language", JSON.stringify({ locale: "en" }))
   })
 
   await gotoSession()
@@ -104,7 +104,7 @@ test("changing theme persists in localStorage", async ({ page, gotoSession }) =>
   await page.keyboard.press("Escape")
 
   const storedThemeId = await page.evaluate(() => {
-    return localStorage.getItem("opencode-theme-id")
+    return localStorage.getItem("symbolic-theme-id")
   })
 
   expect(storedThemeId).not.toBeNull()
@@ -118,9 +118,9 @@ test("changing theme persists in localStorage", async ({ page, gotoSession }) =>
 
 test("legacy oc-1 theme migrates to oc-2", async ({ page, gotoSession }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("opencode-theme-id", "oc-1")
-    localStorage.setItem("opencode-theme-css-light", "--background-base:#fff;")
-    localStorage.setItem("opencode-theme-css-dark", "--background-base:#000;")
+    localStorage.setItem("symbolic-theme-id", "oc-1")
+    localStorage.setItem("symbolic-theme-css-light", "--background-base:#fff;")
+    localStorage.setItem("symbolic-theme-css-dark", "--background-base:#000;")
   })
 
   await gotoSession()
@@ -130,7 +130,7 @@ test("legacy oc-1 theme migrates to oc-2", async ({ page, gotoSession }) => {
   await expect
     .poll(async () => {
       return await page.evaluate(() => {
-        return localStorage.getItem("opencode-theme-id")
+        return localStorage.getItem("symbolic-theme-id")
       })
     })
     .toBe("oc-2")
@@ -138,7 +138,7 @@ test("legacy oc-1 theme migrates to oc-2", async ({ page, gotoSession }) => {
   await expect
     .poll(async () => {
       return await page.evaluate(() => {
-        return localStorage.getItem("opencode-theme-css-light")
+        return localStorage.getItem("symbolic-theme-css-light")
       })
     })
     .toBeNull()
@@ -146,7 +146,7 @@ test("legacy oc-1 theme migrates to oc-2", async ({ page, gotoSession }) => {
   await expect
     .poll(async () => {
       return await page.evaluate(() => {
-        return localStorage.getItem("opencode-theme-css-dark")
+        return localStorage.getItem("symbolic-theme-css-dark")
       })
     })
     .toBeNull()

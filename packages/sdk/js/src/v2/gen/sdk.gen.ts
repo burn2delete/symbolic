@@ -218,7 +218,7 @@ class HeyApiRegistry<T> {
   get(key?: string): T {
     const instance = this.instances.get(key ?? this.defaultKey)
     if (!instance) {
-      throw new Error(`No SDK client found. Create one with "new OpencodeClient()" to fix this error.`)
+      throw new Error(`No SDK client found. Create one with "new SymbolicClient()" to fix this error.`)
     }
     return instance
   }
@@ -232,7 +232,7 @@ export class Config extends HeyApiClient {
   /**
    * Get global configuration
    *
-   * Retrieve the current global OpenCode configuration settings and preferences.
+   * Retrieve the current global Symbolic configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<GlobalConfigGetResponses, unknown, ThrowOnError>({
@@ -244,7 +244,7 @@ export class Config extends HeyApiClient {
   /**
    * Update global configuration
    *
-   * Update global OpenCode configuration settings and preferences.
+   * Update global Symbolic configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -270,7 +270,7 @@ export class Global extends HeyApiClient {
   /**
    * Get health
    *
-   * Get health information about the OpenCode server.
+   * Get health information about the Symbolic server.
    */
   public health<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<GlobalHealthResponses, unknown, ThrowOnError>({
@@ -282,7 +282,7 @@ export class Global extends HeyApiClient {
   /**
    * Get global events
    *
-   * Subscribe to global events from the OpenCode system using server-sent events.
+   * Subscribe to global events from the Symbolic system using server-sent events.
    */
   public event<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).sse.get<GlobalEventResponses, unknown, ThrowOnError>({
@@ -294,7 +294,7 @@ export class Global extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose all OpenCode instances, releasing all resources.
+   * Clean up and dispose all Symbolic instances, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<GlobalDisposeResponses, unknown, ThrowOnError>({
@@ -369,7 +369,7 @@ export class Project extends HeyApiClient {
   /**
    * List all projects
    *
-   * Get a list of projects that have been opened with OpenCode.
+   * Get a list of projects that have been opened with Symbolic.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -399,7 +399,7 @@ export class Project extends HeyApiClient {
   /**
    * Get current project
    *
-   * Retrieve the currently active project that OpenCode is working with.
+   * Retrieve the currently active project that Symbolic is working with.
    */
   public current<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -513,7 +513,7 @@ export class Pty extends HeyApiClient {
   /**
    * List PTY sessions
    *
-   * Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.
+   * Get a list of all active pseudo-terminal (PTY) sessions managed by Symbolic.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -732,7 +732,7 @@ export class Config2 extends HeyApiClient {
   /**
    * Get configuration
    *
-   * Retrieve the current OpenCode configuration settings and preferences.
+   * Retrieve the current Symbolic configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -762,7 +762,7 @@ export class Config2 extends HeyApiClient {
   /**
    * Update configuration
    *
-   * Update OpenCode configuration settings and preferences.
+   * Update Symbolic configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1012,7 +1012,7 @@ export class Session extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
+   * Get a list of all Symbolic sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1248,7 +1248,7 @@ export class Session2 extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all OpenCode sessions, sorted by most recently updated.
+   * Get a list of all Symbolic sessions, sorted by most recently updated.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1286,7 +1286,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a new OpenCode session for interacting with AI assistants and managing conversations.
+   * Create a new Symbolic session for interacting with AI assistants and managing conversations.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1391,7 +1391,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Get session
    *
-   * Retrieve detailed information about a specific OpenCode session.
+   * Retrieve detailed information about a specific Symbolic session.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3565,7 +3565,7 @@ export class Instance extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose the current OpenCode instance, releasing all resources.
+   * Clean up and dispose the current Symbolic instance, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3597,7 +3597,7 @@ export class Path extends HeyApiClient {
   /**
    * Get paths
    *
-   * Retrieve the current working directory and related path information for the OpenCode instance.
+   * Retrieve the current working directory and related path information for the Symbolic instance.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3661,7 +3661,7 @@ export class Command extends HeyApiClient {
   /**
    * List commands
    *
-   * Get a list of all available commands in the OpenCode system.
+   * Get a list of all available commands in the Symbolic system.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3738,7 +3738,7 @@ export class App extends HeyApiClient {
   /**
    * List agents
    *
-   * Get a list of all available AI agents in the OpenCode system.
+   * Get a list of all available AI agents in the Symbolic system.
    */
   public agents<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3768,7 +3768,7 @@ export class App extends HeyApiClient {
   /**
    * List skills
    *
-   * Get a list of all available skills in the OpenCode system.
+   * Get a list of all available skills in the Symbolic system.
    */
   public skills<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3892,12 +3892,12 @@ export class Event extends HeyApiClient {
   }
 }
 
-export class OpencodeClient extends HeyApiClient {
-  public static readonly __registry = new HeyApiRegistry<OpencodeClient>()
+export class SymbolicClient extends HeyApiClient {
+  public static readonly __registry = new HeyApiRegistry<SymbolicClient>()
 
   constructor(args?: { client?: Client; key?: string }) {
     super(args)
-    OpencodeClient.__registry.set(this, args?.key)
+    SymbolicClient.__registry.set(this, args?.key)
   }
 
   private _global?: Global

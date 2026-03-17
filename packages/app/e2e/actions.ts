@@ -40,7 +40,7 @@ async function terminalReady(page: Page, term?: Locator) {
   const next = term ?? page.locator(terminalSelector).first()
   const id = await terminalID(next)
   return page.evaluate((id) => {
-    const state = (window as E2EWindow).__opencode_e2e?.terminal?.terminals?.[id]
+    const state = (window as E2EWindow).__symbolic_e2e?.terminal?.terminals?.[id]
     return !!state?.connected && (state.settled ?? 0) > 0
   }, id)
 }
@@ -50,7 +50,7 @@ async function terminalHas(page: Page, input: { term?: Locator; token: string })
   const id = await terminalID(next)
   return page.evaluate(
     (input) => {
-      const state = (window as E2EWindow).__opencode_e2e?.terminal?.terminals?.[input.id]
+      const state = (window as E2EWindow).__symbolic_e2e?.terminal?.terminals?.[input.id]
       return state?.rendered.includes(input.token) ?? false
     },
     { id, token: input.token },
@@ -174,7 +174,7 @@ export async function openSettings(page: Page) {
 export async function seedProjects(page: Page, input: { directory: string; extra?: string[] }) {
   await page.addInitScript(
     (args: { directory: string; serverUrl: string; extra: string[] }) => {
-      const key = "opencode.global.dat:server"
+      const key = "symbolic.global.dat:server"
       const raw = localStorage.getItem(key)
       const parsed = (() => {
         if (!raw) return undefined
@@ -226,7 +226,7 @@ export async function seedProjects(page: Page, input: { directory: string; extra
 }
 
 export async function createTestProject() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-e2e-project-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "symbolic-e2e-project-"))
 
   await fs.writeFile(path.join(root, "README.md"), "# e2e\n")
 

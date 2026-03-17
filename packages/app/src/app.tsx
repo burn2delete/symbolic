@@ -1,12 +1,12 @@
 import "@/index.css"
-import { I18nProvider } from "@opencode-ai/ui/context"
-import { DialogProvider } from "@opencode-ai/ui/context/dialog"
-import { FileComponentProvider } from "@opencode-ai/ui/context/file"
-import { MarkedProvider } from "@opencode-ai/ui/context/marked"
-import { File } from "@opencode-ai/ui/file"
-import { Font } from "@opencode-ai/ui/font"
-import { Splash } from "@opencode-ai/ui/logo"
-import { ThemeProvider } from "@opencode-ai/ui/theme"
+import { I18nProvider } from "@symbolic-ai/ui/context"
+import { DialogProvider } from "@symbolic-ai/ui/context/dialog"
+import { FileComponentProvider } from "@symbolic-ai/ui/context/file"
+import { MarkedProvider } from "@symbolic-ai/ui/context/marked"
+import { File } from "@symbolic-ai/ui/file"
+import { Font } from "@symbolic-ai/ui/font"
+import { Splash } from "@symbolic-ai/ui/logo"
+import { ThemeProvider } from "@symbolic-ai/ui/theme"
 import { MetaProvider } from "@solidjs/meta"
 import { type BaseRouterProps, Navigate, Route, Router } from "@solidjs/router"
 import { type Duration, Effect } from "effect"
@@ -72,7 +72,7 @@ function UiI18nBridge(props: ParentProps) {
 
 declare global {
   interface Window {
-    __OPENCODE__?: {
+    __SYMBOLIC__?: {
       updaterEnabled?: boolean
       deepLinks?: string[]
       wsl?: boolean

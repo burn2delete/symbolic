@@ -1,6 +1,6 @@
-# @opencode-ai/slack
+# @symbolic-ai/slack
 
-Slack bot integration for opencode that creates threaded conversations.
+Slack bot integration for symbolic that creates threaded conversations.
 
 ## Setup
 
@@ -24,4 +24,4 @@ Slack bot integration for opencode that creates threaded conversations.
 bun dev
 ```
 
-The bot will respond to messages in channels where it's added, creating separate opencode sessions for each thread.
+The bot will respond to messages in channels where it's added, creating separate symbolic sessions for each thread.

@@ -1,6 +1,6 @@
-# OpenCode Desktop
+# Symbolic Desktop
 
-Native OpenCode desktop app, built with Tauri v2.
+Native Symbolic desktop app, built with Tauri v2.
 
 ## Development
 

@@ -1,6 +1,6 @@
 import type {
   Event,
-  createOpencodeClient,
+  createSymbolicClient,
   Project,
   Model,
   Provider,
@@ -8,9 +8,19 @@ import type {
   UserMessage,
   Message,
   Part,
+  Session,
+  AssistantMessage,
   Auth,
   Config,
-} from "@opencode-ai/sdk"
+} from "@symbolic-ai/sdk"
+import type {
+  OutputFormat,
+  UserMessage as UserMessageV2,
+  Message as MessageV2,
+  Part as PartV2,
+  Session as SessionV2,
+  AssistantMessage as AssistantMessageV2,
+} from "@symbolic-ai/sdk/v2"
 
 import type { BunShell } from "./shell.js"
 import { type ToolDefinition } from "./tool.js"
@@ -24,7 +34,7 @@ export type ProviderContext = {
 }
 
 export type PluginInput = {
-  client: ReturnType<typeof createOpencodeClient>
+  client: ReturnType<typeof createSymbolicClient>
   project: Project
   directory: string
   worktree: string
@@ -33,6 +43,175 @@ export type PluginInput = {
 }
 
 export type Plugin = (input: PluginInput) => Promise<Hooks>
+
+export type RuntimeRule = {
+  permission: string
+  pattern: string
+  action: "allow" | "deny" | "ask"
+}
+
+export type RuntimeQuestion = {
+  header: string
+  question: string
+  options: Array<{
+    label: string
+    description: string
+  }>
+  multiple?: boolean
+  custom?: boolean
+}
+
+export type RuntimeUsage = {
+  totalTokens: number
+  inputTokens: number
+  outputTokens: number
+  reasoningTokens: number
+  cachedInputTokens: number
+}
+
+export type RuntimeFile = Extract<PartV2, { type: "file" }>
+
+export type RuntimeOutput = {
+  title: string
+  output: string
+  metadata: Record<string, unknown>
+  attachments?: RuntimeFile[]
+}
+
+export type RuntimeEvent =
+  | {
+      type: "start"
+    }
+  | {
+      type: "start-step"
+    }
+  | {
+      type: "finish-step"
+      finishReason: string
+      usage: RuntimeUsage
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "finish"
+    }
+  | {
+      type: "text-start"
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "text-delta"
+      text: string
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "text-end"
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "reasoning-start"
+      id: string
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "reasoning-delta"
+      id: string
+      text: string
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "reasoning-end"
+      id: string
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "tool-input-start"
+      id: string
+      toolName: string
+    }
+  | {
+      type: "tool-input-delta"
+      id: string
+      delta: string
+    }
+  | {
+      type: "tool-input-end"
+      id: string
+    }
+  | {
+      type: "tool-call"
+      toolCallId: string
+      toolName: string
+      input: Record<string, unknown>
+      providerMetadata?: Record<string, unknown>
+    }
+  | {
+      type: "tool-result"
+      toolCallId: string
+      input?: Record<string, unknown>
+      output: RuntimeOutput
+    }
+  | {
+      type: "tool-error"
+      toolCallId: string
+      input?: Record<string, unknown>
+      error: unknown
+    }
+  | {
+      type: "error"
+      error: unknown
+    }
+
+export type RuntimeAgent = {
+  name: string
+  mode: "subagent" | "primary" | "all"
+  description?: string
+  native?: boolean
+  hidden?: boolean
+  topP?: number
+  temperature?: number
+  color?: string
+  variant?: string
+  prompt?: string
+  steps?: number
+  options: Record<string, unknown>
+}
+
+export type RuntimeInput = {
+  sessionID: string
+  directory: string
+  worktree: string
+  abort: AbortSignal
+  session: SessionV2
+  user: UserMessageV2 & {
+    parts: PartV2[]
+  }
+  assistant: AssistantMessageV2
+  agent: RuntimeAgent
+  model: Model
+  messages: {
+    info: MessageV2
+    parts: PartV2[]
+  }[]
+  system: string[]
+  format?: OutputFormat
+  permission: RuntimeRule[]
+  ask(input: {
+    permission: string
+    patterns: string[]
+    metadata: Record<string, unknown>
+    always?: string[]
+    callID?: string
+  }): Promise<void>
+  question(input: {
+    questions: RuntimeQuestion[]
+    callID?: string
+  }): Promise<string[][]>
+}
+
+export type ChatRuntime = {
+  name: string
+  run(input: RuntimeInput): AsyncIterable<RuntimeEvent> | Promise<AsyncIterable<RuntimeEvent>>
+}
 
 export type AuthHook = {
   provider: string
@@ -93,6 +272,7 @@ export type AuthHook = {
               type: "success"
               key: string
               provider?: string
+              enterpriseUrl?: string
             }
           | {
               type: "failed"
@@ -109,6 +289,7 @@ export type AuthOuathResult = { url: string; instructions: string } & (
         | ({
             type: "success"
             provider?: string
+            enterpriseUrl?: string
           } & (
             | {
                 refresh: string
@@ -129,6 +310,7 @@ export type AuthOuathResult = { url: string; instructions: string } & (
         | ({
             type: "success"
             provider?: string
+            enterpriseUrl?: string
           } & (
             | {
                 refresh: string
@@ -210,6 +392,12 @@ export interface Hooks {
     input: { sessionID?: string; model: Model },
     output: {
       system: string[]
+    },
+  ) => Promise<void>
+  "experimental.chat.runtime"?: (
+    input: RuntimeInput,
+    output: {
+      runtime?: ChatRuntime
     },
   ) => Promise<void>
   /**

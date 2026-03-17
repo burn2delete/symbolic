@@ -1,5 +1,5 @@
-import { type HexColor, resolveThemeVariant, useTheme, withAlpha } from "@opencode-ai/ui/theme"
-import { showToast } from "@opencode-ai/ui/toast"
+import { type HexColor, resolveThemeVariant, useTheme, withAlpha } from "@symbolic-ai/ui/theme"
+import { showToast } from "@symbolic-ai/ui/toast"
 import type { FitAddon, Ghostty, Terminal as Term } from "ghostty-web"
 import { type ComponentProps, createEffect, createMemo, onCleanup, onMount, splitProps } from "solid-js"
 import { SerializeAddon } from "@/addons/serialize"
@@ -459,7 +459,7 @@ export const Terminal = (props: TerminalProps) => {
       url.searchParams.set("directory", sdk.directory)
       url.searchParams.set("cursor", String(start !== undefined ? start : restore ? -1 : 0))
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
-      url.username = server.current?.http.username ?? "opencode"
+      url.username = server.current?.http.username ?? "symbolic"
       url.password = server.current?.http.password ?? ""
 
       const socket = new WebSocket(url)

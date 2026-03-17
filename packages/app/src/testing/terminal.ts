@@ -7,7 +7,7 @@ export type TerminalProbeState = {
 }
 
 export type E2EWindow = Window & {
-  __opencode_e2e?: {
+  __symbolic_e2e?: {
     terminal?: {
       enabled?: boolean
       terminals?: Record<string, TerminalProbeState>
@@ -23,7 +23,7 @@ const seed = (): TerminalProbeState => ({
 
 const root = () => {
   if (typeof window === "undefined") return
-  const state = (window as E2EWindow).__opencode_e2e?.terminal
+  const state = (window as E2EWindow).__symbolic_e2e?.terminal
   if (!state?.enabled) return
   state.terminals ??= {}
   return state.terminals

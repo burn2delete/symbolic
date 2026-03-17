@@ -1,5 +1,5 @@
-import { createOpencodeClient } from "@opencode-ai/sdk/v2/client"
-import { base64Encode, checksum } from "@opencode-ai/util/encode"
+import { createSymbolicClient } from "@symbolic-ai/sdk/v2/client"
+import { base64Encode, checksum } from "@symbolic-ai/util/encode"
 
 export const serverHost = process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"
 export const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
@@ -27,7 +27,7 @@ export const modKey = process.platform === "darwin" ? "Meta" : "Control"
 export const terminalToggleKey = "Control+Backquote"
 
 export function createSdk(directory?: string) {
-  return createOpencodeClient({ baseUrl: serverUrl, directory, throwOnError: true })
+  return createSymbolicClient({ baseUrl: serverUrl, directory, throwOnError: true })
 }
 
 export async function resolveDirectory(directory: string) {
@@ -59,5 +59,5 @@ export function sessionPath(directory: string, sessionID?: string) {
 export function workspacePersistKey(directory: string, key: string) {
   const head = (directory.slice(0, 12) || "workspace").replace(/[^a-zA-Z0-9._-]/g, "-")
   const sum = checksum(directory) ?? "0"
-  return `opencode.workspace.${head}.${sum}.dat:workspace:${key}`
+  return `symbolic.workspace.${head}.${sum}.dat:workspace:${key}`
 }

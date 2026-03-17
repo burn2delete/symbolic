@@ -1,0 +1,32 @@
+name: symbolic
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  symbolic:
+    if: |
+      contains(github.event.comment.body, ' /symbolic') ||
+      startsWith(github.event.comment.body, '/symbolic')
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Run symbolic
+        uses: SymbolicOS/symbolic/github@latest
+        env:
+          SYMBOLIC_API_KEY: ${{ secrets.SYMBOLIC_API_KEY }}
+          SYMBOLIC_PERMISSION: '{"bash": "deny"}'
+        with:
+          model: symbolic/claude-opus-4-5

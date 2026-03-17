@@ -1,19 +1,18 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "opencode",
+  "name": "symbolic",
   "description": "AI-powered development tool",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.10",
   "scripts": {
-    "dev": "bun run --cwd packages/opencode --conditions=browser src/index.ts",
+    "dev": "bun run --cwd packages/symbolic --conditions=browser src/index.ts",
     "dev:desktop": "bun --cwd packages/desktop tauri dev",
     "dev:web": "bun --cwd packages/app dev",
     "dev:storybook": "bun --cwd packages/storybook storybook",
+    "local-install": "bun run --cwd packages/symbolic local-install",
     "typecheck": "bun turbo typecheck",
     "prepare": "husky",
-    "random": "echo 'Random script'",
-    "hello": "echo 'Hello World!'",
     "test": "echo 'do not run tests from root' && exit 1"
   },
   "workspaces": {
@@ -82,14 +81,14 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
-    "@opencode-ai/plugin": "workspace:*",
-    "@opencode-ai/script": "workspace:*",
-    "@opencode-ai/sdk": "workspace:*",
+    "@symbolic-ai/plugin": "workspace:*",
+    "@symbolic-ai/script": "workspace:*",
+    "@symbolic-ai/sdk": "workspace:*",
     "typescript": "catalog:"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/anomalyco/opencode"
+    "url": "https://github.com/SymbolicOS/symbolic"
   },
   "license": "MIT",
   "prettier": {

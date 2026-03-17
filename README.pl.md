@@ -1,17 +1,17 @@
 <p align="center">
-  <a href="https://opencode.ai">
+  <a href="https://symbolic.computer">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Symbolic logo">
     </picture>
   </a>
 </p>
 <p align="center">Otwartoźródłowy agent kodujący AI.</p>
 <p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://symbolic.computer/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://www.npmjs.com/package/symbolic-ai"><img alt="npm" src="https://img.shields.io/npm/v/symbolic-ai?style=flat-square" /></a>
+  <a href="https://github.com/SymbolicOS/symbolic/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/SymbolicOS/symbolic/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+[![Symbolic Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://symbolic.computer)
 
 ---
 
@@ -47,18 +47,18 @@
 
 ```bash
 # YOLO
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://symbolic.computer/install | bash
 
 # Menedżery pakietów
-npm i -g opencode-ai@latest        # albo bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS i Linux (polecane, zawsze aktualne)
-brew install opencode              # macOS i Linux (oficjalna formuła brew, rzadziej aktualizowana)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # dowolny system
-nix run nixpkgs#opencode           # lub github:anomalyco/opencode dla najnowszej gałęzi dev
+npm i -g symbolic-ai@latest        # albo bun/pnpm/yarn
+scoop install symbolic             # Windows
+choco install symbolic             # Windows
+brew install anomalyco/tap/symbolic # macOS i Linux (polecane, zawsze aktualne)
+brew install symbolic              # macOS i Linux (oficjalna formuła brew, rzadziej aktualizowana)
+sudo pacman -S symbolic            # Arch Linux (Stable)
+paru -S symbolic-bin               # Arch Linux (Latest from AUR)
+mise use -g symbolic               # dowolny system
+nix run nixpkgs#symbolic           # lub github:SymbolicOS/symbolic dla najnowszej gałęzi dev
 ```
 
 > [!TIP]
@@ -66,40 +66,40 @@ nix run nixpkgs#opencode           # lub github:anomalyco/opencode dla najnowsze
 
 ### Aplikacja desktopowa (BETA)
 
-OpenCode jest także dostępny jako aplikacja desktopowa. Pobierz ją bezpośrednio ze strony [releases](https://github.com/anomalyco/opencode/releases) lub z [opencode.ai/download](https://opencode.ai/download).
+Symbolic jest także dostępny jako aplikacja desktopowa. Pobierz ją bezpośrednio ze strony [releases](https://github.com/SymbolicOS/symbolic/releases) lub z [symbolic.computer/download](https://symbolic.computer/download).
 
 | Platforma             | Pobieranie                            |
 | --------------------- | ------------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-darwin-aarch64.dmg` |
-| macOS (Intel)         | `opencode-desktop-darwin-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe`    |
+| macOS (Apple Silicon) | `symbolic-desktop-darwin-aarch64.dmg` |
+| macOS (Intel)         | `symbolic-desktop-darwin-x64.dmg`     |
+| Windows               | `symbolic-desktop-windows-x64.exe`    |
 | Linux                 | `.deb`, `.rpm` lub AppImage           |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask opencode-desktop
+brew install --cask symbolic-desktop
 # Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
+scoop bucket add extras; scoop install extras/symbolic-desktop
 ```
 
 #### Katalog instalacji
 
 Skrypt instalacyjny stosuje następujący priorytet wyboru ścieżki instalacji:
 
-1. `$OPENCODE_INSTALL_DIR` - Własny katalog instalacji
+1. `$SYMBOLIC_INSTALL_DIR` - Własny katalog instalacji
 2. `$XDG_BIN_DIR` - Ścieżka zgodna ze specyfikacją XDG Base Directory
 3. `$HOME/bin` - Standardowy katalog binarny użytkownika (jeśli istnieje lub można go utworzyć)
-4. `$HOME/.opencode/bin` - Domyślny fallback
+4. `$HOME/.symbolic/bin` - Domyślny fallback
 
 ```bash
 # Przykłady
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+SYMBOLIC_INSTALL_DIR=/usr/local/bin curl -fsSL https://symbolic.computer/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://symbolic.computer/install | bash
 ```
 
 ### Agents
 
-OpenCode zawiera dwóch wbudowanych agentów, między którymi możesz przełączać się klawiszem `Tab`.
+Symbolic zawiera dwóch wbudowanych agentów, między którymi możesz przełączać się klawiszem `Tab`.
 
 - **build** - Domyślny agent z pełnym dostępem do pracy developerskiej
 - **plan** - Agent tylko do odczytu do analizy i eksploracji kodu
@@ -110,19 +110,19 @@ OpenCode zawiera dwóch wbudowanych agentów, między którymi możesz przełąc
 Dodatkowo jest subagent **general** do złożonych wyszukiwań i wieloetapowych zadań.
 Jest używany wewnętrznie i można go wywołać w wiadomościach przez `@general`.
 
-Dowiedz się więcej o [agents](https://opencode.ai/docs/agents).
+Dowiedz się więcej o [agents](https://symbolic.computer/docs/agents).
 
 ### Dokumentacja
 
-Więcej informacji o konfiguracji OpenCode znajdziesz w [**dokumentacji**](https://opencode.ai/docs).
+Więcej informacji o konfiguracji Symbolic znajdziesz w [**dokumentacji**](https://symbolic.computer/docs).
 
 ### Współtworzenie
 
-Jeśli chcesz współtworzyć OpenCode, przeczytaj [contributing docs](./CONTRIBUTING.md) przed wysłaniem pull requesta.
+Jeśli chcesz współtworzyć Symbolic, przeczytaj [contributing docs](./CONTRIBUTING.md) przed wysłaniem pull requesta.
 
-### Budowanie na OpenCode
+### Budowanie na Symbolic
 
-Jeśli pracujesz nad projektem związanym z OpenCode i używasz "opencode" jako części nazwy (na przykład "opencode-dashboard" lub "opencode-mobile"), dodaj proszę notatkę do swojego README, aby wyjaśnić, że projekt nie jest tworzony przez zespół OpenCode i nie jest z nami w żaden sposób powiązany.
+Jeśli pracujesz nad projektem związanym z Symbolic i używasz "symbolic" jako części nazwy (na przykład "symbolic-dashboard" lub "symbolic-mobile"), dodaj proszę notatkę do swojego README, aby wyjaśnić, że projekt nie jest tworzony przez zespół Symbolic i nie jest z nami w żaden sposób powiązany.
 
 ### FAQ
 
@@ -131,11 +131,11 @@ Jeśli pracujesz nad projektem związanym z OpenCode i używasz "opencode" jako 
 Jest bardzo podobne do Claude Code pod względem możliwości. Oto kluczowe różnice:
 
 - 100% open source
-- Niezależne od dostawcy. Chociaż polecamy modele oferowane przez [OpenCode Zen](https://opencode.ai/zen); OpenCode może być używany z Claude, OpenAI, Google, a nawet z modelami lokalnymi. W miarę jak modele ewoluują, różnice będą się zmniejszać, a ceny spadać, więc ważna jest niezależność od dostawcy.
+- Niezależne od dostawcy. Chociaż polecamy modele oferowane przez [Symbolic Zen](https://symbolic.computer/zen); Symbolic może być używany z Claude, OpenAI, Google, a nawet z modelami lokalnymi. W miarę jak modele ewoluują, różnice będą się zmniejszać, a ceny spadać, więc ważna jest niezależność od dostawcy.
 - Wbudowane wsparcie LSP
-- Skupienie na TUI. OpenCode jest budowany przez użytkowników neovim i twórców [terminal.shop](https://terminal.shop); przesuwamy granice tego, co jest możliwe w terminalu.
-- Architektura klient/serwer. Pozwala np. uruchomić OpenCode na twoim komputerze, a sterować nim zdalnie z aplikacji mobilnej. To znaczy, że frontend TUI jest tylko jednym z możliwych klientów.
+- Skupienie na TUI. Symbolic jest budowany przez użytkowników neovim i twórców [terminal.shop](https://terminal.shop); przesuwamy granice tego, co jest możliwe w terminalu.
+- Architektura klient/serwer. Pozwala np. uruchomić Symbolic na twoim komputerze, a sterować nim zdalnie z aplikacji mobilnej. To znaczy, że frontend TUI jest tylko jednym z możliwych klientów.
 
 ---
 
-**Dołącz do naszej społeczności** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+**Dołącz do naszej społeczności** [Discord](https://discord.gg/symbolic) | [X.com](https://x.com/symbolic)

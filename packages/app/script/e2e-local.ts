@@ -44,7 +44,7 @@ async function waitForHealth(url: string) {
 
 const appDir = process.cwd()
 const repoDir = path.resolve(appDir, "../..")
-const opencodeDir = path.join(repoDir, "packages", "opencode")
+const symbolicDir = path.join(repoDir, "packages", "symbolic")
 
 const extraArgs = (() => {
   const args = process.argv.slice(2)
@@ -54,33 +54,33 @@ const extraArgs = (() => {
 
 const [serverPort, webPort] = await Promise.all([freePort(), freePort()])
 
-const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-e2e-"))
-const keepSandbox = process.env.OPENCODE_E2E_KEEP_SANDBOX === "1"
+const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), "symbolic-e2e-"))
+const keepSandbox = process.env.SYMBOLIC_E2E_KEEP_SANDBOX === "1"
 
 const serverEnv = {
   ...process.env,
-  OPENCODE_DISABLE_SHARE: process.env.OPENCODE_DISABLE_SHARE ?? "true",
-  OPENCODE_DISABLE_LSP_DOWNLOAD: "true",
-  OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true",
-  OPENCODE_TEST_HOME: path.join(sandbox, "home"),
+  SYMBOLIC_DISABLE_SHARE: process.env.SYMBOLIC_DISABLE_SHARE ?? "true",
+  SYMBOLIC_DISABLE_LSP_DOWNLOAD: "true",
+  SYMBOLIC_DISABLE_DEFAULT_PLUGINS: "true",
+  SYMBOLIC_EXPERIMENTAL_DISABLE_FILEWATCHER: "true",
+  SYMBOLIC_TEST_HOME: path.join(sandbox, "home"),
   XDG_DATA_HOME: path.join(sandbox, "share"),
   XDG_CACHE_HOME: path.join(sandbox, "cache"),
   XDG_CONFIG_HOME: path.join(sandbox, "config"),
   XDG_STATE_HOME: path.join(sandbox, "state"),
-  OPENCODE_E2E_PROJECT_DIR: repoDir,
-  OPENCODE_E2E_SESSION_TITLE: "E2E Session",
-  OPENCODE_E2E_MESSAGE: "Seeded for UI e2e",
-  OPENCODE_E2E_MODEL: "opencode/gpt-5-nano",
-  OPENCODE_CLIENT: "app",
+  SYMBOLIC_E2E_PROJECT_DIR: repoDir,
+  SYMBOLIC_E2E_SESSION_TITLE: "E2E Session",
+  SYMBOLIC_E2E_MESSAGE: "Seeded for UI e2e",
+  SYMBOLIC_E2E_MODEL: "symbolic/gpt-5-nano",
+  SYMBOLIC_CLIENT: "app",
 } satisfies Record<string, string>
 
 const runnerEnv = {
   ...serverEnv,
   PLAYWRIGHT_SERVER_HOST: "127.0.0.1",
   PLAYWRIGHT_SERVER_PORT: String(serverPort),
-  VITE_OPENCODE_SERVER_HOST: "127.0.0.1",
-  VITE_OPENCODE_SERVER_PORT: String(serverPort),
+  VITE_SYMBOLIC_SERVER_HOST: "127.0.0.1",
+  VITE_SYMBOLIC_SERVER_PORT: String(serverPort),
   PLAYWRIGHT_PORT: String(webPort),
 } satisfies Record<string, string>
 
@@ -132,7 +132,7 @@ let code = 1
 
 try {
   seed = Bun.spawn(["bun", "script/seed-e2e.ts"], {
-    cwd: opencodeDir,
+    cwd: symbolicDir,
     env: serverEnv,
     stdout: "inherit",
     stderr: "inherit",
@@ -144,21 +144,21 @@ try {
   } else {
     Object.assign(process.env, serverEnv)
     process.env.AGENT = "1"
-    process.env.OPENCODE = "1"
-    process.env.OPENCODE_PID = String(process.pid)
+    process.env.SYMBOLIC = "1"
+    process.env.SYMBOLIC_PID = String(process.pid)
 
-    const log = await import("../../opencode/src/util/log")
-    const install = await import("../../opencode/src/installation")
+    const log = await import("../../symbolic/src/util/log")
+    const install = await import("../../symbolic/src/installation")
     await log.Log.init({
       print: true,
       dev: install.Installation.isLocal(),
       level: "WARN",
     })
 
-    const servermod = await import("../../opencode/src/server/server")
-    inst = await import("../../opencode/src/project/instance")
+    const servermod = await import("../../symbolic/src/server/server")
+    inst = await import("../../symbolic/src/project/instance")
     server = servermod.Server.listen({ port: serverPort, hostname: "127.0.0.1" })
-    console.log(`opencode server listening on http://127.0.0.1:${serverPort}`)
+    console.log(`symbolic server listening on http://127.0.0.1:${serverPort}`)
 
     await waitForHealth(`http://127.0.0.1:${serverPort}/global/health`)
     runner = Bun.spawn(["bun", "test:e2e", ...extraArgs], {
