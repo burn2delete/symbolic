@@ -76,6 +76,7 @@ export async function handler(
   const ADMIN_WORKSPACES = [
     "wrk_01K46JDFR0E75SG2Q8K172KF3Y", // frank
     "wrk_01K6W1A3VE0KMNVSCQT43BG2SX", // symbolic bench
+    "wrk_01KKZDKDWCS1VTJF8QTX62DD50", // contributors
   ]
 
   try {
