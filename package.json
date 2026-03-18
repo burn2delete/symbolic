@@ -11,6 +11,7 @@
     "dev:terminal": "bun --cwd packages/terminal dev",
     "dev:web": "bun --cwd packages/web dev",
     "dev:app": "bun --cwd packages/app dev",
+    "dev:console": "ulimit -n 10240 2>/dev/null; bun run --cwd packages/console/app dev",
     "dev:storybook": "bun --cwd packages/storybook storybook",
     "local-install": "bun run --cwd packages/symbolic local-install",
     "typecheck": "bun turbo typecheck",
