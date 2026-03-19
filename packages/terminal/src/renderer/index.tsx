@@ -846,8 +846,14 @@ function App() {
 
   return (
     <>
+      {mac ? (
+        <div
+          aria-hidden="true"
+          className="app-drag pointer-events-auto absolute inset-x-0 top-0 h-11"
+        />
+      ) : null}
       <div
-        className="min-h-0 h-full w-full min-w-0 overflow-hidden rounded-2xl border border-[rgba(24,32,34,0.1)] bg-[var(--term-surface)] p-2.5 shadow-[0_24px_60px_rgba(104,83,56,0.14)] data-[empty=true]:opacity-[0.18] [&_.xterm]:h-full [&_.xterm]:w-full [&_.xterm]:min-w-0 [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport::-webkit-scrollbar-track]:bg-transparent"
+        className="app-no-drag min-h-0 h-full w-full min-w-0 overflow-hidden rounded-2xl border border-[rgba(24,32,34,0.1)] bg-[var(--term-surface)] p-2.5 shadow-[0_24px_60px_rgba(104,83,56,0.14)] data-[empty=true]:opacity-[0.18] [&_.xterm]:h-full [&_.xterm]:w-full [&_.xterm]:min-w-0 [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport::-webkit-scrollbar-track]:bg-transparent"
         data-empty={now ? "false" : "true"}
         data-host="terminal"
         ref={mount}
@@ -937,7 +943,7 @@ function App() {
       ) : null}
 
       {panel ? (
-        <aside className="absolute right-2.5 top-2.5 z-10 w-[min(380px,calc(100%-20px))] max-[720px]:inset-x-0 max-[720px]:bottom-0 max-[720px]:top-auto max-[720px]:w-full">
+        <aside className="app-no-drag absolute right-2.5 top-2.5 z-10 w-[min(380px,calc(100%-20px))] max-[720px]:inset-x-0 max-[720px]:bottom-0 max-[720px]:top-auto max-[720px]:w-full">
           <section className="grid gap-4 rounded-[18px] border border-[var(--field-line)] bg-[var(--panel-bg)] p-4 shadow-[0_24px_60px_rgba(14,18,24,0.18)] backdrop-blur-[24px] max-[720px]:rounded-b-none max-[720px]:rounded-t-2xl">
             <div className="flex items-start justify-between gap-2.5">
               <div>
