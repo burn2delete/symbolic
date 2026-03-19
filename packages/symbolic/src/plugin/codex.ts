@@ -1,4 +1,5 @@
 import type { Hooks, PluginInput } from "@symbolic-ai/plugin"
+import type { Provider } from "@/provider/provider"
 import { Log } from "../util/log"
 import { Installation } from "../installation"
 import { Auth, OAUTH_DUMMY_KEY } from "../auth"
@@ -14,6 +15,18 @@ const ISSUER = "https://auth.openai.com"
 const CODEX_API_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
 const OAUTH_PORT = 1455
 const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
+const defs = {
+  "gpt-5.3-codex": {
+    name: "GPT-5.3 Codex",
+    date: "2026-02-05",
+    family: "gpt-codex",
+  },
+  "gpt-5.4": {
+    name: "GPT-5.4",
+    date: "2026-03-05",
+    family: "gpt",
+  },
+} as const
 
 interface PkceCodes {
   verifier: string
@@ -350,6 +363,50 @@ function waitForOAuthCallback(pkce: PkceCodes, state: string): Promise<TokenResp
   })
 }
 
+type Patch = {
+  options?: Record<string, unknown>
+  headers?: Record<string, string>
+}
+
+function pinned(id: keyof typeof defs, model?: Patch): Provider.Model {
+  const def = defs[id]
+  const next: Provider.Model = {
+    id: ModelID.make(id),
+    providerID: ProviderID.openai,
+    api: {
+      id,
+      url: "https://chatgpt.com/backend-api/codex",
+      npm: "@ai-sdk/openai",
+    },
+    name: def.name,
+    capabilities: {
+      temperature: false,
+      reasoning: true,
+      attachment: true,
+      toolcall: true,
+      input: { text: true, audio: false, image: true, video: false, pdf: false },
+      output: { text: true, audio: false, image: false, video: false, pdf: false },
+      interleaved: false,
+    },
+    cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+    limit: { context: 400_000, input: 272_000, output: 128_000 },
+    status: "active",
+    options: model?.options ?? {},
+    headers: model?.headers ?? {},
+    release_date: def.date,
+    variants: {},
+    family: def.family,
+  }
+  next.variants = ProviderTransform.variants(next)
+  return next
+}
+
+export function patch(provider: { models: Record<string, Patch | undefined> }) {
+  Object.keys(defs).forEach((id) => {
+    provider.models[id] = pinned(id as keyof typeof defs, provider.models[id])
+  })
+}
+
 export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
   return {
     auth: {
@@ -374,37 +431,7 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
           delete provider.models[modelId]
         }
 
-        if (!provider.models["gpt-5.3-codex"]) {
-          const model = {
-            id: ModelID.make("gpt-5.3-codex"),
-            providerID: ProviderID.openai,
-            api: {
-              id: "gpt-5.3-codex",
-              url: "https://chatgpt.com/backend-api/codex",
-              npm: "@ai-sdk/openai",
-            },
-            name: "GPT-5.3 Codex",
-            capabilities: {
-              temperature: false,
-              reasoning: true,
-              attachment: true,
-              toolcall: true,
-              input: { text: true, audio: false, image: true, video: false, pdf: false },
-              output: { text: true, audio: false, image: false, video: false, pdf: false },
-              interleaved: false,
-            },
-            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-            limit: { context: 400_000, input: 272_000, output: 128_000 },
-            status: "active" as const,
-            options: {},
-            headers: {},
-            release_date: "2026-02-05",
-            variants: {} as Record<string, Record<string, any>>,
-            family: "gpt-codex",
-          }
-          model.variants = ProviderTransform.variants(model)
-          provider.models["gpt-5.3-codex"] = model
-        }
+        patch(provider)
 
         // Zero out costs for Codex (included with ChatGPT subscription)
         for (const model of Object.values(provider.models)) {

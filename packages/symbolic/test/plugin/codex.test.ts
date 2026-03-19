@@ -3,8 +3,11 @@ import {
   parseJwtClaims,
   extractAccountIdFromClaims,
   extractAccountId,
+  patch,
   type IdTokenClaims,
 } from "../../src/plugin/codex"
+import type { Provider } from "../../src/provider/provider"
+import { ModelID, ProviderID } from "../../src/provider/schema"
 
 function createTestJwt(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")
@@ -118,6 +121,84 @@ describe("plugin.codex", () => {
           refresh_token: "rt",
         }),
       ).toBe("acc-123")
+    })
+  })
+
+  describe("patch", () => {
+    test("adds hardcoded codex oauth models", () => {
+      const provider: { models: Record<string, Provider.Model | undefined> } = {
+        models: {},
+      }
+
+      patch(provider)
+
+      expect(provider.models["gpt-5.3-codex"]?.limit).toEqual({
+        context: 400_000,
+        input: 272_000,
+        output: 128_000,
+      })
+      expect(provider.models["gpt-5.4"]?.limit).toEqual({
+        context: 400_000,
+        input: 272_000,
+        output: 128_000,
+      })
+      expect(provider.models["gpt-5.4"]?.api).toEqual({
+        id: "gpt-5.4",
+        url: "https://chatgpt.com/backend-api/codex",
+        npm: "@ai-sdk/openai",
+      })
+    })
+
+    test("overrides existing gpt-5.4 metadata", () => {
+      const provider: { models: Record<string, Provider.Model | undefined> } = {
+        models: {
+          "gpt-5.4": {
+            id: ModelID.make("gpt-5.4"),
+            providerID: ProviderID.openai,
+            api: {
+              id: "gpt-5.4",
+              url: "https://api.openai.com/v1",
+              npm: "@ai-sdk/openai",
+            },
+            name: "GPT-5.4",
+            capabilities: {
+              temperature: true,
+              reasoning: false,
+              attachment: false,
+              toolcall: false,
+              input: { text: true, audio: false, image: false, video: false, pdf: false },
+              output: { text: true, audio: false, image: false, video: false, pdf: false },
+              interleaved: false,
+            },
+            cost: { input: 2.5, output: 15, cache: { read: 0.25, write: 0 } },
+            limit: { context: 128_000, output: 32_768 },
+            status: "beta" as const,
+            options: { foo: "bar" },
+            headers: { x: "y" },
+            release_date: "2026-03-01",
+            variants: {},
+            family: "gpt",
+          },
+        },
+      }
+
+      patch(provider)
+
+      expect(provider.models["gpt-5.4"]?.limit).toEqual({
+        context: 400_000,
+        input: 272_000,
+        output: 128_000,
+      })
+      expect(provider.models["gpt-5.4"]?.cost).toEqual({
+        input: 0,
+        output: 0,
+        cache: { read: 0, write: 0 },
+      })
+      expect(provider.models["gpt-5.4"]?.api.url).toBe("https://chatgpt.com/backend-api/codex")
+      expect(provider.models["gpt-5.4"]?.options).toEqual({ foo: "bar" })
+      expect(provider.models["gpt-5.4"]?.headers).toEqual({ x: "y" })
+      expect(provider.models["gpt-5.4"]?.status).toBe("active")
+      expect(provider.models["gpt-5.4"]?.release_date).toBe("2026-03-05")
     })
   })
 })
