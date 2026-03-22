@@ -3,7 +3,7 @@
   "description": "Legacy docs and share site marked for deprecation",
   "type": "module",
   "license": "MIT",
-  "version": "1.2.24",
+  "version": "1.0.0",
   "scripts": {
     "dev": "astro dev",
     "dev:remote": "VITE_API_URL=https://api.symbolic.computer astro dev",

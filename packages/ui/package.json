@@ -1,6 +1,6 @@
 {
   "name": "@symbolic/ui",
-  "version": "1.2.24",
+  "version": "1.0.0",
   "type": "module",
   "license": "MIT",
   "exports": {

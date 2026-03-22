@@ -922,7 +922,7 @@ function runtime(): ChatRuntime {
           clientInfo: {
             name: "symbolic",
             title: "Symbolic",
-            version: "1.2.24",
+            version: "1.0.0",
           },
           capabilities: {
             experimentalApi: true,

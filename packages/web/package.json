@@ -1,7 +1,7 @@
 {
   "name": "@symbolic/web",
   "private": true,
-  "version": "1.2.24",
+  "version": "1.0.0",
   "description": "Next.js web surface for Symbolic",
   "type": "module",
   "scripts": {

@@ -1,6 +1,6 @@
 {
   "name": "@symbolic/app",
-  "version": "1.2.24",
+  "version": "1.0.0",
   "description": "Symbolic web app",
   "type": "module",
   "exports": {
