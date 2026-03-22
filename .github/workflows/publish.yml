@@ -397,10 +397,9 @@ jobs:
 
   build-terminal:
     needs:
-      - build-cli
       - version
     runs-on: macos-latest
-    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
+    if: ${{ always() && (github.event_name == 'push' || vars.ENABLE_RELEASE_PIPELINE == 'true') }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -425,6 +424,7 @@ jobs:
 
       - name: Setup git committer
         id: committer
+        if: needs.version.outputs.release
         uses: ./.github/actions/setup-git-committer
         with:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
