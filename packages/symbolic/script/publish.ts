@@ -7,6 +7,10 @@ import { fileURLToPath } from "url"
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
 
+function on(name: string) {
+  return process.env[name] !== "false"
+}
+
 const binaries: Record<string, string> = {}
 for (const filepath of new Bun.Glob("*/package.json").scanSync({ cwd: "./dist" })) {
   const pkg = await Bun.file(`./dist/${filepath}`).json()
@@ -39,21 +43,25 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
   ),
 )
 
-const tasks = Object.entries(binaries).map(async ([name]) => {
-  if (process.platform !== "win32") {
-    await $`chmod -R 755 .`.cwd(`./dist/${name}`)
-  }
-  await $`bun pm pack`.cwd(`./dist/${name}`)
-  await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${name}`)
-})
-await Promise.all(tasks)
-await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
+if (on("SYMBOLIC_PUBLISH_NPM")) {
+  const tasks = Object.entries(binaries).map(async ([name]) => {
+    if (process.platform !== "win32") {
+      await $`chmod -R 755 .`.cwd(`./dist/${name}`)
+    }
+    await $`bun pm pack`.cwd(`./dist/${name}`)
+    await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${name}`)
+  })
+  await Promise.all(tasks)
+  await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
+}
 
-const image = "ghcr.io/SymbolicOS/symbolic"
-const platforms = "linux/amd64,linux/arm64"
-const tags = [`${image}:${version}`, `${image}:${Script.channel}`]
-const tagFlags = tags.flatMap((t) => ["-t", t])
-await $`docker buildx build --platform ${platforms} ${tagFlags} --push .`
+if (on("SYMBOLIC_PUBLISH_CONTAINER")) {
+  const image = "ghcr.io/SymbolicOS/symbolic"
+  const platforms = "linux/amd64,linux/arm64"
+  const tags = [`${image}:${version}`, `${image}:${Script.channel}`]
+  const tagFlags = tags.flatMap((t) => ["-t", t])
+  await $`docker buildx build --platform ${platforms} ${tagFlags} --push .`
+}
 
 // registries
 if (!Script.preview) {
@@ -95,20 +103,22 @@ if (!Script.preview) {
     "",
   ].join("\n")
 
-  for (const [pkg, pkgbuild] of [["symbolic-bin", binaryPkgbuild]]) {
-    for (let i = 0; i < 30; i++) {
-      try {
-        await $`rm -rf ./dist/aur-${pkg}`
-        await $`git clone ssh://aur@aur.archlinux.org/${pkg}.git ./dist/aur-${pkg}`
-        await $`cd ./dist/aur-${pkg} && git checkout master`
-        await Bun.file(`./dist/aur-${pkg}/PKGBUILD`).write(pkgbuild)
-        await $`cd ./dist/aur-${pkg} && makepkg --printsrcinfo > .SRCINFO`
-        await $`cd ./dist/aur-${pkg} && git add PKGBUILD .SRCINFO`
-        await $`cd ./dist/aur-${pkg} && git commit -m "Update to v${Script.version}"`
-        await $`cd ./dist/aur-${pkg} && git push`
-        break
-      } catch (e) {
-        continue
+  if (on("SYMBOLIC_PUBLISH_AUR")) {
+    for (const [pkg, pkgbuild] of [["symbolic-bin", binaryPkgbuild]]) {
+      for (let i = 0; i < 30; i++) {
+        try {
+          await $`rm -rf ./dist/aur-${pkg}`
+          await $`git clone ssh://aur@aur.archlinux.org/${pkg}.git ./dist/aur-${pkg}`
+          await $`cd ./dist/aur-${pkg} && git checkout master`
+          await Bun.file(`./dist/aur-${pkg}/PKGBUILD`).write(pkgbuild)
+          await $`cd ./dist/aur-${pkg} && makepkg --printsrcinfo > .SRCINFO`
+          await $`cd ./dist/aur-${pkg} && git add PKGBUILD .SRCINFO`
+          await $`cd ./dist/aur-${pkg} && git commit -m "Update to v${Script.version}"`
+          await $`cd ./dist/aur-${pkg} && git push`
+          break
+        } catch (e) {
+          continue
+        }
       }
     }
   }
@@ -166,16 +176,18 @@ if (!Script.preview) {
     "",
   ].join("\n")
 
-  const token = process.env.GITHUB_TOKEN
-  if (!token) {
-    console.error("GITHUB_TOKEN is required to update homebrew tap")
-    process.exit(1)
+  if (on("SYMBOLIC_PUBLISH_HOMEBREW")) {
+    const token = process.env.GITHUB_TOKEN
+    if (!token) {
+      console.error("GITHUB_TOKEN is required to update homebrew tap")
+      process.exit(1)
+    }
+    const tap = `https://x-access-token:${token}@github.com/anomalyco/homebrew-tap.git`
+    await $`rm -rf ./dist/homebrew-tap`
+    await $`git clone ${tap} ./dist/homebrew-tap`
+    await Bun.file("./dist/homebrew-tap/symbolic.rb").write(homebrewFormula)
+    await $`cd ./dist/homebrew-tap && git add symbolic.rb`
+    await $`cd ./dist/homebrew-tap && git commit -m "Update to v${Script.version}"`
+    await $`cd ./dist/homebrew-tap && git push`
   }
-  const tap = `https://x-access-token:${token}@github.com/anomalyco/homebrew-tap.git`
-  await $`rm -rf ./dist/homebrew-tap`
-  await $`git clone ${tap} ./dist/homebrew-tap`
-  await Bun.file("./dist/homebrew-tap/symbolic.rb").write(homebrewFormula)
-  await $`cd ./dist/homebrew-tap && git add symbolic.rb`
-  await $`cd ./dist/homebrew-tap && git commit -m "Update to v${Script.version}"`
-  await $`cd ./dist/homebrew-tap && git push`
 }

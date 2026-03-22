@@ -32,6 +32,10 @@ Add highlights before publishing. Delete this section if no highlights.
 
 `
 
+function on(name: string) {
+  return process.env[name] !== "false"
+}
+
 console.log("=== publishing ===\n")
 
 const pkgjsons = await Array.fromAsync(
@@ -67,20 +71,35 @@ if (Script.release) {
     await new Promise((resolve) => setTimeout(resolve, 5_000))
   }
 
-  await import(`../packages/desktop/scripts/finalize-latest-json.ts`)
-  await import(`../packages/desktop-electron/scripts/finalize-latest-yml.ts`)
+  if (on("SYMBOLIC_RELEASE_TAURI")) {
+    await import(`../packages/desktop/scripts/finalize-latest-json.ts`)
+  }
+  if (on("SYMBOLIC_RELEASE_ELECTRON")) {
+    await import(`../packages/desktop-electron/scripts/finalize-latest-yml.ts`)
+  }
 
   await $`gh release edit v${Script.version} --draft=false --repo ${process.env.GH_REPO}`
 }
 
-console.log("\n=== cli ===\n")
-await import(`../packages/symbolic/script/publish.ts`)
+if (
+  on("SYMBOLIC_PUBLISH_NPM") ||
+  on("SYMBOLIC_PUBLISH_CONTAINER") ||
+  on("SYMBOLIC_PUBLISH_AUR") ||
+  on("SYMBOLIC_PUBLISH_HOMEBREW")
+) {
+  console.log("\n=== cli ===\n")
+  await import(`../packages/symbolic/script/publish.ts`)
+}
 
-console.log("\n=== sdk ===\n")
-await import(`../packages/sdk/js/script/publish.ts`)
+if (on("SYMBOLIC_PUBLISH_SDK")) {
+  console.log("\n=== sdk ===\n")
+  await import(`../packages/sdk/js/script/publish.ts`)
+}
 
-console.log("\n=== plugin ===\n")
-await import(`../packages/plugin/script/publish.ts`)
+if (on("SYMBOLIC_PUBLISH_PLUGIN")) {
+  console.log("\n=== plugin ===\n")
+  await import(`../packages/plugin/script/publish.ts`)
+}
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)

@@ -79,7 +79,7 @@ jobs:
   build-cli:
     needs: version
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
+    if: ${{ vars.ENABLE_RELEASE_PIPELINE == 'true' && (vars.ENABLE_RELEASE_CLI != 'false' || vars.ENABLE_RELEASE_TAURI != 'false' || vars.ENABLE_RELEASE_ELECTRON != 'false' || vars.ENABLE_PUBLISH_NPM != 'false' || vars.ENABLE_PUBLISH_CONTAINER != 'false' || vars.ENABLE_PUBLISH_AUR != 'false' || vars.ENABLE_PUBLISH_HOMEBREW != 'false') }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -89,6 +89,7 @@ jobs:
 
       - name: Setup git committer
         id: committer
+        if: vars.ENABLE_RELEASE_CLI != 'false'
         uses: ./.github/actions/setup-git-committer
         with:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
@@ -101,6 +102,7 @@ jobs:
         env:
           SYMBOLIC_VERSION: ${{ needs.version.outputs.version }}
           SYMBOLIC_RELEASE: ${{ needs.version.outputs.release }}
+          SYMBOLIC_PUBLISH_CLI_ASSETS: ${{ vars.ENABLE_RELEASE_CLI != 'false' }}
           GH_REPO: ${{ needs.version.outputs.repo }}
           GH_TOKEN: ${{ steps.committer.outputs.token }}
 
@@ -115,7 +117,7 @@ jobs:
     needs:
       - build-cli
       - version
-    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
+    if: ${{ vars.ENABLE_RELEASE_PIPELINE == 'true' && vars.ENABLE_RELEASE_TAURI != 'false' }}
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -275,7 +277,7 @@ jobs:
     needs:
       - build-cli
       - version
-    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
+    if: ${{ vars.ENABLE_RELEASE_PIPELINE == 'true' && vars.ENABLE_RELEASE_ELECTRON != 'false' }}
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -399,7 +401,7 @@ jobs:
     needs:
       - version
     runs-on: macos-latest
-    if: ${{ always() && (github.event_name == 'push' || vars.ENABLE_RELEASE_PIPELINE == 'true') }}
+    if: ${{ always() && (github.event_name == 'push' || (vars.ENABLE_RELEASE_PIPELINE == 'true' && vars.ENABLE_RELEASE_TERMINAL != 'false')) }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -424,14 +426,14 @@ jobs:
 
       - name: Setup git committer
         id: committer
-        if: needs.version.outputs.release
+        if: ${{ needs.version.outputs.release && vars.ENABLE_RELEASE_TERMINAL != 'false' }}
         uses: ./.github/actions/setup-git-committer
         with:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
           symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
 
       - name: Build terminal package
-        if: needs.version.outputs.release
+        if: ${{ needs.version.outputs.release && vars.ENABLE_RELEASE_TERMINAL != 'false' }}
         run: bun run package:mac
         working-directory: packages/terminal
         env:
@@ -455,7 +457,7 @@ jobs:
             packages/terminal/dist/*.zip
 
       - name: Publish terminal dmg to release
-        if: needs.version.outputs.release
+        if: ${{ needs.version.outputs.release && vars.ENABLE_RELEASE_TERMINAL != 'false' }}
         run: |
           gh release upload "${{ needs.version.outputs.tag }}" \
             packages/terminal/dist/*.dmg \
@@ -472,13 +474,14 @@ jobs:
       - build-electron
       - build-terminal
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
+    if: ${{ always() && vars.ENABLE_RELEASE_PIPELINE == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     steps:
       - uses: actions/checkout@v3
 
       - uses: ./.github/actions/setup-bun
 
       - name: Login to GitHub Container Registry
+        if: vars.ENABLE_PUBLISH_CONTAINER != 'false'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -486,9 +489,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
+        if: vars.ENABLE_PUBLISH_CONTAINER != 'false'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        if: vars.ENABLE_PUBLISH_CONTAINER != 'false'
         uses: docker/setup-buildx-action@v3
 
       - uses: actions/setup-node@v4
@@ -504,17 +509,19 @@ jobs:
           symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
 
       - uses: actions/download-artifact@v4
+        if: ${{ vars.ENABLE_PUBLISH_NPM != 'false' || vars.ENABLE_PUBLISH_CONTAINER != 'false' || vars.ENABLE_PUBLISH_AUR != 'false' || vars.ENABLE_PUBLISH_HOMEBREW != 'false' }}
         with:
           name: symbolic-cli
           path: packages/symbolic/dist
 
       - uses: actions/download-artifact@v4
-        if: needs.version.outputs.release
+        if: ${{ needs.version.outputs.release && vars.ENABLE_RELEASE_ELECTRON != 'false' }}
         with:
           pattern: latest-yml-*
           path: /tmp/latest-yml
 
       - name: Cache apt packages (AUR)
+        if: vars.ENABLE_PUBLISH_AUR != 'false'
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
@@ -523,6 +530,7 @@ jobs:
             ${{ runner.os }}-apt-aur-
 
       - name: Setup SSH for AUR
+        if: vars.ENABLE_PUBLISH_AUR != 'false'
         run: |
           sudo apt-get update
           sudo apt-get install -y pacman-package-manager
@@ -537,6 +545,14 @@ jobs:
         env:
           SYMBOLIC_VERSION: ${{ needs.version.outputs.version }}
           SYMBOLIC_RELEASE: ${{ needs.version.outputs.release }}
+          SYMBOLIC_RELEASE_TAURI: ${{ vars.ENABLE_RELEASE_TAURI != 'false' }}
+          SYMBOLIC_RELEASE_ELECTRON: ${{ vars.ENABLE_RELEASE_ELECTRON != 'false' }}
+          SYMBOLIC_PUBLISH_NPM: ${{ vars.ENABLE_PUBLISH_NPM != 'false' }}
+          SYMBOLIC_PUBLISH_CONTAINER: ${{ vars.ENABLE_PUBLISH_CONTAINER != 'false' }}
+          SYMBOLIC_PUBLISH_AUR: ${{ vars.ENABLE_PUBLISH_AUR != 'false' }}
+          SYMBOLIC_PUBLISH_HOMEBREW: ${{ vars.ENABLE_PUBLISH_HOMEBREW != 'false' }}
+          SYMBOLIC_PUBLISH_SDK: ${{ vars.ENABLE_PUBLISH_SDK != 'false' }}
+          SYMBOLIC_PUBLISH_PLUGIN: ${{ vars.ENABLE_PUBLISH_PLUGIN != 'false' }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
           GITHUB_TOKEN: ${{ steps.committer.outputs.token }}
           GH_REPO: ${{ needs.version.outputs.repo }}
