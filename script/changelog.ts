@@ -11,8 +11,12 @@ type Release = {
   prerelease: boolean
 }
 
+function repo() {
+  return process.env.GH_REPO || process.env.GITHUB_REPOSITORY || "burn2delete/symbolic"
+}
+
 export async function getLatestRelease(skip?: string) {
-  const data = await fetch("https://api.github.com/repos/SymbolicOS/symbolic/releases?per_page=100").then((res) => {
+  const data = await fetch(`https://api.github.com/repos/${repo()}/releases?per_page=100`).then((res) => {
     if (!res.ok) throw new Error(res.statusText)
     return res.json()
   })
@@ -43,7 +47,7 @@ export async function getCommits(from: string, to: string): Promise<Commit[]> {
 
   // Get commit data with GitHub usernames from the API
   const compare =
-    await $`gh api "/repos/SymbolicOS/symbolic/compare/${fromRef}...${toRef}" --jq '.commits[] | {sha: .sha, login: .author.login, message: .commit.message}'`.text()
+    await $`gh api "/repos/${repo()}/compare/${fromRef}...${toRef}" --jq '.commits[] | {sha: .sha, login: .author.login, message: .commit.message}'`.text()
 
   const commitData = new Map<string, { login: string | null; message: string }>()
   for (const line of compare.split("\n").filter(Boolean)) {
@@ -201,7 +205,7 @@ export async function getContributors(from: string, to: string) {
   const fromRef = from.startsWith("v") ? from : `v${from}`
   const toRef = to === "HEAD" ? to : to.startsWith("v") ? to : `v${to}`
   const compare =
-    await $`gh api "/repos/SymbolicOS/symbolic/compare/${fromRef}...${toRef}" --jq '.commits[] | {login: .author.login, message: .commit.message}'`.text()
+    await $`gh api "/repos/${repo()}/compare/${fromRef}...${toRef}" --jq '.commits[] | {login: .author.login, message: .commit.message}'`.text()
   const contributors = new Map<string, Set<string>>()
 
   for (const line of compare.split("\n").filter(Boolean)) {
@@ -226,28 +230,34 @@ export async function buildNotes(from: string, to: string) {
   }
 
   console.log("generating changelog since " + from)
-
-  const symbolic = await createSymbolic({ port: 0 })
   const notes: string[] = []
-
-  try {
-    const lines = await generateChangelog(commits, symbolic)
-    notes.push(...lines)
-    console.log("---- Generated Changelog ----")
-    console.log(notes.join("\n"))
-    console.log("-----------------------------")
-  } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
-      console.log("Changelog generation timed out, using raw commits")
-      for (const commit of commits) {
-        const attribution = commit.author && !team.includes(commit.author) ? ` (@${commit.author})` : ""
-        notes.push(`- ${commit.message}${attribution}`)
-      }
-    } else {
-      throw error
+  const raw = () => {
+    console.log("Changelog AI unavailable, using raw commits")
+    for (const commit of commits) {
+      const attribution = commit.author && !Script.team.includes(commit.author) ? ` (@${commit.author})` : ""
+      notes.push(`- ${commit.message}${attribution}`)
     }
-  } finally {
-    await symbolic.server.close()
+  }
+
+  if (!process.env.SYMBOLIC_API_KEY) {
+    raw()
+  } else {
+    const symbolic = await createSymbolic({ port: 0 })
+    try {
+      const lines = await generateChangelog(commits, symbolic)
+      notes.push(...lines)
+      console.log("---- Generated Changelog ----")
+      console.log(notes.join("\n"))
+      console.log("-----------------------------")
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError") {
+        raw()
+      } else {
+        throw error
+      }
+    } finally {
+      await symbolic.server.close()
+    }
   }
   console.log("changelog generation complete")
 

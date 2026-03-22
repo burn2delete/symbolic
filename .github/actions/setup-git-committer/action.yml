@@ -3,31 +3,40 @@ description: "Create app token and configure git user"
 inputs:
   symbolic-app-id:
     description: "Symbolic GitHub App ID"
-    required: true
+    required: false
   symbolic-app-secret:
     description: "Symbolic GitHub App private key"
-    required: true
+    required: false
 outputs:
   token:
     description: "GitHub App token"
-    value: ${{ steps.apptoken.outputs.token }}
+    value: ${{ steps.apptoken.outputs.token || steps.fallback.outputs.token }}
   app-slug:
     description: "GitHub App slug"
-    value: ${{ steps.apptoken.outputs.app-slug }}
+    value: ${{ steps.apptoken.outputs.app-slug || steps.fallback.outputs.app-slug }}
 runs:
   using: "composite"
   steps:
     - name: Create app token
       id: apptoken
+      if: ${{ inputs.symbolic-app-id != '' && inputs.symbolic-app-secret != '' }}
       uses: actions/create-github-app-token@v2
       with:
         app-id: ${{ inputs.symbolic-app-id }}
         private-key: ${{ inputs.symbolic-app-secret }}
         owner: ${{ github.repository_owner }}
 
+    - name: Use workflow token
+      id: fallback
+      if: ${{ steps.apptoken.outputs.token == '' }}
+      run: |
+        echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+        echo "app-slug=${{ github.actor }}" >> "$GITHUB_OUTPUT"
+      shell: bash
+
     - name: Configure git user
       run: |
-        slug="${{ steps.apptoken.outputs.app-slug }}"
+        slug="${{ steps.apptoken.outputs.app-slug || steps.fallback.outputs.app-slug }}"
         git config --global user.name "${slug}[bot]"
         git config --global user.email "${slug}[bot]@users.noreply.github.com"
       shell: bash
@@ -39,5 +48,5 @@ runs:
 
     - name: Configure git remote
       run: |
-        git remote set-url origin https://x-access-token:${{ steps.apptoken.outputs.token }}@github.com/${{ github.repository }}
+        git remote set-url origin https://x-access-token:${{ steps.apptoken.outputs.token || steps.fallback.outputs.token }}@github.com/${{ github.repository }}
       shell: bash
