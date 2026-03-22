@@ -47,7 +47,7 @@ await Bun.file(`./dist/${pkg.name}/LICENSE`).write(await Bun.file("../../LICENSE
 await Bun.file(`./dist/${pkg.name}/package.json`).write(
   JSON.stringify(
     {
-      name: pkg.name + "-ai",
+      name: process.env.SYMBOLIC_NPM_NAME || pkg.name,
       bin: {
         [pkg.name]: `./bin/${pkg.name}`,
       },
