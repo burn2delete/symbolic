@@ -26,6 +26,11 @@ const cfg: Configuration = {
       to: "symbolic",
       filter: ["**/*"],
     },
+    {
+      from: "../symbolic/src/cli/cmd/tui/context/theme",
+      to: "tui-themes",
+      filter: ["*.json"],
+    },
   ],
   mac: {
     category: "public.app-category.developer-tools",

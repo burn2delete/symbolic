@@ -1,7 +1,7 @@
+import { app } from "electron"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import { themes as builtin } from "symbolic/tui-themes"
 
 import type { Tui, TuiTone } from "../shared/api"
 
@@ -36,12 +36,46 @@ const keys = [
 
 type Key = (typeof keys)[number]
 
-const base: Record<string, Json> = builtin
+const base = new Set([
+  "aura",
+  "ayu",
+  "carbonfox",
+  "catppuccin",
+  "catppuccin-frappe",
+  "catppuccin-macchiato",
+  "cobalt2",
+  "cursor",
+  "dracula",
+  "everforest",
+  "flexoki",
+  "github",
+  "gruvbox",
+  "kanagawa",
+  "lucent-orng",
+  "material",
+  "matrix",
+  "mercury",
+  "monokai",
+  "nightowl",
+  "nord",
+  "one-dark",
+  "orng",
+  "osaka-jade",
+  "palenight",
+  "rosepine",
+  "solarized",
+  "symbolic",
+  "synthwave84",
+  "tokyonight",
+  "vercel",
+  "vesper",
+  "zenburn",
+])
 
 export async function read(cwd: string | null) {
   const name = await pick(cwd);
   if (!name || name === "system") return null;
-  const json = (await custom(name, cwd)) ?? base[name];
+  const json = (await custom(name, cwd)) ?? (await builtin(name));
   if (!json) return null;
   return {
     name,
@@ -99,8 +133,25 @@ async function custom(name: string, cwd: string | null) {
   return null;
 }
 
+async function builtin(name: string) {
+  if (!base.has(name)) return null;
+  const text = await readFile(path.join(root(), `${name}.json`), "utf8").catch(
+    () => null,
+  );
+  if (!text) return null;
+  return JSON.parse(text) as Json;
+}
+
 function look(name: string, cwd: string | null) {
   return [...fall(cwd).map((dir) => path.join(dir, ".symbolic", "themes", `${name}.json`)), path.join(cfg(), "themes", `${name}.json`)];
+}
+
+function root() {
+  if (app.isPackaged) return path.join(process.resourcesPath, "tui-themes");
+  return path.resolve(
+    import.meta.dirname,
+    "../../../symbolic/src/cli/cmd/tui/context/theme",
+  );
 }
 
 function solve(json: Json, mode: "dark" | "light") {

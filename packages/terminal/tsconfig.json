@@ -17,8 +17,7 @@
     "outDir": "node_modules/.ts-dist",
     "paths": {
       "@/*": ["./src/renderer/*"],
-      "lucide-react": ["./src/renderer/lucide-react.d.ts"],
-      "symbolic/tui-themes": ["../symbolic/src/tui-themes.ts"]
+      "lucide-react": ["./src/renderer/lucide-react.d.ts"]
     },
     "types": ["vite/client", "node", "electron"]
   },
