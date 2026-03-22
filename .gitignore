@@ -22,6 +22,8 @@ a.out
 target
 .scripts
 .direnv/
+.next
+out
 
 # Local dev files
 symbolic-dev

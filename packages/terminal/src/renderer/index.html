@@ -6,6 +6,47 @@
     <title>Symbolic Terminal</title>
   </head>
   <body>
+    <script>
+      const text = localStorage.getItem("symbolic-terminal:paint")
+      if (text) {
+        try {
+          const paint = JSON.parse(text)
+          if (paint.version !== 2) throw new Error("stale paint")
+          const root = document.documentElement
+          root.dataset.theme = paint.mode
+          root.dataset.skin = paint.skin
+          root.dataset.color = paint.color
+          root.className = paint.mode === "dark" ? "dark h-full scheme-dark" : "h-full scheme-light"
+          document.body.className = paint.body
+          root.style.backgroundColor = paint.bg
+          document.body.style.backgroundColor = paint.bg
+          document.body.style.color = paint.text
+          root.style.setProperty("--font-size", `${paint.font}px`)
+          root.style.setProperty("--app-bg", paint.bg)
+          root.style.setProperty("--panel-bg", paint.panel)
+          root.style.setProperty("--stage-bg", paint.stage)
+          root.style.setProperty("--term-surface", paint.term)
+          root.style.setProperty("--app-text", paint.text)
+          root.style.setProperty("--muted", paint.muted)
+          root.style.setProperty("--field-bg", paint.field)
+          root.style.setProperty("--field-line", paint.line)
+          root.style.setProperty("--ghost-bg", paint.ghost)
+          root.style.setProperty("--empty-bg", paint.empty)
+          root.style.setProperty("--sidebar", paint.sidebar)
+          root.style.setProperty("--sidebar-foreground", paint.text)
+          root.style.setProperty("--sidebar-primary", paint.primary)
+          root.style.setProperty("--sidebar-primary-foreground", paint.primary_text)
+          root.style.setProperty("--sidebar-accent", paint.accent)
+          root.style.setProperty("--sidebar-accent-foreground", paint.text)
+          root.style.setProperty("--sidebar-border", paint.line)
+          root.style.setProperty("--sidebar-ring", paint.ring)
+          root.style.setProperty("--wash-a", paint.wash[0])
+          root.style.setProperty("--wash-b", paint.wash[1])
+          root.style.setProperty("--wash-c", paint.wash[2])
+          root.style.setProperty("--wash-d", paint.wash[3])
+        } catch {}
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

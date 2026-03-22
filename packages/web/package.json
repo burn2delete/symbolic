@@ -1,43 +1,26 @@
 {
   "name": "@symbolic-ai/web",
-  "type": "module",
-  "license": "MIT",
+  "private": true,
   "version": "1.2.24",
+  "description": "Next.js web surface for Symbolic",
+  "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "dev:remote": "VITE_API_URL=https://api.symbolic.computer astro dev",
-    "start": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "12.6.3",
-    "@astrojs/markdown-remark": "6.3.1",
-    "@astrojs/solid-js": "5.1.0",
-    "@astrojs/starlight": "0.34.3",
-    "@fontsource/ibm-plex-mono": "5.2.5",
-    "@shikijs/transformers": "3.20.0",
-    "@types/luxon": "catalog:",
-    "ai": "catalog:",
-    "astro": "5.7.13",
-    "diff": "catalog:",
-    "js-base64": "3.7.7",
-    "lang-map": "0.4.0",
-    "luxon": "catalog:",
-    "marked": "catalog:",
-    "marked-shiki": "catalog:",
-    "rehype-autolink-headings": "7.1.0",
-    "remeda": "catalog:",
-    "shiki": "catalog:",
-    "solid-js": "catalog:",
-    "toolbeam-docs-theme": "0.4.8",
-    "vscode-languageserver-types": "3.17.5"
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "symbolic": "workspace:*",
+    "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "catalog:",
-    "@astrojs/check": "0.9.6",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "catalog:",
     "typescript": "catalog:"
   }
 }

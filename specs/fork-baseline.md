@@ -67,13 +67,14 @@ The goal is not to preserve the existing Symbolic shape. The goal is to make it 
 
 #### docs and public web
 
-- `packages/web`
+- `packages/web-legacy`
+  - renamed as a legacy package and marked for deprecation
   - Astro + Starlight docs site with Solid islands
   - also hosts the share viewer page
   - deployed separately from the main app
   - key files:
-    - `packages/web/astro.config.mjs`
-    - `packages/web/src/pages/s/[id].astro`
+    - `packages/web-legacy/astro.config.mjs`
+    - `packages/web-legacy/src/pages/s/[id].astro`
 
 #### hosted backend and commercial surfaces
 
@@ -205,7 +206,7 @@ Several boundaries are blurry:
 
 - `packages/ui` is not only presentational
 - `packages/console/app` is not only an app
-- `packages/web` is not only docs because it also serves the share viewer
+- `packages/web-legacy` is not only docs because it also serves the share viewer
 - desktop shells are not only wrappers because they manage sidecar lifecycle
 
 If the fork wants clearer ownership and replaceable subsystems, these boundaries should not be inherited blindly.
@@ -350,7 +351,7 @@ These look easiest to remove if they do not fit the fork:
 - `github`
 - `sdks/vscode`
 - Feishu/Discord bridge code in `packages/function`
-- public docs/share coupling in `packages/web`
+- public docs/share coupling in `packages/web-legacy`
 
 ### likely rewrite candidates
 

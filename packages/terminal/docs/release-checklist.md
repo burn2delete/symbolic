@@ -3,7 +3,9 @@
 ## macOS prerequisites
 
 - Apple Developer account with a `Developer ID Application` certificate installed in the keychain or exposed through `CSC_LINK` and `CSC_KEY_PASSWORD`.
-- Notarization env vars available in the packaging shell or CI: `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`.
+- Notarization env vars available in the packaging shell or CI:
+  `APPLE_API_KEY`, `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER`
+  or `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`.
 - Xcode command line tools installed so codesign, zip validation, and notarization tooling are available.
 - `bun install` completed after any Electron or `node-pty` change so native deps are rebuilt for the current Electron version.
 - `packages/symbolic/dist` regenerated with `bun run build:runtime` before packaging.
@@ -12,7 +14,7 @@
 
 1. Run `bun run check` in `packages/terminal`.
 2. Run `bun run smoke:package` for an unsigned internal build, or `bun run package:mac` when CI already performs smoke separately.
-3. Confirm `packages/terminal/dist/` contains both the macOS zip and unpacked `.app` bundle.
+3. Confirm `packages/terminal/dist/` contains the macOS `.dmg`, zip, and unpacked `.app` bundle.
 4. If signing is enabled, verify the build log shows codesign and notarization steps instead of unsigned output.
 
 ## Automated coverage today
@@ -35,7 +37,7 @@
 ## Follow-up gaps
 
 - Add a packaged smoke assertion for clipboard paste once there is a stable, non-invasive way to observe TUI input handling.
-- Add CI wiring for signing secrets and notarization only after internal unsigned distribution is stable.
+- Keep CI signing and notarization secrets in sync with the terminal publish job as release requirements change.
 - Add a clean-machine or clean-user-account validation pass before broader rollout.
 
 ## Related notes

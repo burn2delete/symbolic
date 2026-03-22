@@ -144,6 +144,20 @@
   background: transparent;
 }
 
+[data-host="terminal"] .xterm .xterm-scrollable-element {
+  background: transparent !important;
+}
+
+[data-host="terminal"] .xterm .xterm-scrollable-element > .scrollbar.vertical,
+[data-host="terminal"] .xterm .xterm-scrollable-element > .scrollbar.vertical .slider {
+  width: 0 !important;
+}
+
+[data-host="terminal"] .xterm .xterm-scrollable-element > .scrollbar.horizontal,
+[data-host="terminal"] .xterm .xterm-scrollable-element > .scrollbar.horizontal .slider {
+  height: 0 !important;
+}
+
 [data-host="terminal"] .xterm .xterm-viewport {
   background-color: transparent;
   scrollbar-color: transparent transparent;

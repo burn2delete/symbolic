@@ -6,7 +6,7 @@
     "typecheck": {},
     "build": {
       "dependsOn": [],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".next/**", "out/**"]
     },
     "symbolic#test": {
       "dependsOn": ["^build"],

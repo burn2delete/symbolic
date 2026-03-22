@@ -369,12 +369,82 @@ jobs:
           name: latest-yml-${{ matrix.settings.target }}
           path: packages/desktop-electron/dist/latest*.yml
 
+  build-terminal:
+    needs:
+      - build-cli
+      - version
+    runs-on: macos-latest
+    if: github.repository == 'SymbolicOS/symbolic'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-tags: true
+
+      - uses: apple-actions/import-codesign-certs@v2
+        if: needs.version.outputs.release
+        with:
+          keychain: build
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Setup Apple API Key
+        if: needs.version.outputs.release
+        run: echo "${{ secrets.APPLE_API_KEY_PATH }}" > $RUNNER_TEMP/apple-api-key.p8
+
+      - uses: ./.github/actions/setup-bun
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Setup git committer
+        id: committer
+        uses: ./.github/actions/setup-git-committer
+        with:
+          symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
+          symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
+
+      - name: Build terminal package
+        if: needs.version.outputs.release
+        run: bun run package:mac
+        working-directory: packages/terminal
+        env:
+          GH_TOKEN: ${{ steps.committer.outputs.token }}
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ runner.temp }}/apple-api-key.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+
+      - name: Build terminal package (no release)
+        if: ${{ !needs.version.outputs.release }}
+        run: bun run package:mac
+        working-directory: packages/terminal
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: symbolic-terminal-darwin-arm64
+          path: |
+            packages/terminal/dist/*.dmg
+            packages/terminal/dist/*.zip
+
+      - name: Publish terminal dmg to release
+        if: needs.version.outputs.release
+        run: |
+          gh release upload "${{ needs.version.outputs.tag }}" \
+            packages/terminal/dist/*.dmg \
+            --repo "${{ needs.version.outputs.repo }}" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ steps.committer.outputs.token }}
+
   publish:
     needs:
       - version
       - build-cli
       - build-tauri
       - build-electron
+      - build-terminal
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v3

@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Symbolic Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://symbolic.computer)
+[![Symbolic Terminal UI](packages/web-legacy/src/assets/lander/screenshot.png)](https://symbolic.computer)
 
 ---
 

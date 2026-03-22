@@ -6,12 +6,25 @@ import {
   type IpcMainInvokeEvent,
 } from "electron";
 
-import type { Create, Diag, Input, Prefs, Size, Snapshot } from "../shared/api";
+import type {
+  Choice,
+  Create,
+  Custom,
+  Diag,
+  Input,
+  Prefs,
+  Seed,
+  Size,
+  Snapshot,
+} from "../shared/api";
 
 type Deps = {
+  seed: (win: BrowserWindow | null) => Promise<Seed>;
   boot: (win: BrowserWindow | null) => Promise<Snapshot>;
   create: (win: BrowserWindow | null, input?: Create) => Promise<unknown>;
+  tab: (win: BrowserWindow | null, input?: Create) => Promise<unknown>;
   close: (win: BrowserWindow | null, id: string) => Promise<void>;
+  remove: (win: BrowserWindow | null, id: string) => Promise<void>;
   restart: (win: BrowserWindow | null, id: string) => Promise<unknown>;
   focus: (win: BrowserWindow | null, id: string) => Promise<void>;
   next: (win: BrowserWindow | null) => Promise<void>;
@@ -22,12 +35,18 @@ type Deps = {
     win: BrowserWindow | null,
     dir?: string | null,
   ) => Promise<string | null>;
+  apps: () => Promise<Choice[]>;
+  getCustoms: () => Promise<Custom[]>;
+  setCustoms: (input: Custom[]) => Promise<Custom[]>;
   getPrefs: () => Promise<Prefs>;
   setPrefs: (input: Partial<Prefs>) => Promise<Prefs>;
   getDiag: () => Promise<Diag>;
 };
 
 export function registerIpcHandlers(deps: Deps) {
+  ipcMain.handle("terminal:seed", (event: IpcMainInvokeEvent) =>
+    deps.seed(win(event)),
+  );
   ipcMain.handle("terminal:boot", (event: IpcMainInvokeEvent) =>
     deps.boot(win(event)),
   );
@@ -36,8 +55,14 @@ export function registerIpcHandlers(deps: Deps) {
     (event: IpcMainInvokeEvent, input?: Create) =>
       deps.create(win(event), input),
   );
+  ipcMain.handle("terminal:tab", (event: IpcMainInvokeEvent, input?: Create) =>
+    deps.tab(win(event), input),
+  );
   ipcMain.handle("terminal:close", (event: IpcMainInvokeEvent, id: string) =>
     deps.close(win(event), id),
+  );
+  ipcMain.handle("terminal:remove", (event: IpcMainInvokeEvent, id: string) =>
+    deps.remove(win(event), id),
   );
   ipcMain.handle("terminal:restart", (event: IpcMainInvokeEvent, id: string) =>
     deps.restart(win(event), id),
@@ -61,6 +86,12 @@ export function registerIpcHandlers(deps: Deps) {
     "terminal:pick-dir",
     (event: IpcMainInvokeEvent, dir?: string | null) =>
       deps.pickDir(win(event), dir),
+  );
+  ipcMain.handle("terminal:apps", () => deps.apps());
+  ipcMain.handle("terminal:get-customs", () => deps.getCustoms());
+  ipcMain.handle(
+    "terminal:set-customs",
+    (_event: IpcMainInvokeEvent, input: Custom[]) => deps.setCustoms(input),
   );
   ipcMain.handle("terminal:get-prefs", () => deps.getPrefs());
   ipcMain.handle(

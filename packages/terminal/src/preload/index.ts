@@ -1,11 +1,14 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-import type { Api, Create, Event, Input, Prefs, Size } from "../shared/api";
+import type { Api, Create, Custom, Event, Input, Prefs, Size } from "../shared/api";
 
 const api: Api = {
+  seed: () => ipcRenderer.invoke("terminal:seed"),
   boot: () => ipcRenderer.invoke("terminal:boot"),
   create: (input?: Create) => ipcRenderer.invoke("terminal:create", input),
+  tab: (input?: Create) => ipcRenderer.invoke("terminal:tab", input),
   close: (id: string) => ipcRenderer.invoke("terminal:close", id),
+  remove: (id: string) => ipcRenderer.invoke("terminal:remove", id),
   restart: (id: string) => ipcRenderer.invoke("terminal:restart", id),
   focus: (id: string) => ipcRenderer.invoke("terminal:focus", id),
   next: () => ipcRenderer.invoke("terminal:next"),
@@ -18,6 +21,10 @@ const api: Api = {
   },
   pick_dir: (dir?: string | null) =>
     ipcRenderer.invoke("terminal:pick-dir", dir),
+  apps: () => ipcRenderer.invoke("terminal:apps"),
+  get_customs: () => ipcRenderer.invoke("terminal:get-customs"),
+  set_customs: (input: Custom[]) =>
+    ipcRenderer.invoke("terminal:set-customs", input),
   get_prefs: () => ipcRenderer.invoke("terminal:get-prefs"),
   set_prefs: (input: Partial<Prefs>) =>
     ipcRenderer.invoke("terminal:set-prefs", input),

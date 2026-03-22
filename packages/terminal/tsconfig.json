@@ -7,6 +7,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "allowJs": true,
     "resolveJsonModule": true,
     "strict": true,
@@ -15,7 +16,8 @@
     "emitDeclarationOnly": false,
     "outDir": "node_modules/.ts-dist",
     "paths": {
-      "@/*": ["./src/renderer/*"]
+      "@/*": ["./src/renderer/*"],
+      "lucide-react": ["./src/renderer/lucide-react.d.ts"]
     },
     "types": ["vite/client", "node", "electron"]
   },
