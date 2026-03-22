@@ -5,7 +5,7 @@ import { onMount } from "solid-js"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { createSimpleContext } from "../../context/helper"
 import { appendFile, writeFile } from "fs/promises"
-import type { AgentPart, FilePart, TextPart } from "@symbolic-ai/sdk/v2"
+import type { AgentPart, FilePart, TextPart } from "@symbolic/sdk/v2"
 
 export type PromptInfo = {
   input: string

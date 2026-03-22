@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { fn } from "./util/fn"
-import { Resource } from "@symbolic-ai/console-resource"
+import { Resource } from "@symbolic/console-resource"
 import { Subscription } from "./subscription"
 
 export namespace LiteData {

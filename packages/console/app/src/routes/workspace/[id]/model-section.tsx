@@ -1,8 +1,8 @@
-import { Model } from "@symbolic-ai/console-core/model.js"
+import { Model } from "@symbolic/console-core/model.js"
 import { query, action, useParams, createAsync, json } from "@solidjs/router"
 import { createMemo, For, Show } from "solid-js"
 import { withActor } from "~/context/auth.withActor"
-import { ZenData } from "@symbolic-ai/console-core/model.js"
+import { ZenData } from "@symbolic/console-core/model.js"
 import styles from "./model-section.module.css"
 import { querySessionInfo } from "../common"
 import {

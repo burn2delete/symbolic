@@ -1,13 +1,13 @@
-import { Billing } from "@symbolic-ai/console-core/billing.js"
+import { Billing } from "@symbolic/console-core/billing.js"
 import type { APIEvent } from "@solidjs/start/server"
-import { and, Database, eq, sql } from "@symbolic-ai/console-core/drizzle/index.js"
-import { BillingTable, LiteTable, PaymentTable } from "@symbolic-ai/console-core/schema/billing.sql.js"
-import { Identifier } from "@symbolic-ai/console-core/identifier.js"
-import { centsToMicroCents } from "@symbolic-ai/console-core/util/price.js"
-import { Actor } from "@symbolic-ai/console-core/actor.js"
-import { Resource } from "@symbolic-ai/console-resource"
-import { LiteData } from "@symbolic-ai/console-core/lite.js"
-import { BlackData } from "@symbolic-ai/console-core/black.js"
+import { and, Database, eq, sql } from "@symbolic/console-core/drizzle/index.js"
+import { BillingTable, LiteTable, PaymentTable } from "@symbolic/console-core/schema/billing.sql.js"
+import { Identifier } from "@symbolic/console-core/identifier.js"
+import { centsToMicroCents } from "@symbolic/console-core/util/price.js"
+import { Actor } from "@symbolic/console-core/actor.js"
+import { Resource } from "@symbolic/console-resource"
+import { LiteData } from "@symbolic/console-core/lite.js"
+import { BlackData } from "@symbolic/console-core/black.js"
 
 export async function POST(input: APIEvent) {
   const body = await Billing.stripe().webhooks.constructEventAsync(

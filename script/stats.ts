@@ -195,8 +195,8 @@ console.log(`\nFetched ${releases.length} releases total\n`)
 
 const { total: githubTotal, stats } = calculate(releases)
 
-console.log("Fetching npm all-time downloads for symbolic-ai...\n")
-const npmDownloads = await fetchNpmDownloads("symbolic-ai")
+console.log("Fetching npm all-time downloads for symbolic...\n")
+const npmDownloads = await fetchNpmDownloads("symbolic")
 console.log(`Fetched npm all-time downloads: ${npmDownloads.toLocaleString()}\n`)
 
 await save(githubTotal, npmDownloads)

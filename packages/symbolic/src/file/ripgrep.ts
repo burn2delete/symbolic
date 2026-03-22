@@ -3,7 +3,7 @@ import path from "path"
 import { Global } from "../global"
 import fs from "fs/promises"
 import z from "zod"
-import { NamedError } from "@symbolic-ai/util/error"
+import { NamedError } from "@symbolic/util/error"
 import { lazy } from "../util/lazy"
 
 import { Filesystem } from "../util/filesystem"

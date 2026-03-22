@@ -18,7 +18,7 @@ symbolic JS/TS SDK จัดเตรียมไคลเอ็นต์ปร�
 ติดตั้ง SDK จาก npm:
 
 ```bash
-npm install @symbolic-ai/sdk
+npm install @symbolic/sdk
 ```
 
 ---
@@ -28,7 +28,7 @@ npm install @symbolic-ai/sdk
 สร้างอินสแตนซ์ของ symbolic:
 
 ```javascript
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 
 const { client } = await createSymbolic()
 ```
@@ -52,7 +52,7 @@ const { client } = await createSymbolic()
 คุณสามารถส่งผ่านออบเจ็กต์การกำหนดค่าเพื่อปรับแต่งลักษณะการทำงานได้ อินสแตนซ์ยังคงรับ `symbolic.json` ของคุณ แต่คุณสามารถแทนที่หรือเพิ่มการกำหนดค่าแบบอินไลน์ได้:
 
 ```javascript
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 
 const symbolic = await createSymbolic({
   hostname: "127.0.0.1",
@@ -72,7 +72,7 @@ symbolic.server.close()
 หากคุณมีอินสแตนซ์ symbolic ที่ทำงานอยู่แล้ว คุณสามารถสร้างอินสแตนซ์ไคลเอ็นต์เพื่อเชื่อมต่อได้:
 
 ```javascript
-import { createSymbolicClient } from "@symbolic-ai/sdk"
+import { createSymbolicClient } from "@symbolic/sdk"
 
 const client = createSymbolicClient({
   baseUrl: "http://localhost:4096",
@@ -96,7 +96,7 @@ const client = createSymbolicClient({
 SDK มีคำจำกัดความ TypeScript สำหรับ API ประเภททั้งหมด นำเข้าโดยตรง:
 
 ```typescript
-import type { Session, Message, Part } from "@symbolic-ai/sdk"
+import type { Session, Message, Part } from "@symbolic/sdk"
 ```
 
 ทุกประเภทสร้างขึ้นจากข้อกำหนด OpenAPI ของเซิร์ฟเวอร์และมีอยู่ใน <a href={typesUrl}>ไฟล์ประเภท</a>

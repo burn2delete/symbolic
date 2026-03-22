@@ -83,9 +83,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
-    "@symbolic-ai/plugin": "workspace:*",
-    "@symbolic-ai/script": "workspace:*",
-    "@symbolic-ai/sdk": "workspace:*",
+    "@symbolic/plugin": "workspace:*",
+    "@symbolic/script": "workspace:*",
+    "@symbolic/sdk": "workspace:*",
     "typescript": "catalog:"
   },
   "repository": {

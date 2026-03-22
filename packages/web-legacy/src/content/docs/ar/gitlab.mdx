@@ -83,7 +83,7 @@ description: استخدم Symbolic في مشكلات GitLab وطلبات الد�
     image: node:22-slim
     commands:
       - echo "Installing symbolic"
-      - npm install --global symbolic-ai
+      - npm install --global symbolic
       - echo "Installing glab"
       - export GITLAB_TOKEN=$GITLAB_TOKEN_SYMBOLIC
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*

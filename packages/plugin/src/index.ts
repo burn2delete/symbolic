@@ -12,7 +12,7 @@ import type {
   AssistantMessage,
   Auth,
   Config,
-} from "@symbolic-ai/sdk"
+} from "@symbolic/sdk"
 import type {
   OutputFormat,
   UserMessage as UserMessageV2,
@@ -20,7 +20,7 @@ import type {
   Part as PartV2,
   Session as SessionV2,
   AssistantMessage as AssistantMessageV2,
-} from "@symbolic-ai/sdk/v2"
+} from "@symbolic/sdk/v2"
 
 import type { BunShell } from "./shell.js"
 import { type ToolDefinition } from "./tool.js"

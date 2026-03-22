@@ -3,6 +3,7 @@ import type { ServerConnection } from "@/context/server"
 import { createSdkForServer } from "./server"
 
 export type ServerHealth = { healthy: boolean; version?: string }
+type HealthResult = Awaited<ReturnType<ReturnType<typeof createSdkForServer>["global"]["health"]>>
 
 interface CheckServerHealthOptions {
   timeoutMs?: number
@@ -78,7 +79,7 @@ export async function checkServerHealth(
       signal,
     })
       .global.health()
-      .then((x) => (x.error ? next(count, x.error) : { healthy: x.data?.healthy === true, version: x.data?.version }))
+      .then((x: HealthResult) => ({ healthy: x.data?.healthy === true, version: x.data?.version }))
       .catch((error) => next(count, error))
   return attempt(0).finally(() => timeout?.clear?.())
 }

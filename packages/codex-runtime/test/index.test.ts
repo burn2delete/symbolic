@@ -3,7 +3,7 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { CodexRuntimePlugin } from "../src/index"
-import type { ChatRuntime, PluginInput, RuntimeEvent, RuntimeInput } from "@symbolic-ai/plugin"
+import type { ChatRuntime, PluginInput, RuntimeEvent, RuntimeInput } from "@symbolic/plugin"
 
 async function fixture(source: string) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "codex-runtime-"))

@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic-ai/ui",
+  "name": "@symbolic/ui",
   "version": "1.2.24",
   "type": "module",
   "license": "MIT",
@@ -43,8 +43,8 @@
   },
   "dependencies": {
     "@kobalte/core": "catalog:",
-    "@symbolic-ai/sdk": "workspace:*",
-    "@symbolic-ai/util": "workspace:*",
+    "@symbolic/sdk": "workspace:*",
+    "@symbolic/util": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@shikijs/transformers": "3.9.2",
     "@solid-primitives/bounds": "0.1.3",

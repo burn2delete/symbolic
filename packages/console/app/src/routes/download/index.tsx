@@ -125,15 +125,15 @@ export default function Download() {
                 </code>
                 <CopyStatus />
               </button>
-              <button data-component="cli-row" onClick={handleCopyClick("npm i -g symbolic-ai")}>
+              <button data-component="cli-row" onClick={handleCopyClick("npm i -g symbolic")}>
                 <code>
-                  npm i -g <strong>symbolic-ai</strong>
+                  npm i -g <strong>symbolic</strong>
                 </code>
                 <CopyStatus />
               </button>
-              <button data-component="cli-row" onClick={handleCopyClick("bun add -g symbolic-ai")}>
+              <button data-component="cli-row" onClick={handleCopyClick("bun add -g symbolic")}>
                 <code>
-                  bun add -g <strong>symbolic-ai</strong>
+                  bun add -g <strong>symbolic</strong>
                 </code>
                 <CopyStatus />
               </button>

@@ -1,4 +1,4 @@
-import { Resource } from "@symbolic-ai/console-resource"
+import { Resource } from "@symbolic/console-resource"
 import type { TraceItem } from "@cloudflare/workers-types"
 
 export default {

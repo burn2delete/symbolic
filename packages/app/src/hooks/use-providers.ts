@@ -1,6 +1,6 @@
 import { useGlobalSync } from "@/context/global-sync"
 import { decode64 } from "@/utils/base64"
-import type { ProviderListResponse } from "@symbolic-ai/sdk/v2/client"
+import type { ProviderListResponse } from "@symbolic/sdk/v2/client"
 import { useParams } from "@solidjs/router"
 import { createMemo } from "solid-js"
 

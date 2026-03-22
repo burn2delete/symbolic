@@ -1,4 +1,4 @@
-import { Slug } from "@symbolic-ai/util/slug"
+import { Slug } from "@symbolic/util/slug"
 import path from "path"
 import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"

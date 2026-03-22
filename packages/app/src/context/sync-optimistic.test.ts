@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Message, Part } from "@symbolic-ai/sdk/v2/client"
+import type { Message, Part } from "@symbolic/sdk/v2/client"
 import { applyOptimisticAdd, applyOptimisticRemove } from "./sync"
 
 const userMessage = (id: string, sessionID: string): Message => ({

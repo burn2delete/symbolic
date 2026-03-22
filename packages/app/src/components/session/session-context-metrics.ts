@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message } from "@symbolic-ai/sdk/v2/client"
+import type { AssistantMessage, Message } from "@symbolic/sdk/v2/client"
 
 type Provider = {
   id: string

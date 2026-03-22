@@ -1,5 +1,5 @@
 import type { McpServer } from "@agentclientprotocol/sdk"
-import type { SymbolicClient } from "@symbolic-ai/sdk/v2"
+import type { SymbolicClient } from "@symbolic/sdk/v2"
 import type { ProviderID, ModelID } from "../provider/schema"
 
 export interface ACPSessionState {

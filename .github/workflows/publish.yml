@@ -33,7 +33,7 @@ permissions:
 jobs:
   version:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'SymbolicOS/symbolic'
+    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -48,9 +48,18 @@ jobs:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
           symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
 
-      - name: Install Symbolic
-        if: inputs.bump || inputs.version
-        run: bun i -g symbolic-ai
+      - if: inputs.bump || inputs.version
+        uses: ./.github/actions/setup-symbolic-cli
+
+      - name: Resolve release target
+        id: target
+        shell: bash
+        run: |
+          repo="${{ (github.ref_name == 'beta' && vars.BETA_REPO) || vars.CANONICAL_REPO || github.repository }}"
+          if [[ "$repo" != */* ]]; then
+            repo="${GITHUB_REPOSITORY_OWNER}/${repo}"
+          fi
+          echo "full=$repo" >> "$GITHUB_OUTPUT"
 
       - id: version
         run: |
@@ -60,7 +69,7 @@ jobs:
           SYMBOLIC_BUMP: ${{ inputs.bump }}
           SYMBOLIC_VERSION: ${{ inputs.version }}
           SYMBOLIC_API_KEY: ${{ secrets.SYMBOLIC_API_KEY }}
-          GH_REPO: ${{ (github.ref_name == 'beta' && 'SymbolicOS/symbolic-beta') || github.repository }}
+          GH_REPO: ${{ steps.target.outputs.full }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       release: ${{ steps.version.outputs.release }}
@@ -70,7 +79,7 @@ jobs:
   build-cli:
     needs: version
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'SymbolicOS/symbolic'
+    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -106,6 +115,7 @@ jobs:
     needs:
       - build-cli
       - version
+    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -219,6 +229,21 @@ jobs:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
           symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
 
+      - name: Resolve release target
+        id: target
+        shell: bash
+        run: |
+          repo="${{ (github.ref_name == 'beta' && vars.BETA_REPO) || vars.CANONICAL_REPO || github.repository }}"
+          if [[ "$repo" != */* ]]; then
+            repo="${GITHUB_REPOSITORY_OWNER}/${repo}"
+          fi
+          name=""
+          if [ "${{ github.ref_name }}" = "beta" ] && [ -n "${{ vars.BETA_REPO }}" ]; then
+            name="${repo#*/}"
+          fi
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
       - name: Build and upload artifacts
         uses: tauri-apps/tauri-action@390cbe447412ced1303d35abe75287949e43437a
         timeout-minutes: 60
@@ -232,7 +257,7 @@ jobs:
           tagName: ${{ needs.version.outputs.tag }}
           releaseDraft: true
           releaseAssetNamePattern: symbolic-desktop-[platform]-[arch][ext]
-          repo: ${{ (github.ref_name == 'beta' && 'symbolic-beta') || '' }}
+          repo: ${{ steps.target.outputs.name }}
           releaseCommitish: ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ steps.committer.outputs.token }}
@@ -250,6 +275,7 @@ jobs:
     needs:
       - build-cli
       - version
+    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -374,7 +400,7 @@ jobs:
       - build-cli
       - version
     runs-on: macos-latest
-    if: github.repository == 'SymbolicOS/symbolic'
+    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -446,6 +472,7 @@ jobs:
       - build-electron
       - build-terminal
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     steps:
       - uses: actions/checkout@v3
 

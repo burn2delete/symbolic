@@ -1,4 +1,4 @@
-# @symbolic-ai/slack
+# @symbolic/slack
 
 Slack bot integration for symbolic that creates threaded conversations.
 

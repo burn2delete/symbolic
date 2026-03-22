@@ -1,4 +1,4 @@
-import type { UserMessage } from "@symbolic-ai/sdk/v2"
+import type { UserMessage } from "@symbolic/sdk/v2"
 import { batch } from "solid-js"
 
 type Local = {

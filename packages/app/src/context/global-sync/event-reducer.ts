@@ -1,4 +1,4 @@
-import { Binary } from "@symbolic-ai/util/binary"
+import { Binary } from "@symbolic/util/binary"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type {
   FileDiff,
@@ -10,7 +10,7 @@ import type {
   Session,
   SessionStatus,
   Todo,
-} from "@symbolic-ai/sdk/v2/client"
+} from "@symbolic/sdk/v2/client"
 import type { State, VcsCache } from "./types"
 import { trimSessions } from "./session-trim"
 import { dropSessionCaches } from "./session-cache"

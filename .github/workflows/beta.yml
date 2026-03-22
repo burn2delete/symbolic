@@ -27,8 +27,7 @@ jobs:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
           symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
 
-      - name: Install Symbolic
-        run: bun i -g symbolic-ai
+      - uses: ./.github/actions/setup-symbolic-cli
 
       - name: Sync beta branch
         env:

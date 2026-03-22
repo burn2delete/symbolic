@@ -1,12 +1,12 @@
 import { Component, Show, createMemo, createResource, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Button } from "@symbolic-ai/ui/button"
-import { Icon } from "@symbolic-ai/ui/icon"
-import { Select } from "@symbolic-ai/ui/select"
-import { Switch } from "@symbolic-ai/ui/switch"
-import { Tooltip } from "@symbolic-ai/ui/tooltip"
-import { useTheme, type ColorScheme } from "@symbolic-ai/ui/theme"
-import { showToast } from "@symbolic-ai/ui/toast"
+import { Button } from "@symbolic/ui/button"
+import { Icon } from "@symbolic/ui/icon"
+import { Select } from "@symbolic/ui/select"
+import { Switch } from "@symbolic/ui/switch"
+import { Tooltip } from "@symbolic/ui/tooltip"
+import { useTheme, type ColorScheme } from "@symbolic/ui/theme"
+import { showToast } from "@symbolic/ui/toast"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useSettings, monoFontFamily } from "@/context/settings"
@@ -15,7 +15,7 @@ import { Link } from "./link"
 
 let demoSoundState = {
   cleanup: undefined as (() => void) | undefined,
-  timeout: undefined as NodeJS.Timeout | undefined,
+  timeout: undefined as ReturnType<typeof setTimeout> | undefined,
 }
 
 // To prevent audio from overlapping/playing very quickly when navigating the settings menus,

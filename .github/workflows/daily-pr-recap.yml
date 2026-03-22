@@ -20,8 +20,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install symbolic
-        run: curl -fsSL https://symbolic.computer/install | bash
+      - uses: ./.github/actions/setup-symbolic-cli
 
       - name: Generate daily PR recap
         id: recap
@@ -41,8 +40,9 @@ jobs:
             }
         run: |
           TODAY=$(date -u +%Y-%m-%d)
+          TEAM=$(paste -sd, .github/TEAM_MEMBERS)
 
-          symbolic run -m symbolic/claude-sonnet-4-5 "Generate a daily PR activity recap for the Symbolic repository.
+          symbolic run -m symbolic/claude-sonnet-4-5 "Generate a daily PR activity recap for the ${{ github.repository }} repository.
 
           TODAY'S DATE: ${TODAY}
 
@@ -55,8 +55,9 @@ jobs:
           # Open PRs with activity today (updated today)
           gh pr list --repo ${{ github.repository }} --state open --search \"updated:${TODAY}\" --json number,title,author,labels,createdAt,updatedAt,reviewDecision,isDraft,additions,deletions --limit 100
 
-          IMPORTANT: EXCLUDE all PRs authored by Anomaly team members. Filter out PRs where the author login matches ANY of these:
-          adamdotdevin, Brendonovich, fwang, Hona, iamdavidhill, jayair, kitlangton, kommander, MrMushrooooom, R44VC0RP, rekram1-node, thdxr
+          IMPORTANT: EXCLUDE all PRs authored by internal team members. Filter out PRs where the normalized author login matches ANY of these:
+          ${TEAM}
+          Normalize author logins by stripping a trailing [bot] suffix before comparing.
           This recap is specifically for COMMUNITY (external) contributions only.
 
 
@@ -119,6 +120,7 @@ jobs:
           echo "recap_file=/tmp/pr_recap.txt" >> $GITHUB_OUTPUT
 
       - name: Post to Discord
+        if: vars.ENABLE_DISCORD_AUTOMATIONS == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_ISSUES_WEBHOOK_URL }}
         run: |

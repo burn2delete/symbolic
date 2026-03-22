@@ -1,11 +1,11 @@
 import { createEffect, onCleanup, type JSX } from "solid-js"
-import type { FileDiff } from "@symbolic-ai/sdk/v2"
-import { SessionReview } from "@symbolic-ai/ui/session-review"
+import type { FileDiff } from "@symbolic/sdk/v2"
+import { SessionReview } from "@symbolic/ui/session-review"
 import type {
   SessionReviewCommentActions,
   SessionReviewCommentDelete,
   SessionReviewCommentUpdate,
-} from "@symbolic-ai/ui/session-review"
+} from "@symbolic/ui/session-review"
 import type { SelectedLineRange } from "@/context/file"
 import { useSDK } from "@/context/sdk"
 import { useLayout } from "@/context/layout"

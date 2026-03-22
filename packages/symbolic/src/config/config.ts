@@ -9,7 +9,7 @@ import { mergeDeep, pipe, unique } from "remeda"
 import { Global } from "../global"
 import fs from "fs/promises"
 import { lazy } from "../util/lazy"
-import { NamedError } from "@symbolic-ai/util/error"
+import { NamedError } from "@symbolic/util/error"
 import { Flag } from "../flag/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -268,18 +268,34 @@ export namespace Config {
     await Promise.all(deps)
   }
 
+  function plugin() {
+    return path.resolve(import.meta.dir, "../../../plugin")
+  }
+
+  async function wire(dir: string) {
+    const root = path.join(dir, "node_modules", "@symbolic")
+    const link = path.join(root, "plugin")
+    const type = process.platform === "win32" ? "junction" : "dir"
+    await fs.mkdir(root, { recursive: true })
+    await fs.rm(link, { recursive: true, force: true })
+    await fs.symlink(plugin(), link, type)
+  }
+
   export async function installDependencies(dir: string) {
     const pkg = path.join(dir, "package.json")
-    const targetVersion = Installation.isLocal() ? "*" : Installation.VERSION
+    const local = Installation.isLocal()
+    const target = Installation.VERSION
 
     const json = await Filesystem.readJson<{ dependencies?: Record<string, string> }>(pkg).catch(() => ({
       dependencies: {},
     }))
-    json.dependencies = {
-      ...json.dependencies,
-      "@symbolic-ai/plugin": targetVersion,
-    }
-    await Filesystem.writeJson(pkg, json)
+    const deps: Record<string, string> = { ...(json.dependencies ?? {}) }
+    if (local) delete deps["@symbolic/plugin"]
+    if (!local) deps["@symbolic/plugin"] = target
+    await Filesystem.writeJson(pkg, {
+      ...json,
+      dependencies: deps,
+    })
 
     const gitignore = path.join(dir, ".gitignore")
     const hasGitIgnore = await Filesystem.exists(gitignore)
@@ -297,6 +313,10 @@ export namespace Config {
       { cwd: dir },
     ).catch((err) => {
       log.warn("failed to install dependencies", { dir, error: err })
+    })
+    if (!local) return
+    await wire(dir).catch((err) => {
+      log.warn("failed to wire local plugin", { dir, error: err })
     })
   }
 
@@ -325,17 +345,21 @@ export namespace Config {
     const pkgExists = await Filesystem.exists(pkg)
     if (!pkgExists) return true
 
+    if (Installation.isLocal()) {
+      return !(await Filesystem.exists(path.join(nodeModules, "@symbolic", "plugin")))
+    }
+
     const parsed = await Filesystem.readJson<{ dependencies?: Record<string, string> }>(pkg).catch(() => null)
     const dependencies = parsed?.dependencies ?? {}
-    const depVersion = dependencies["@symbolic-ai/plugin"]
+    const depVersion = dependencies["@symbolic/plugin"]
     if (!depVersion) return true
 
     const targetVersion = Installation.isLocal() ? "latest" : Installation.VERSION
     if (targetVersion === "latest") {
-      const isOutdated = await PackageRegistry.isOutdated("@symbolic-ai/plugin", depVersion, dir)
+      const isOutdated = await PackageRegistry.isOutdated("@symbolic/plugin", depVersion, dir)
       if (!isOutdated) return false
       log.info("Cached version is outdated, proceeding with install", {
-        pkg: "@symbolic-ai/plugin",
+        pkg: "@symbolic/plugin",
         cachedVersion: depVersion,
       })
       return true

@@ -69,7 +69,7 @@ Node.js
 npm
 Obsidian
 symbolic
-symbolic-ai
+symbolic
 Paru
 pnpm
 ripgrep
@@ -636,8 +636,8 @@ XDG_CONFIG_HOME
 ```text
 ../../../config.mjs
 @astrojs/starlight/components
-@symbolic-ai/plugin
-@symbolic-ai/sdk
+@symbolic/plugin
+@symbolic/sdk
 path
 shescape
 zod

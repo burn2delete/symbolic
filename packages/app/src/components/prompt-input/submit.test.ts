@@ -53,18 +53,18 @@ beforeAll(async () => {
     useParams: () => params,
   }))
 
-  mock.module("@symbolic-ai/sdk/v2/client", () => ({
+  mock.module("@symbolic/sdk/v2/client", () => ({
     createSymbolicClient: (input: { directory: string }) => {
       createdClients.push(input.directory)
       return clientFor(input.directory)
     },
   }))
 
-  mock.module("@symbolic-ai/ui/toast", () => ({
+  mock.module("@symbolic/ui/toast", () => ({
     showToast: () => 0,
   }))
 
-  mock.module("@symbolic-ai/util/encode", () => ({
+  mock.module("@symbolic/util/encode", () => ({
     base64Encode: (value: string) => value,
   }))
 

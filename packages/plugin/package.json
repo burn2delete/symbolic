@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@symbolic-ai/plugin",
+  "name": "@symbolic/plugin",
   "version": "1.2.24",
   "type": "module",
   "license": "MIT",
@@ -16,7 +16,7 @@
     "dist"
   ],
   "dependencies": {
-    "@symbolic-ai/sdk": "workspace:*",
+    "@symbolic/sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

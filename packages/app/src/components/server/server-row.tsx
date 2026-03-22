@@ -1,4 +1,4 @@
-import { Tooltip } from "@symbolic-ai/ui/tooltip"
+import { Tooltip } from "@symbolic/ui/tooltip"
 import {
   children,
   createEffect,

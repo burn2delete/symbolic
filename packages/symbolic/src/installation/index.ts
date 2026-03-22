@@ -1,7 +1,7 @@
 import { BusEvent } from "@/bus/bus-event"
 import path from "path"
 import z from "zod"
-import { NamedError } from "@symbolic-ai/util/error"
+import { NamedError } from "@symbolic/util/error"
 import { Log } from "../util/log"
 import { iife } from "@/util/iife"
 import { Flag } from "../flag/flag"
@@ -24,7 +24,7 @@ export namespace Installation {
     }).then((x) => x.text)
   }
 
-  async function upgradeCurl(target: string) {
+  async function upgradeCurl(target: string): Promise<Process.Result> {
     const body = await fetch("https://symbolic.computer/install").then((res) => {
       if (!res.ok) throw new Error(res.statusText)
       return res.text()
@@ -137,7 +137,7 @@ export namespace Installation {
     for (const check of checks) {
       const output = await check.command()
       const installedName =
-        check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "symbolic" : "symbolic-ai"
+        check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "symbolic" : "symbolic"
       if (output.includes(installedName)) {
         return check.name
       }
@@ -162,19 +162,19 @@ export namespace Installation {
   }
 
   export async function upgrade(method: Method, target: string) {
-    let result: Awaited<ReturnType<typeof upgradeCurl>> | undefined
+    let result: Process.Result | undefined
     switch (method) {
       case "curl":
         result = await upgradeCurl(target)
         break
       case "npm":
-        result = await Process.run(["npm", "install", "-g", `symbolic-ai@${target}`], { nothrow: true })
+        result = await Process.run(["npm", "install", "-g", `symbolic@${target}`], { nothrow: true })
         break
       case "pnpm":
-        result = await Process.run(["pnpm", "install", "-g", `symbolic-ai@${target}`], { nothrow: true })
+        result = await Process.run(["pnpm", "install", "-g", `symbolic@${target}`], { nothrow: true })
         break
       case "bun":
-        result = await Process.run(["bun", "install", "-g", `symbolic-ai@${target}`], { nothrow: true })
+        result = await Process.run(["bun", "install", "-g", `symbolic@${target}`], { nothrow: true })
         break
       case "brew": {
         const formula = await getBrewFormula()
@@ -262,7 +262,7 @@ export namespace Installation {
         return reg.endsWith("/") ? reg.slice(0, -1) : reg
       })
       const channel = CHANNEL
-      return fetch(`${registry}/symbolic-ai/${channel}`)
+      return fetch(`${registry}/symbolic/${channel}`)
         .then((res) => {
           if (!res.ok) throw new Error(res.statusText)
           return res.json()

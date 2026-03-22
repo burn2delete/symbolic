@@ -18,7 +18,7 @@ Bruk den til å bygge integrasjoner og kontrollere Symbolic programmatisk.
 Installer SDK fra npm:
 
 ```bash
-npm install @symbolic-ai/sdk
+npm install @symbolic/sdk
 ```
 
 ---
@@ -28,7 +28,7 @@ npm install @symbolic-ai/sdk
 Opprett en forekomst av Symbolic:
 
 ```javascript
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 
 const { client } = await createSymbolic()
 ```
@@ -52,7 +52,7 @@ Dette starter både en server og en klient
 Du kan sende et konfigurasjonsobjekt for å tilpasse virkemåten. Forekomsten henter fortsatt din `symbolic.json`, men du kan overstyre eller legge til konfigurasjon inline:
 
 ```javascript
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 
 const symbolic = await createSymbolic({
   hostname: "127.0.0.1",
@@ -72,7 +72,7 @@ symbolic.server.close()
 Hvis du allerede har en kjørende forekomst av Symbolic, kan du opprette en klientforekomst for å koble til den:
 
 ```javascript
-import { createSymbolicClient } from "@symbolic-ai/sdk"
+import { createSymbolicClient } from "@symbolic/sdk"
 
 const client = createSymbolicClient({
   baseUrl: "http://localhost:4096",
@@ -96,7 +96,7 @@ const client = createSymbolicClient({
 SDK inkluderer TypeScript-definisjoner for alle API-typer. Importer dem direkte:
 
 ```typescript
-import type { Session, Message, Part } from "@symbolic-ai/sdk"
+import type { Session, Message, Part } from "@symbolic/sdk"
 ```
 
 Alle typer er generert fra serverens OpenAPI-spesifikasjon og tilgjengelig i <a href={typesUrl}>type-filen</a>.

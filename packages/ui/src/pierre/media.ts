@@ -1,4 +1,4 @@
-import type { FileContent } from "@symbolic-ai/sdk/v2"
+import type { FileContent } from "@symbolic/sdk/v2"
 
 export type MediaKind = "image" | "audio" | "svg"
 

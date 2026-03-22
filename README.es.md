@@ -10,7 +10,7 @@
 <p align="center">El agente de programación con IA de código abierto.</p>
 <p align="center">
   <a href="https://symbolic.computer/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/symbolic-ai"><img alt="npm" src="https://img.shields.io/npm/v/symbolic-ai?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/symbolic"><img alt="npm" src="https://img.shields.io/npm/v/symbolic?style=flat-square" /></a>
   <a href="https://github.com/SymbolicOS/symbolic/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/SymbolicOS/symbolic/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -50,7 +50,7 @@
 curl -fsSL https://symbolic.computer/install | bash
 
 # Gestores de paquetes
-npm i -g symbolic-ai@latest        # o bun/pnpm/yarn
+npm i -g symbolic@latest        # o bun/pnpm/yarn
 scoop install symbolic             # Windows
 choco install symbolic             # Windows
 brew install anomalyco/tap/symbolic # macOS y Linux (recomendado, siempre al día)

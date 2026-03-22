@@ -1,0 +1,11 @@
+name: "Setup Symbolic CLI"
+description: "Build and install the checked-out symbolic CLI"
+runs:
+  using: "composite"
+  steps:
+    - name: Install symbolic from repo
+      shell: bash
+      run: |
+        export SYMBOLIC_INSTALL_DIR="$HOME/.symbolic/bin"
+        bun --cwd packages/symbolic run local-install
+        echo "$SYMBOLIC_INSTALL_DIR" >> "$GITHUB_PATH"

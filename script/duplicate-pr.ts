@@ -2,7 +2,7 @@
 
 import path from "path"
 import { pathToFileURL } from "bun"
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 import { parseArgs } from "util"
 
 async function main() {

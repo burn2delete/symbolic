@@ -20,8 +20,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install symbolic
-        run: curl -fsSL https://symbolic.computer/install | bash
+      - uses: ./.github/actions/setup-symbolic-cli
 
       - name: Generate daily issues recap
         id: recap
@@ -42,8 +41,9 @@ jobs:
         run: |
           # Get today's date range
           TODAY=$(date -u +%Y-%m-%d)
+          TEAM=$(paste -sd, .github/TEAM_MEMBERS)
 
-          symbolic run -m symbolic/claude-sonnet-4-5 "Generate a daily issues recap for the Symbolic repository.
+          symbolic run -m symbolic/claude-sonnet-4-5 "Generate a daily issues recap for the ${{ github.repository }} repository.
 
           TODAY'S DATE: ${TODAY}
 
@@ -51,8 +51,9 @@ jobs:
           Search for all OPEN issues created today (${TODAY}) using:
           gh issue list --repo ${{ github.repository }} --state open --search \"created:${TODAY}\" --json number,title,body,labels,state,comments,createdAt,author --limit 500
 
-          IMPORTANT: EXCLUDE all issues authored by Anomaly team members. Filter out issues where the author login matches ANY of these:
-          adamdotdevin, Brendonovich, fwang, Hona, iamdavidhill, jayair, kitlangton, kommander, MrMushrooooom, R44VC0RP, rekram1-node, thdxr
+          IMPORTANT: EXCLUDE all issues authored by internal team members. Filter out issues where the normalized author login matches ANY of these:
+          ${TEAM}
+          Normalize author logins by stripping a trailing [bot] suffix before comparing.
           This recap is specifically for COMMUNITY (external) issues only.
 
           STEP 2: Analyze and categorize
@@ -116,6 +117,7 @@ jobs:
           echo "recap_file=/tmp/recap.txt" >> $GITHUB_OUTPUT
 
       - name: Post to Discord
+        if: vars.ENABLE_DISCORD_AUTOMATIONS == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_ISSUES_WEBHOOK_URL }}
         run: |

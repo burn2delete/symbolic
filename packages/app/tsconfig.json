@@ -4,6 +4,7 @@
     "composite": true,
     "target": "ESNext",
     "module": "ESNext",
+    "types": ["bun", "node"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,

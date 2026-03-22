@@ -19,8 +19,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install symbolic
-        run: curl -fsSL https://symbolic.computer/install | bash
+      - uses: ./.github/actions/setup-symbolic-cli
 
       - name: Check duplicates and compliance
         env:
@@ -131,8 +130,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install symbolic
-        run: curl -fsSL https://symbolic.computer/install | bash
+      - uses: ./.github/actions/setup-symbolic-cli
 
       - name: Recheck compliance
         env:

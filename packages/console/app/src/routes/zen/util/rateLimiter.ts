@@ -1,10 +1,10 @@
-import { Database, eq, and, sql, inArray } from "@symbolic-ai/console-core/drizzle/index.js"
-import { IpRateLimitTable } from "@symbolic-ai/console-core/schema/ip.sql.js"
+import { Database, eq, and, sql, inArray } from "@symbolic/console-core/drizzle/index.js"
+import { IpRateLimitTable } from "@symbolic/console-core/schema/ip.sql.js"
 import { FreeUsageLimitError } from "./error"
 import { logger } from "./logger"
 import { i18n } from "~/i18n"
 import { localeFromRequest } from "~/lib/language"
-import { Subscription } from "@symbolic-ai/console-core/subscription.js"
+import { Subscription } from "@symbolic/console-core/subscription.js"
 
 export function createRateLimiter(
   modelId: string,

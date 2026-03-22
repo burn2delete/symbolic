@@ -1,4 +1,4 @@
-import type { ToolPart } from "@symbolic-ai/sdk/v2/client"
+import type { ToolPart } from "@symbolic/sdk/v2/client"
 import { test, expect } from "../fixtures"
 import { sessionIDFromUrl } from "../actions"
 import { promptSelector } from "../selectors"

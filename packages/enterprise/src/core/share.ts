@@ -1,6 +1,6 @@
-import { FileDiff, Message, Model, Part, Session } from "@symbolic-ai/sdk/v2"
-import { fn } from "@symbolic-ai/util/fn"
-import { iife } from "@symbolic-ai/util/iife"
+import { FileDiff, Message, Model, Part, Session } from "@symbolic/sdk/v2"
+import { fn } from "@symbolic/util/fn"
+import { iife } from "@symbolic/util/iife"
 import z from "zod"
 import { Storage } from "./storage"
 

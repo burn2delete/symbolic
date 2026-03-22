@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic-ai/web-legacy",
+  "name": "@symbolic/web-legacy",
   "description": "Legacy docs and share site marked for deprecation",
   "type": "module",
   "license": "MIT",

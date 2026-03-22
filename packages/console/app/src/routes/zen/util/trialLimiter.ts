@@ -1,7 +1,7 @@
-import { Database, eq, sql } from "@symbolic-ai/console-core/drizzle/index.js"
-import { IpTable } from "@symbolic-ai/console-core/schema/ip.sql.js"
+import { Database, eq, sql } from "@symbolic/console-core/drizzle/index.js"
+import { IpTable } from "@symbolic/console-core/schema/ip.sql.js"
 import { UsageInfo } from "./provider/provider"
-import { Subscription } from "@symbolic-ai/console-core/subscription.js"
+import { Subscription } from "@symbolic/console-core/subscription.js"
 
 export function createTrialLimiter(trialProvider: string | undefined, ip: string) {
   if (!trialProvider) return

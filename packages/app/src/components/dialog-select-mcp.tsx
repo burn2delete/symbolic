@@ -1,9 +1,9 @@
 import { Component, createMemo, createSignal, Show } from "solid-js"
 import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
-import { Dialog } from "@symbolic-ai/ui/dialog"
-import { List } from "@symbolic-ai/ui/list"
-import { Switch } from "@symbolic-ai/ui/switch"
+import { Dialog } from "@symbolic/ui/dialog"
+import { List } from "@symbolic/ui/list"
+import { Switch } from "@symbolic/ui/switch"
 import { useLanguage } from "@/context/language"
 
 const statusLabels = {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Script } from "@symbolic-ai/script"
+import { Script } from "@symbolic/script"
 import { $ } from "bun"
 import { fileURLToPath } from "url"
 

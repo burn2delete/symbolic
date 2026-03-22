@@ -1,4 +1,4 @@
-import type { Hooks, PluginInput } from "@symbolic-ai/plugin"
+import type { Hooks, PluginInput } from "@symbolic/plugin"
 import { Auth } from "../auth"
 import { Installation } from "../installation"
 import crypto from "node:crypto"

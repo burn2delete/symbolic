@@ -17,18 +17,18 @@ import type {
   ProviderListResponse,
   ProviderAuthMethod,
   VcsInfo,
-} from "@symbolic-ai/sdk/v2"
+} from "@symbolic/sdk/v2"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useSDK } from "@tui/context/sdk"
-import { Binary } from "@symbolic-ai/util/binary"
+import { Binary } from "@symbolic/util/binary"
 import { createSimpleContext } from "./helper"
 import type { Snapshot } from "@/snapshot"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
 import { batch, onMount } from "solid-js"
 import { Log } from "@/util/log"
-import type { Path } from "@symbolic-ai/sdk"
-import type { Workspace } from "@symbolic-ai/sdk/v2"
+import type { Path } from "@symbolic/sdk"
+import type { Workspace } from "@symbolic/sdk/v2"
 
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",

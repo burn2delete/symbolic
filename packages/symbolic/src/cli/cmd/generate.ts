@@ -14,7 +14,7 @@ export const GenerateCommand = {
           {
             lang: "js",
             source: [
-              `import { createSymbolicClient } from "@symbolic-ai/sdk`,
+              `import { createSymbolicClient } from "@symbolic/sdk`,
               ``,
               `const client = createSymbolicClient()`,
               `await client.${operation.operationId}({`,

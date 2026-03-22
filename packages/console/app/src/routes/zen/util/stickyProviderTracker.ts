@@ -1,4 +1,4 @@
-import { Resource } from "@symbolic-ai/console-resource"
+import { Resource } from "@symbolic/console-resource"
 
 export function createStickyTracker(stickyProvider: "strict" | "prefer" | undefined, session: string) {
   if (!stickyProvider) return

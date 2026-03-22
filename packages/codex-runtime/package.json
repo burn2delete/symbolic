@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@symbolic-ai/codex-runtime",
+  "name": "@symbolic/codex-runtime",
   "version": "1.2.24",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "bun test --timeout 30000"
   },
   "dependencies": {
-    "@symbolic-ai/plugin": "workspace:*",
+    "@symbolic/plugin": "workspace:*",
     "vscode-jsonrpc": "8.2.1"
   },
   "devDependencies": {

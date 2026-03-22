@@ -12,7 +12,7 @@ const dir = path.resolve(__dirname, "..")
 
 process.chdir(dir)
 
-import { Script } from "@symbolic-ai/script"
+import { Script } from "@symbolic/script"
 import pkg from "../package.json"
 
 const modelsUrl = process.env.SYMBOLIC_MODELS_URL || "https://models.dev"

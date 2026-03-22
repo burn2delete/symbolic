@@ -8,10 +8,10 @@ import type {
   ProviderListResponse,
   QuestionRequest,
   Todo,
-} from "@symbolic-ai/sdk/v2/client"
-import { showToast } from "@symbolic-ai/ui/toast"
-import { getFilename } from "@symbolic-ai/util/path"
-import { retry } from "@symbolic-ai/util/retry"
+} from "@symbolic/sdk/v2/client"
+import { showToast } from "@symbolic/ui/toast"
+import { getFilename } from "@symbolic/util/path"
+import { retry } from "@symbolic/util/retry"
 import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"

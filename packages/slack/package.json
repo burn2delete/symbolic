@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic-ai/slack",
+  "name": "@symbolic/slack",
   "version": "1.2.24",
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@symbolic-ai/sdk": "workspace:*",
+    "@symbolic/sdk": "workspace:*",
     "@slack/bolt": "^3.17.1"
   },
   "devDependencies": {

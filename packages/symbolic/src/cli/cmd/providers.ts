@@ -10,7 +10,7 @@ import { Config } from "../../config/config"
 import { Global } from "../../global"
 import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
-import type { Hooks } from "@symbolic-ai/plugin"
+import type { Hooks } from "@symbolic/plugin"
 import { Process } from "../../util/process"
 import { text } from "node:stream/consumers"
 

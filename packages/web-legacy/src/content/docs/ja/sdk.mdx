@@ -18,7 +18,7 @@ Symbolic JS/TS SDK は、サーバーと対話するための型安全なクラ�
 npm から SDK をインストールします。
 
 ```bash
-npm install @symbolic-ai/sdk
+npm install @symbolic/sdk
 ```
 
 ---
@@ -28,7 +28,7 @@ npm install @symbolic-ai/sdk
 Symbolic のインスタンスを作成します。
 
 ```javascript
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 
 const { client } = await createSymbolic()
 ```
@@ -52,7 +52,7 @@ const { client } = await createSymbolic()
 設定オブジェクトを渡して動作をカスタマイズできます。インスタンスは引き続き `symbolic.json` を取得しますが、設定をインラインでオーバーライドまたは追加することができます。
 
 ```javascript
-import { createSymbolic } from "@symbolic-ai/sdk"
+import { createSymbolic } from "@symbolic/sdk"
 
 const symbolic = await createSymbolic({
   hostname: "127.0.0.1",
@@ -72,7 +72,7 @@ symbolic.server.close()
 すでに実行中の Symbolic のインスタンスがある場合は、それに接続するためのクライアントインスタンスを作成できます。
 
 ```javascript
-import { createSymbolicClient } from "@symbolic-ai/sdk"
+import { createSymbolicClient } from "@symbolic/sdk"
 
 const client = createSymbolicClient({
   baseUrl: "http://localhost:4096",
@@ -96,7 +96,7 @@ const client = createSymbolicClient({
 SDK には、すべての API タイプの TypeScript 定義が含まれています。それらを直接インポートします。
 
 ```typescript
-import type { Session, Message, Part } from "@symbolic-ai/sdk"
+import type { Session, Message, Part } from "@symbolic/sdk"
 ```
 
 すべてのタイプはサーバーの OpenAPI 仕様から生成され、<a href={typesUrl}>タイプファイル</a> で使用できます。

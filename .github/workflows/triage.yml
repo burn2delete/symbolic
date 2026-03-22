@@ -19,8 +19,7 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Install symbolic
-        run: curl -fsSL https://symbolic.computer/install | bash
+      - uses: ./.github/actions/setup-symbolic-cli
 
       - name: Triage issue
         env:

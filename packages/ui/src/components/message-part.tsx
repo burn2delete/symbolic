@@ -27,7 +27,7 @@ import {
   Todo,
   QuestionAnswer,
   QuestionInfo,
-} from "@symbolic-ai/sdk/v2"
+} from "@symbolic/sdk/v2"
 import { useData } from "../context"
 import { useFileComponent } from "../context/file"
 import { useDialog } from "../context/dialog"
@@ -44,8 +44,8 @@ import { Checkbox } from "./checkbox"
 import { DiffChanges } from "./diff-changes"
 import { Markdown } from "./markdown"
 import { ImagePreview } from "./image-preview"
-import { getDirectory as _getDirectory, getFilename } from "@symbolic-ai/util/path"
-import { checksum } from "@symbolic-ai/util/encode"
+import { getDirectory as _getDirectory, getFilename } from "@symbolic/util/path"
+import { checksum } from "@symbolic/util/encode"
 import { Tooltip } from "./tooltip"
 import { IconButton } from "./icon-button"
 import { TextShimmer } from "./text-shimmer"

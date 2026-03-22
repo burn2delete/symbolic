@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js"
-import { Dialog } from "@symbolic-ai/ui/dialog"
-import { Button } from "@symbolic-ai/ui/button"
-import { useDialog } from "@symbolic-ai/ui/context/dialog"
+import { Dialog } from "@symbolic/ui/dialog"
+import { Button } from "@symbolic/ui/button"
+import { useDialog } from "@symbolic/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 

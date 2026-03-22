@@ -6,9 +6,9 @@ import type {
   ProviderAuthResponse,
   ProviderListResponse,
   Todo,
-} from "@symbolic-ai/sdk/v2/client"
-import { showToast } from "@symbolic-ai/ui/toast"
-import { getFilename } from "@symbolic-ai/util/path"
+} from "@symbolic/sdk/v2/client"
+import { showToast } from "@symbolic/ui/toast"
+import { getFilename } from "@symbolic/util/path"
 import {
   createContext,
   getOwner,

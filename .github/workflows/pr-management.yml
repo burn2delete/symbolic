@@ -18,9 +18,13 @@ jobs:
 
       - name: Check team membership
         id: team-check
+        env:
+          BOT_LOGIN: ${{ vars.BOT_LOGIN || 'symbolic-agent' }}
         run: |
           LOGIN="${{ github.event.pull_request.user.login }}"
-          if [ "$LOGIN" = "symbolic-agent[bot]" ] || grep -qxF "$LOGIN" .github/TEAM_MEMBERS; then
+          LOGIN="${LOGIN%\[bot\]}"
+          BOT="${BOT_LOGIN%\[bot\]}"
+          if [ "$LOGIN" = "$BOT" ] || grep -qxF "$LOGIN" .github/TEAM_MEMBERS; then
             echo "is_team=true" >> "$GITHUB_OUTPUT"
             echo "Skipping: $LOGIN is a team member or bot"
           else
@@ -35,9 +39,8 @@ jobs:
         if: steps.team-check.outputs.is_team != 'true'
         run: bun install
 
-      - name: Install symbolic
+      - uses: ./.github/actions/setup-symbolic-cli
         if: steps.team-check.outputs.is_team != 'true'
-        run: curl -fsSL https://symbolic.computer/install | bash
 
       - name: Build prompt
         if: steps.team-check.outputs.is_team != 'true'

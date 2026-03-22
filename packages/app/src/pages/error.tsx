@@ -1,11 +1,11 @@
-import { TextField } from "@symbolic-ai/ui/text-field"
-import { Logo } from "@symbolic-ai/ui/logo"
-import { Button } from "@symbolic-ai/ui/button"
+import { TextField } from "@symbolic/ui/text-field"
+import { Logo } from "@symbolic/ui/logo"
+import { Button } from "@symbolic/ui/button"
 import { Component, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
-import { Icon } from "@symbolic-ai/ui/icon"
+import { Icon } from "@symbolic/ui/icon"
 
 export type InitError = {
   name: string

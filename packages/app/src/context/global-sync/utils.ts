@@ -1,4 +1,4 @@
-import type { Project, ProviderListResponse } from "@symbolic-ai/sdk/v2/client"
+import type { Project, ProviderListResponse } from "@symbolic/sdk/v2/client"
 
 export const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 

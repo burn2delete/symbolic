@@ -23,10 +23,12 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
+      - uses: ./.github/actions/setup-symbolic-cli
+
       - name: Run symbolic
-        uses: SymbolicOS/symbolic/github@latest
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SYMBOLIC_API_KEY: ${{ secrets.SYMBOLIC_API_KEY }}
           SYMBOLIC_PERMISSION: '{"bash": "deny"}'
-        with:
-          model: symbolic/claude-opus-4-5
+          MODEL: symbolic/claude-opus-4-5
+        run: symbolic github run

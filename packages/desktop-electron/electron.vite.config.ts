@@ -1,5 +1,5 @@
 import { defineConfig } from "electron-vite"
-import appPlugin from "@symbolic-ai/app/vite"
+import appPlugin from "@symbolic/app/vite"
 
 const channel = (() => {
   const raw = process.env.SYMBOLIC_CHANNEL

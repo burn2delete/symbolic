@@ -1,4 +1,4 @@
-import type { Hooks, PluginInput } from "@symbolic-ai/plugin"
+import type { Hooks, PluginInput } from "@symbolic/plugin"
 import type { Provider } from "@/provider/provider"
 import { Log } from "../util/log"
 import { Installation } from "../installation"

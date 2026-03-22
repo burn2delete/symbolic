@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic-ai/util",
+  "name": "@symbolic/util",
   "version": "1.2.24",
   "private": true,
   "type": "module",
