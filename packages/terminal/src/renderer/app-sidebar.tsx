@@ -130,7 +130,7 @@ function Tabs(props: { ctx: App }) {
           <div className={`pointer-events-none absolute inset-x-0 top-0 z-10 h-4 bg-[linear-gradient(180deg,var(--sidebar)_12%,transparent)] transition-opacity duration-150 ease-linear ${fade.top ? "opacity-100" : "opacity-0"}`} />
           <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 h-4 bg-[linear-gradient(0deg,var(--sidebar)_12%,transparent)] transition-opacity duration-150 ease-linear ${fade.bot ? "opacity-100" : "opacity-0"}`} />
           <div className="no-scrollbar h-full overflow-y-auto px-2 pb-2" onScroll={(event) => setFade(mark(event.currentTarget))} ref={ref}>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {ctx.list.length ? ctx.list.map((session) => {
                 const cwd = parts(session.cwd);
                 const Icon = glyph(session.launch);
@@ -146,10 +146,10 @@ function Tabs(props: { ctx: App }) {
                         <span className="text-[11px] text-sidebar-foreground/58">{line(session)}</span>
                       </span>
                     </SidebarMenuButton>
-                    <SidebarMenuAction aria-label={`Restart ${label(session)}`} className="right-6 text-sidebar-foreground/42 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground/70" onClick={(event) => { event.stopPropagation(); void ctx.restart(session.id); }} onKeyDown={(event) => event.stopPropagation()} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }} showOnHover title="Restart tab" type="button">
+                    <SidebarMenuAction aria-label={`Restart ${label(session)}`} className="right-6 z-10 text-sidebar-foreground/42 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground/70" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void ctx.restart(session.id); }} onKeyDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} showOnHover title="Restart tab" type="button">
                       <Turn className="size-3" />
                     </SidebarMenuAction>
-                    <SidebarMenuAction aria-label={`Close ${label(session)}`} className="text-sidebar-foreground/42 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground/70" onClick={(event) => { event.stopPropagation(); void ctx.remove(session.id); }} onKeyDown={(event) => event.stopPropagation()} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }} showOnHover title="Close tab" type="button">
+                    <SidebarMenuAction aria-label={`Close ${label(session)}`} className="z-10 text-sidebar-foreground/42 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground/70" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void ctx.remove(session.id); }} onKeyDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} showOnHover title="Close tab" type="button">
                       <X className="size-3" />
                     </SidebarMenuAction>
                   </SidebarMenuItem>
