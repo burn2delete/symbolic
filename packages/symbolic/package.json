@@ -20,7 +20,8 @@
     "symbolic": "./bin/symbolic"
   },
   "exports": {
-    "./*": "./src/*.ts"
+    "./*": "./src/*.ts",
+    "./tui-themes": "./src/tui-themes.ts"
   },
   "devDependencies": {
     "@babel/core": "7.28.4",

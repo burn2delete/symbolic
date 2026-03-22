@@ -1,53 +1,20 @@
-import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import path from "node:path";
+import { readFile } from "node:fs/promises"
+import { homedir } from "node:os"
+import path from "node:path"
+import { themes as builtin } from "symbolic/tui-themes"
 
-import aura from "../../../symbolic/src/cli/cmd/tui/context/theme/aura.json" with { type: "json" };
-import ayu from "../../../symbolic/src/cli/cmd/tui/context/theme/ayu.json" with { type: "json" };
-import catppuccin from "../../../symbolic/src/cli/cmd/tui/context/theme/catppuccin.json" with { type: "json" };
-import catppuccinFrappe from "../../../symbolic/src/cli/cmd/tui/context/theme/catppuccin-frappe.json" with { type: "json" };
-import catppuccinMacchiato from "../../../symbolic/src/cli/cmd/tui/context/theme/catppuccin-macchiato.json" with { type: "json" };
-import cobalt2 from "../../../symbolic/src/cli/cmd/tui/context/theme/cobalt2.json" with { type: "json" };
-import cursor from "../../../symbolic/src/cli/cmd/tui/context/theme/cursor.json" with { type: "json" };
-import dracula from "../../../symbolic/src/cli/cmd/tui/context/theme/dracula.json" with { type: "json" };
-import everforest from "../../../symbolic/src/cli/cmd/tui/context/theme/everforest.json" with { type: "json" };
-import flexoki from "../../../symbolic/src/cli/cmd/tui/context/theme/flexoki.json" with { type: "json" };
-import github from "../../../symbolic/src/cli/cmd/tui/context/theme/github.json" with { type: "json" };
-import gruvbox from "../../../symbolic/src/cli/cmd/tui/context/theme/gruvbox.json" with { type: "json" };
-import kanagawa from "../../../symbolic/src/cli/cmd/tui/context/theme/kanagawa.json" with { type: "json" };
-import material from "../../../symbolic/src/cli/cmd/tui/context/theme/material.json" with { type: "json" };
-import matrix from "../../../symbolic/src/cli/cmd/tui/context/theme/matrix.json" with { type: "json" };
-import mercury from "../../../symbolic/src/cli/cmd/tui/context/theme/mercury.json" with { type: "json" };
-import monokai from "../../../symbolic/src/cli/cmd/tui/context/theme/monokai.json" with { type: "json" };
-import nightowl from "../../../symbolic/src/cli/cmd/tui/context/theme/nightowl.json" with { type: "json" };
-import nord from "../../../symbolic/src/cli/cmd/tui/context/theme/nord.json" with { type: "json" };
-import onedark from "../../../symbolic/src/cli/cmd/tui/context/theme/one-dark.json" with { type: "json" };
-import orng from "../../../symbolic/src/cli/cmd/tui/context/theme/orng.json" with { type: "json" };
-import osakaJade from "../../../symbolic/src/cli/cmd/tui/context/theme/osaka-jade.json" with { type: "json" };
-import palenight from "../../../symbolic/src/cli/cmd/tui/context/theme/palenight.json" with { type: "json" };
-import rosepine from "../../../symbolic/src/cli/cmd/tui/context/theme/rosepine.json" with { type: "json" };
-import solarized from "../../../symbolic/src/cli/cmd/tui/context/theme/solarized.json" with { type: "json" };
-import symbolic from "../../../symbolic/src/cli/cmd/tui/context/theme/symbolic.json" with { type: "json" };
-import synthwave84 from "../../../symbolic/src/cli/cmd/tui/context/theme/synthwave84.json" with { type: "json" };
-import tokyonight from "../../../symbolic/src/cli/cmd/tui/context/theme/tokyonight.json" with { type: "json" };
-import lucentOrng from "../../../symbolic/src/cli/cmd/tui/context/theme/lucent-orng.json" with { type: "json" };
-import vercel from "../../../symbolic/src/cli/cmd/tui/context/theme/vercel.json" with { type: "json" };
-import vesper from "../../../symbolic/src/cli/cmd/tui/context/theme/vesper.json" with { type: "json" };
-import zenburn from "../../../symbolic/src/cli/cmd/tui/context/theme/zenburn.json" with { type: "json" };
-import carbonfox from "../../../symbolic/src/cli/cmd/tui/context/theme/carbonfox.json" with { type: "json" };
+import type { Tui, TuiTone } from "../shared/api"
 
-import type { Tui, TuiTone } from "../shared/api";
-
-type Ref = string;
-type Val = `#${string}` | Ref | Pair;
+type Ref = string
+type Val = `#${string}` | Ref | Pair
 type Pair = {
-  dark: Val;
-  light: Val;
-};
+  dark: Val
+  light: Val
+}
 type Json = {
-  defs?: Record<string, `#${string}` | Ref>;
-  theme: Record<Key, Val> & Record<string, unknown>;
-};
+  defs?: Record<string, `#${string}` | Ref>
+  theme: Record<Key, Val> & Record<string, unknown>
+}
 
 const keys = [
   "primary",
@@ -65,45 +32,11 @@ const keys = [
   "border",
   "borderActive",
   "borderSubtle",
-] as const satisfies Array<keyof TuiTone>;
+] as const satisfies Array<keyof TuiTone>
 
-type Key = (typeof keys)[number];
+type Key = (typeof keys)[number]
 
-const base: Record<string, Json> = {
-  aura,
-  ayu,
-  catppuccin,
-  ["catppuccin-frappe"]: catppuccinFrappe,
-  ["catppuccin-macchiato"]: catppuccinMacchiato,
-  cobalt2,
-  cursor,
-  dracula,
-  everforest,
-  flexoki,
-  github,
-  gruvbox,
-  kanagawa,
-  material,
-  matrix,
-  mercury,
-  monokai,
-  nightowl,
-  nord,
-  ["one-dark"]: onedark,
-  ["osaka-jade"]: osakaJade,
-  orng,
-  ["lucent-orng"]: lucentOrng,
-  palenight,
-  rosepine,
-  solarized,
-  symbolic,
-  synthwave84,
-  tokyonight,
-  vercel,
-  vesper,
-  zenburn,
-  carbonfox,
-} satisfies Record<string, Json>;
+const base: Record<string, Json> = builtin
 
 export async function read(cwd: string | null) {
   const name = await pick(cwd);
@@ -157,7 +90,7 @@ async function pref(file: string) {
 }
 
 async function custom(name: string, cwd: string | null) {
-  for (const file of themes(name, cwd)) {
+  for (const file of look(name, cwd)) {
     const text = await readFile(file, "utf8").catch(() => null);
     if (!text) continue;
     const json = JSON.parse(text) as Json;
@@ -166,7 +99,7 @@ async function custom(name: string, cwd: string | null) {
   return null;
 }
 
-function themes(name: string, cwd: string | null) {
+function look(name: string, cwd: string | null) {
   return [...fall(cwd).map((dir) => path.join(dir, ".symbolic", "themes", `${name}.json`)), path.join(cfg(), "themes", `${name}.json`)];
 }
 

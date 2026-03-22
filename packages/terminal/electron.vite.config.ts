@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        "symbolic/tui-themes": fileURLToPath(new URL("../symbolic/src/tui-themes.ts", import.meta.url)),
+      },
+    },
     build: {
       rollupOptions: {
         external: ["electron", "node-pty"],
