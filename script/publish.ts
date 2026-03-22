@@ -36,6 +36,14 @@ function on(name: string) {
   return process.env[name] !== "false"
 }
 
+function repo() {
+  return process.env.GH_REPO || process.env.GITHUB_REPOSITORY || "burn2delete/symbolic"
+}
+
+function host() {
+  return `https://github.com/${repo()}`
+}
+
 console.log("=== publishing ===\n")
 
 const pkgjsons = await Array.fromAsync(
@@ -54,7 +62,9 @@ for (const file of pkgjsons) {
 const extensionToml = fileURLToPath(new URL("../packages/extensions/zed/extension.toml", import.meta.url))
 let toml = await Bun.file(extensionToml).text()
 toml = toml.replace(/^version = "[^"]+"/m, `version = "${Script.version}"`)
+toml = toml.replace(/^repository = ".*"$/m, `repository = "${host()}"`)
 toml = toml.replaceAll(/releases\/download\/v[^/]+\//g, `releases/download/v${Script.version}/`)
+toml = toml.replaceAll(/https:\/\/github\.com\/[^/]+\/[^/]+/g, host())
 console.log("updated:", extensionToml)
 await Bun.file(extensionToml).write(toml)
 
