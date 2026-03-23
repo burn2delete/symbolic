@@ -106,6 +106,48 @@ describe("session.prompt missing file", () => {
       },
     })
   })
+
+  test("decodes text attachments from data URLs", async () => {
+    await using tmp = await tmpdir({
+      git: true,
+      config: {
+        agent: {
+          build: {
+            model: "openai/gpt-5.2",
+          },
+        },
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+
+        const msg = await SessionPrompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [
+            { type: "text", text: "please inspect this attachment" },
+            {
+              type: "file",
+              mime: "text/plain",
+              url: "data:text/plain;base64,SGVsbG8gU3ltYm9saWM=",
+              filename: "note.txt",
+            },
+          ],
+        })
+
+        if (msg.info.role !== "user") throw new Error("expected user message")
+
+        const text = msg.parts.filter((part) => part.type === "text").map((part) => part.text)
+        expect(text.some((value) => value.includes("Hello Symbolic"))).toBe(true)
+
+        await Session.remove(session.id)
+      },
+    })
+  })
 })
 
 describe("session.prompt special characters", () => {

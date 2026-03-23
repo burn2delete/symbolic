@@ -1,5 +1,6 @@
 import { Component, For, Show } from "solid-js"
 import { Icon } from "@symbolic-agent/ui/icon"
+import { FileIcon } from "@symbolic-agent/ui/file-icon"
 import type { ImageAttachmentPart } from "@/context/prompt"
 
 type PromptImageAttachmentsProps = {
@@ -9,12 +10,14 @@ type PromptImageAttachmentsProps = {
   removeLabel: string
 }
 
-const fallbackClass = "size-16 rounded-md bg-surface-base flex items-center justify-center border border-border-base"
 const imageClass =
   "size-16 rounded-md object-cover border border-border-base hover:border-border-strong-base transition-colors"
 const removeClass =
   "absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface-raised-stronger-non-alpha border border-border-base flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-raised-base-hover"
 const nameClass = "absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/50 rounded-b-md"
+const fileClass =
+  "min-w-0 w-[min(220px,100%)] h-16 px-2 rounded-md bg-surface-base flex items-center gap-2 border border-border-base hover:border-border-strong-base transition-colors"
+const fileNameClass = "min-w-0 truncate text-12-regular text-text-base"
 
 export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (props) => {
   return (
@@ -26,8 +29,9 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
               <Show
                 when={attachment.mime.startsWith("image/")}
                 fallback={
-                  <div class={fallbackClass}>
-                    <Icon name="folder" class="size-6 text-text-weak" />
+                  <div class={fileClass}>
+                    <FileIcon node={{ path: attachment.filename, type: "file" }} class="size-5 shrink-0" />
+                    <span class={fileNameClass}>{attachment.filename}</span>
                   </div>
                 }
               >
@@ -46,9 +50,11 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
               >
                 <Icon name="close" class="size-3 text-text-weak" />
               </button>
-              <div class={nameClass}>
-                <span class="text-10-regular text-white truncate block">{attachment.filename}</span>
-              </div>
+              <Show when={attachment.mime.startsWith("image/")}>
+                <div class={nameClass}>
+                  <span class="text-10-regular text-white truncate block">{attachment.filename}</span>
+                </div>
+              </Show>
             </div>
           )}
         </For>

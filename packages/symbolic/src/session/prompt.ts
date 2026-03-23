@@ -48,6 +48,7 @@ import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
 import { Process } from "@/util/process"
+import { decodeDataUrl } from "@/util/data-url"
 import type { RuntimeInput } from "@symbolic-agent/plugin"
 
 // @ts-ignore
@@ -1171,7 +1172,7 @@ export namespace SessionPrompt {
                     sessionID: input.sessionID,
                     type: "text",
                     synthetic: true,
-                    text: Buffer.from(part.url, "base64url").toString(),
+                    text: decodeDataUrl(part.url),
                   },
                   {
                     ...part,

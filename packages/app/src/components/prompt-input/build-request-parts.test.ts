@@ -75,6 +75,32 @@ describe("buildRequestParts", () => {
     expect(files.map((part) => (part.type === "file" ? part.filename : ""))).toEqual(["a.png", "b.pdf"])
   })
 
+  test("keeps text attachments as file parts", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "read this", start: 0, end: 9 }],
+      context: [],
+      images: [
+        {
+          type: "image",
+          id: "text_1",
+          filename: "note.txt",
+          mime: "text/plain",
+          dataUrl: "data:text/plain;base64,SGVsbG8=",
+        },
+      ],
+      text: "read this",
+      messageID: "msg_text",
+      sessionID: "ses_text",
+      sessionDirectory: "/repo",
+    })
+
+    expect(
+      result.requestParts.find(
+        (part) => part.type === "file" && part.filename === "note.txt" && part.mime === "text/plain",
+      ),
+    ).toBeDefined()
+  })
+
   test("deduplicates context files when prompt already includes same path", () => {
     const prompt: Prompt = [{ type: "file", path: "src/foo.ts", content: "@src/foo.ts", start: 0, end: 11 }]
 
