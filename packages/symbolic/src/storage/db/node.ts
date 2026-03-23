@@ -1,6 +1,6 @@
 import Sqlite from "better-sqlite3"
 import { drizzle } from "drizzle-orm/better-sqlite3"
-import type { Journal } from "./shared"
+import type { Journal, Query } from "./shared"
 
 type Handle = InstanceType<typeof Sqlite>
 
@@ -27,6 +27,18 @@ export function open(path: string, entries: Journal, skip: boolean) {
     handle: sqlite,
     db,
   }
+}
+
+export function wrap(sqlite: Handle) {
+  return drizzle({ client: sqlite })
+}
+
+export function openReadonly(path: string) {
+  return new Sqlite(path, { readonly: true })
+}
+
+export function query(sqlite: Handle, sql: string) {
+  return sqlite.prepare(sql).all() as Query[]
 }
 
 export function close(sqlite: Handle) {

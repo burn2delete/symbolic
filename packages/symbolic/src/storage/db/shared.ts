@@ -10,3 +10,21 @@ export type Journal = {
 export type Schema = typeof schema
 
 export type Transaction = SQLiteTransaction<"sync", void, Schema>
+
+export type Query = Record<string, unknown>
+
+export type Raw = {
+  exec(sql: string): unknown
+  close(): void
+}
+
+export type Client = {
+  $client: Raw
+  insert(table: unknown): {
+    values(values: unknown[]): {
+      onConflictDoNothing(): {
+        run(): unknown
+      }
+    }
+  }
+}

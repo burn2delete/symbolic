@@ -1,5 +1,3 @@
-import { Database } from "bun:sqlite"
-import { drizzle } from "drizzle-orm/bun-sqlite"
 import { Global } from "../global"
 import { Log } from "../util/log"
 import { ProjectTable } from "../project/project.sql"
@@ -9,6 +7,17 @@ import path from "path"
 import { existsSync } from "fs"
 import { Filesystem } from "../util/filesystem"
 import { Glob } from "../util/glob"
+import type * as BunDriver from "./db/bun"
+import type * as NodeDriver from "./db/node"
+import type { Client, Raw } from "./db/shared"
+
+type Driver = {
+  wrap(sqlite: Raw): Client
+}
+
+const driver: Driver = (process.versions.bun ? await import("./db/bun") : await import("./db/node")) as
+  | typeof BunDriver
+  | typeof NodeDriver
 
 export namespace JsonMigration {
   const log = Log.create({ service: "json-migration" })
@@ -23,7 +32,7 @@ export namespace JsonMigration {
     progress?: (event: Progress) => void
   }
 
-  export async function run(sqlite: Database, options?: Options) {
+  export async function run(input: Client | Raw, options?: Options) {
     const storageDir = path.join(Global.Path.data, "storage")
 
     if (!existsSync(storageDir)) {
@@ -43,7 +52,8 @@ export namespace JsonMigration {
     log.info("starting json to sqlite migration", { storageDir })
     const start = performance.now()
 
-    const db = drizzle({ client: sqlite })
+    const db = "insert" in input ? input : driver.wrap(input)
+    const sqlite = "insert" in input ? input.$client : input
 
     // Optimize SQLite for bulk inserts
     sqlite.exec("PRAGMA journal_mode = WAL")
@@ -94,7 +104,7 @@ export namespace JsonMigration {
       return items
     }
 
-    function insert(values: any[], table: any, label: string) {
+    function insert(values: unknown[], table: unknown, label: string) {
       if (values.length === 0) return 0
       try {
         db.insert(table).values(values).onConflictDoNothing().run()

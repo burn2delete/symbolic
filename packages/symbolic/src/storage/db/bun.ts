@@ -1,7 +1,7 @@
 import { Database as Sqlite } from "bun:sqlite"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
-import type { Journal } from "./shared"
+import type { Journal, Query } from "./shared"
 
 export type Handle = InstanceType<typeof Sqlite>
 export type Client = ReturnType<typeof drizzle>
@@ -24,6 +24,18 @@ export function open(path: string, entries: Journal, skip: boolean) {
     handle: sqlite,
     db,
   }
+}
+
+export function wrap(sqlite: Handle) {
+  return drizzle({ client: sqlite })
+}
+
+export function openReadonly(path: string) {
+  return new Sqlite(path, { readonly: true })
+}
+
+export function query(sqlite: Handle, sql: string) {
+  return sqlite.query(sql).all() as Query[]
 }
 
 export function close(sqlite: Handle) {

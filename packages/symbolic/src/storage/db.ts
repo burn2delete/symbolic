@@ -8,9 +8,11 @@ import path from "path"
 import { readFileSync, readdirSync, existsSync } from "fs"
 import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
-import { iife } from "@/util/iife"
-import { close as closeBun, open as openBun, type Client as BunClient, type Handle as BunHandle } from "./db/bun"
-import type { Journal } from "./db/shared"
+import { iife } from "../util/iife"
+import type * as BunDriver from "./db/bun"
+import type * as NodeDriver from "./db/node"
+import type { Client as DbClient } from "./db/bun"
+import type { Journal, Query, Raw, Transaction } from "./db/shared"
 
 declare const SYMBOLIC_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
 
@@ -25,7 +27,25 @@ export const NotFoundError = NamedError.create(
 
 const log = Log.create({ service: "db" })
 
+type Client = DbClient
+
+type Driver = {
+  open(path: string, entries: Journal, skip: boolean): {
+    db: Client
+    handle: Raw
+  }
+  wrap(sqlite: Raw): Client
+  openReadonly(path: string): Raw
+  query(sqlite: Raw, sql: string): Query[]
+  close(sqlite: Raw): void
+}
+
+const runtime: "bun" | "node" = process.versions.bun ? "bun" : "node"
+const driver: Driver = (runtime === "bun" ? await import("./db/bun") : await import("./db/node")) as unknown as Driver
+
 export namespace Database {
+  export const Runtime = runtime
+
   export const Path = iife(() => {
     if (Flag.SYMBOLIC_DB) {
       if (path.isAbsolute(Flag.SYMBOLIC_DB)) return Flag.SYMBOLIC_DB
@@ -38,11 +58,8 @@ export namespace Database {
     return path.join(Global.Path.data, `symbolic-${safe}.db`)
   })
 
-  type Client = BunClient
-  export type Transaction = Parameters<Parameters<Client["transaction"]>[0]>[0]
-
   const state = {
-    sqlite: undefined as BunHandle | undefined,
+    sqlite: undefined as Raw | undefined,
   }
 
   function time(tag: string) {
@@ -92,7 +109,7 @@ export namespace Database {
       })
     }
 
-    const { db, handle } = openBun(Path, entries, Flag.SYMBOLIC_SKIP_MIGRATIONS)
+    const { db, handle } = driver.open(Path, entries, Flag.SYMBOLIC_SKIP_MIGRATIONS)
     state.sqlite = handle
     return db
   })
@@ -100,12 +117,25 @@ export namespace Database {
   export function close() {
     const sqlite = state.sqlite
     if (!sqlite) return
-    closeBun(sqlite)
+    driver.close(sqlite)
     state.sqlite = undefined
     Client.reset()
   }
 
   export type TxOrDb = Transaction | Client
+
+  export function query(sql: string): Query[] {
+    const sqlite = driver.openReadonly(Path)
+    try {
+      return driver.query(sqlite, sql)
+    } finally {
+      driver.close(sqlite)
+    }
+  }
+
+  export function raw(): Raw {
+    return Client().$client
+  }
 
   const ctx = Context.create<{
     tx: TxOrDb
@@ -141,7 +171,7 @@ export namespace Database {
       if (err instanceof Context.NotFound) {
         const effects: (() => void | Promise<void>)[] = []
         const db = Client()
-        const run = db.transaction.bind(db) as (fn: (tx: Transaction) => T) => T
+        const run = db.transaction.bind(db) as unknown as (fn: (tx: Transaction) => T) => T
         const result = run((tx) => {
           return ctx.provide({ tx, effects }, () => callback(tx))
         })
