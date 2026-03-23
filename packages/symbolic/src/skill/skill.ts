@@ -192,6 +192,7 @@ export namespace Skill {
 
   export async function available(agent?: Agent.Info) {
     const list = await all()
+    list.sort((a, b) => a.name.localeCompare(b.name))
     if (!agent) return list
     return list.filter((skill) => PermissionNext.evaluate("skill", skill.name, agent.permission).action !== "deny")
   }

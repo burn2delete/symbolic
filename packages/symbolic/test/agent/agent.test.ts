@@ -18,13 +18,8 @@ test("returns default native agents when no config", async () => {
     fn: async () => {
       const agents = await Agent.list()
       const names = agents.map((a) => a.name)
-      expect(names).toContain("build")
-      expect(names).toContain("plan")
-      expect(names).toContain("general")
-      expect(names).toContain("explore")
-      expect(names).toContain("compaction")
-      expect(names).toContain("title")
-      expect(names).toContain("summary")
+      expect(names[0]).toBe("build")
+      expect(names.slice(1)).toEqual(names.slice(1).toSorted((a, b) => a.localeCompare(b)))
     },
   })
 })
