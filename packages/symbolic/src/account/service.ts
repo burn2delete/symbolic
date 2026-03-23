@@ -142,6 +142,12 @@ export class AccountService extends ServiceMap.Service<AccountService, AccountSe
       const executeReadOk = (request: HttpClientRequest.HttpClientRequest) =>
         httpReadOk.execute(request).pipe(mapAccountServiceError("HTTP request failed"))
 
+      const execute = <E>(request: Effect.Effect<HttpClientRequest.HttpClientRequest, E>) =>
+        request.pipe(
+          Effect.flatMap((req) => http.execute(req)),
+          mapAccountServiceError("HTTP request failed"),
+        )
+
       const executeEffectOk = <E>(request: Effect.Effect<HttpClientRequest.HttpClientRequest, E>) =>
         request.pipe(
           Effect.flatMap((req) => httpOk.execute(req)),
@@ -292,7 +298,7 @@ export class AccountService extends ServiceMap.Service<AccountService, AccountSe
       })
 
       const poll = Effect.fn("AccountService.poll")(function* (input: Login) {
-        const response = yield* executeEffectOk(
+        const response = yield* execute(
           HttpClientRequest.post(`${input.server}/auth/device/token`).pipe(
             HttpClientRequest.acceptJson,
             HttpClientRequest.schemaBodyJson(DeviceTokenRequest)(

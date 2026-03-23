@@ -34,6 +34,29 @@ const encodeOrg = Schema.encodeSync(Org)
 
 const org = (id: string, name: string) => encodeOrg(new Org({ id: OrgID.make(id), name }))
 
+const login = () =>
+  new Login({
+    code: DeviceCode.make("device-code"),
+    user: UserCode.make("user-code"),
+    url: "https://one.example.com/verify",
+    server: "https://one.example.com",
+    expiry: Duration.seconds(600),
+    interval: Duration.seconds(5),
+  })
+
+const poll = (body: unknown, status = 400) =>
+  AccountService.use((s) => s.poll(login())).pipe(
+    Effect.provide(
+      live(
+        HttpClient.make((req) =>
+          Effect.succeed(
+            req.url === "https://one.example.com/auth/device/token" ? json(req, body, status) : json(req, {}, 404),
+          ),
+        ),
+      ),
+    ),
+  )
+
 it.effect(
   "orgsByAccount groups orgs per account",
   Effect.gen(function* () {
@@ -179,15 +202,6 @@ it.effect(
 it.effect(
   "poll stores the account and first org on success",
   Effect.gen(function* () {
-    const login = new Login({
-      code: DeviceCode.make("device-code"),
-      user: UserCode.make("user-code"),
-      url: "https://one.example.com/verify",
-      server: "https://one.example.com",
-      expiry: Duration.seconds(600),
-      interval: Duration.seconds(5),
-    })
-
     const client = HttpClient.make((req) =>
       Effect.succeed(
         req.url === "https://one.example.com/auth/device/token"
@@ -205,7 +219,7 @@ it.effect(
       ),
     )
 
-    const res = yield* AccountService.use((s) => s.poll(login)).pipe(Effect.provide(live(client)))
+    const res = yield* AccountService.use((s) => s.poll(login())).pipe(Effect.provide(live(client)))
 
     expect(res._tag).toBe("PollSuccess")
     if (res._tag === "PollSuccess") {
@@ -220,5 +234,63 @@ it.effect(
         active_org_id: "org-1",
       }),
     )
+  }),
+)
+
+for (const [name, body, tag] of [
+  [
+    "pending",
+    {
+      error: "authorization_pending",
+      error_description: "The authorization request is still pending",
+    },
+    "PollPending",
+  ],
+  [
+    "slow",
+    {
+      error: "slow_down",
+      error_description: "Polling too frequently, please slow down",
+    },
+    "PollSlow",
+  ],
+  [
+    "denied",
+    {
+      error: "access_denied",
+      error_description: "The authorization request was denied",
+    },
+    "PollDenied",
+  ],
+  [
+    "expired",
+    {
+      error: "expired_token",
+      error_description: "The device code has expired",
+    },
+    "PollExpired",
+  ],
+] as const) {
+  it.effect(
+    `poll returns ${name}`,
+    Effect.gen(function* () {
+      const res = yield* poll(body)
+      expect(res._tag).toBe(tag)
+    }),
+  )
+}
+
+it.effect(
+  "poll returns error for other oauth failures",
+  Effect.gen(function* () {
+    const res = yield* poll({
+      error: "server_error",
+      error_description: "Unexpected failure",
+    })
+
+    expect(res._tag).toBe("PollError")
+    if (res._tag === "PollError") {
+      expect(String(res.cause)).toContain("server_error")
+    }
   }),
 )
