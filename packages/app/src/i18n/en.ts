@@ -634,6 +634,8 @@ export const dict = {
   "sidebar.project.recentSessions": "Recent sessions",
   "sidebar.project.viewAllSessions": "View all sessions",
   "sidebar.project.clearNotifications": "Clear notifications",
+  "sidebar.empty.title": "No projects open",
+  "sidebar.empty.description": "Open a project to get started",
 
   "app.name.desktop": "Symbolic Desktop",
 

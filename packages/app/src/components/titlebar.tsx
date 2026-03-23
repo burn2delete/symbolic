@@ -77,6 +77,7 @@ export function Titlebar() {
 
   const canBack = createMemo(() => history.index > 0)
   const canForward = createMemo(() => history.index < history.stack.length - 1)
+  const hasProjects = createMemo(() => layout.projects.list().length > 0)
 
   const back = () => {
     const next = backPath(history)
@@ -236,28 +237,30 @@ export function Titlebar() {
                 />
               </TooltipKeybind>
             </Show>
-            <div class="flex items-center gap-0" classList={{ "ml-1": !!params.dir }}>
-              <Tooltip placement="bottom" value={language.t("common.goBack")} openDelay={2000}>
-                <Button
-                  variant="ghost"
-                  icon="chevron-left"
-                  class="titlebar-icon w-6 h-6 p-0 box-border"
-                  disabled={!canBack()}
-                  onClick={back}
-                  aria-label={language.t("common.goBack")}
-                />
-              </Tooltip>
-              <Tooltip placement="bottom" value={language.t("common.goForward")} openDelay={2000}>
-                <Button
-                  variant="ghost"
-                  icon="chevron-right"
-                  class="titlebar-icon w-6 h-6 p-0 box-border"
-                  disabled={!canForward()}
-                  onClick={forward}
-                  aria-label={language.t("common.goForward")}
-                />
-              </Tooltip>
-            </div>
+            <Show when={hasProjects()}>
+              <div class="flex items-center gap-0" classList={{ "ml-1": !!params.dir }}>
+                <Tooltip placement="bottom" value={language.t("common.goBack")} openDelay={2000}>
+                  <Button
+                    variant="ghost"
+                    icon="chevron-left"
+                    class="titlebar-icon w-6 h-6 p-0 box-border"
+                    disabled={!canBack()}
+                    onClick={back}
+                    aria-label={language.t("common.goBack")}
+                  />
+                </Tooltip>
+                <Tooltip placement="bottom" value={language.t("common.goForward")} openDelay={2000}>
+                  <Button
+                    variant="ghost"
+                    icon="chevron-right"
+                    class="titlebar-icon w-6 h-6 p-0 box-border"
+                    disabled={!canForward()}
+                    onClick={forward}
+                    aria-label={language.t("common.goForward")}
+                  />
+                </Tooltip>
+              </div>
+            </Show>
           </div>
         </div>
         <div id="symbolic-titlebar-left" class="flex items-center gap-3 min-w-0 px-2" />
