@@ -451,7 +451,7 @@ jobs:
 
       - name: Build terminal package (no release)
         if: ${{ !needs.version.outputs.release }}
-        run: bun run package:mac
+        run: bun run build && bun run build:runtime && electron-builder --mac --publish never --config electron-builder.config.ts
         working-directory: packages/terminal
 
       - uses: actions/upload-artifact@v4
