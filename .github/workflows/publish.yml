@@ -414,6 +414,12 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
+      - name: Verify Certificate
+        if: ${{ needs.version.outputs.release }}
+        run: |
+          cert=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application" | awk -F'"' '{print $2}')
+          echo "CSC_NAME=$cert" >> $GITHUB_ENV
+
       - name: Setup Apple API Key
         if: ${{ needs.version.outputs.release }}
         run: echo "${{ secrets.APPLE_API_KEY_PATH }}" > $RUNNER_TEMP/apple-api-key.p8
@@ -438,8 +444,7 @@ jobs:
         working-directory: packages/terminal
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          CSC_NAME: ${{ env.CSC_NAME }}
           APPLE_API_KEY: ${{ runner.temp }}/apple-api-key.p8
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
