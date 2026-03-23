@@ -11,6 +11,31 @@ const openBrowser = (url: string) => Effect.promise(() => open(url).catch(() => 
 
 const println = (msg: string) => Effect.sync(() => UI.println(msg))
 
+const dim = (value: string) => UI.Style.TEXT_DIM + value + UI.Style.TEXT_NORMAL
+
+const activeSuffix = (active: boolean) => (active ? dim(" (active)") : "")
+
+export const formatAccountLabel = (account: { email: string; url: string }, active: boolean) =>
+  `${account.email} ${dim(account.url)}${activeSuffix(active)}`
+
+const formatOrgChoiceLabel = (account: { email: string }, org: { name: string }, active: boolean) =>
+  `${org.name} (${account.email})${activeSuffix(active)}`
+
+export const formatOrgLine = (
+  account: { email: string; url: string },
+  org: { id: string; name: string },
+  active: boolean,
+) => {
+  const dot = active ? UI.Style.TEXT_SUCCESS + "●" + UI.Style.TEXT_NORMAL : " "
+  const name = active ? UI.Style.TEXT_HIGHLIGHT_BOLD + org.name + UI.Style.TEXT_NORMAL : org.name
+  return `  ${dot} ${name}  ${dim(account.email)}  ${dim(account.url)}  ${dim(org.id)}`
+}
+
+const isActiveOrgChoice = (
+  active: Option.Option<{ id: AccountID; active_org_id: OrgID | null }>,
+  choice: { accountID: AccountID; orgID: OrgID },
+) => Option.isSome(active) && active.value.id === choice.accountID && active.value.active_org_id === choice.orgID
+
 const loginEffect = Effect.fn("login")(function* (url: string) {
   const service = yield* AccountService
 
@@ -71,11 +96,10 @@ const logoutEffect = Effect.fn("logout")(function* (email?: string) {
   yield* Prompt.intro("Log out")
 
   const opts = accounts.map((a) => {
-    const isActive = Option.isSome(activeID) && activeID.value === a.id
-    const server = UI.Style.TEXT_DIM + a.url + UI.Style.TEXT_NORMAL
+    const active = Option.isSome(activeID) && activeID.value === a.id
     return {
       value: a,
-      label: isActive ? `${a.email} ${server}` + UI.Style.TEXT_DIM + " (active)" : `${a.email} ${server}`,
+      label: formatAccountLabel(a, active),
     }
   })
 
@@ -99,16 +123,13 @@ const switchEffect = Effect.fn("switch")(function* () {
   if (groups.length === 0) return yield* println("Not logged in")
 
   const active = yield* service.active()
-  const activeOrgID = Option.flatMap(active, (a) => Option.fromNullishOr(a.active_org_id))
 
   const opts = groups.flatMap((group) =>
     group.orgs.map((org) => {
-      const isActive = Option.isSome(activeOrgID) && activeOrgID.value === org.id
+      const on = isActiveOrgChoice(active, { accountID: group.account.id, orgID: org.id })
       return {
         value: { orgID: org.id, accountID: group.account.id, label: org.name },
-        label: isActive
-          ? `${org.name} (${group.account.email})` + UI.Style.TEXT_DIM + " (active)"
-          : `${org.name} (${group.account.email})`,
+        label: formatOrgChoiceLabel(group.account, org, on),
       }
     }),
   )
@@ -132,18 +153,23 @@ const orgsEffect = Effect.fn("orgs")(function* () {
   if (!groups.some((group) => group.orgs.length > 0)) return yield* println("No orgs found")
 
   const active = yield* service.active()
-  const activeOrgID = Option.flatMap(active, (a) => Option.fromNullishOr(a.active_org_id))
 
   for (const group of groups) {
     for (const org of group.orgs) {
-      const isActive = Option.isSome(activeOrgID) && activeOrgID.value === org.id
-      const dot = isActive ? UI.Style.TEXT_SUCCESS + "●" + UI.Style.TEXT_NORMAL : " "
-      const name = isActive ? UI.Style.TEXT_HIGHLIGHT_BOLD + org.name + UI.Style.TEXT_NORMAL : org.name
-      const email = UI.Style.TEXT_DIM + group.account.email + UI.Style.TEXT_NORMAL
-      const id = UI.Style.TEXT_DIM + org.id + UI.Style.TEXT_NORMAL
-      yield* println(`  ${dot} ${name}  ${email}  ${id}`)
+      const on = isActiveOrgChoice(active, { accountID: group.account.id, orgID: org.id })
+      yield* println(formatOrgLine(group.account, org, on))
     }
   }
+})
+
+const openEffect = Effect.fn("open")(function* () {
+  const service = yield* AccountService
+  const active = yield* service.active()
+  if (Option.isNone(active)) return yield* println("No active account")
+
+  const url = active.value.url
+  yield* openBrowser(url)
+  yield* Prompt.outro("Opened " + url)
 })
 
 export const LoginCommand = cmd({
@@ -190,5 +216,14 @@ export const OrgsCommand = cmd({
   async handler() {
     UI.empty()
     await runtime.runPromise(orgsEffect())
+  },
+})
+
+export const OpenCommand = cmd({
+  command: "open",
+  describe: false,
+  async handler() {
+    UI.empty()
+    await runtime.runPromise(openEffect())
   },
 })
