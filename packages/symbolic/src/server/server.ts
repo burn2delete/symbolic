@@ -35,6 +35,7 @@ import { ExperimentalRoutes } from "./routes/experimental"
 import { ProviderRoutes } from "./routes/provider"
 import { InstanceBootstrap } from "../project/bootstrap"
 import { NotFoundError } from "../storage/db"
+import { Snapshot } from "../snapshot"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 import { websocket } from "hono/bun"
 import { HTTPException } from "hono/http-exception"
@@ -332,10 +333,41 @@ export namespace Server {
           },
         }),
         async (c) => {
-          const branch = await Vcs.branch()
-          return c.json({
-            branch,
-          })
+          return c.json(await Vcs.info())
+        },
+      )
+      .get(
+        "/vcs/diff",
+        describeRoute({
+          summary: "Get VCS diff",
+          description: "Retrieve a repository diff for the current project.",
+          operationId: "vcs.diff",
+          responses: {
+            200: {
+              description: "VCS diff",
+              content: {
+                "application/json": {
+                  schema: resolver(Snapshot.FileDiff.array()),
+                },
+              },
+            },
+            ...errors(400),
+          },
+        }),
+        validator(
+          "query",
+          z.object({
+            mode: z.enum(["working_tree", "range"]),
+            base: z.string().optional(),
+            head: z.string().optional(),
+          }),
+        ),
+        async (c) => {
+          const query = c.req.valid("query")
+          if (query.mode === "range" && (!query.base || !query.head)) {
+            throw new HTTPException(400, { message: "base and head are required for range diffs" })
+          }
+          return c.json(await Vcs.diff(query))
         },
       )
       .get(

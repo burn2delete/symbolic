@@ -882,11 +882,16 @@ export type EventSessionError = {
   }
 }
 
+export type VcsInfo = {
+  branch?: string
+  default_branch?: string
+  head?: string
+  dirty: boolean
+}
+
 export type EventVcsBranchUpdated = {
   type: "vcs.branch.updated"
-  properties: {
-    branch?: string
-  }
+  properties: VcsInfo
 }
 
 export type EventWorkspaceReady = {
@@ -1884,10 +1889,6 @@ export type Path = {
   config: string
   worktree: string
   directory: string
-}
-
-export type VcsInfo = {
-  branch: string
 }
 
 export type Command = {
@@ -4830,6 +4831,37 @@ export type VcsGetResponses = {
 }
 
 export type VcsGetResponse = VcsGetResponses[keyof VcsGetResponses]
+
+export type VcsDiffData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    mode: "working_tree" | "range"
+    base?: string
+    head?: string
+  }
+  url: "/vcs/diff"
+}
+
+export type VcsDiffErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type VcsDiffError = VcsDiffErrors[keyof VcsDiffErrors]
+
+export type VcsDiffResponses = {
+  /**
+   * VCS diff
+   */
+  200: Array<FileDiff>
+}
+
+export type VcsDiffResponse = VcsDiffResponses[keyof VcsDiffResponses]
 
 export type CommandListData = {
   body?: never
