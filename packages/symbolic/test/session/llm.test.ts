@@ -10,6 +10,7 @@ import { ProviderTransform } from "../../src/provider/transform"
 import { ModelsDev } from "../../src/provider/models"
 import { ProviderID, ModelID } from "../../src/provider/schema"
 import { Filesystem } from "../../src/util/filesystem"
+import { Installation } from "../../src/installation"
 import { tmpdir } from "../fixture/fixture"
 import type { Agent } from "../../src/agent/agent"
 import type { MessageV2 } from "../../src/session/message-v2"
@@ -649,6 +650,7 @@ describe("session.llm.stream", () => {
         expect(body.max_tokens).toBe(ProviderTransform.maxOutputTokens(resolved))
         expect(body.temperature).toBe(0.4)
         expect(body.top_p).toBe(0.9)
+        expect(capture.headers.get("user-agent")).toContain(`symbolic/${Installation.VERSION}`)
       },
     })
   })

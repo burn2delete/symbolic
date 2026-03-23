@@ -214,11 +214,9 @@ export namespace LLM {
               "x-symbolic-request": input.user.id,
               "x-symbolic-client": Flag.SYMBOLIC_CLIENT,
             }
-          : input.model.providerID !== "anthropic"
-            ? {
-                "User-Agent": `symbolic/${Installation.VERSION}`,
-              }
-            : undefined),
+          : {
+              "User-Agent": `symbolic/${Installation.VERSION}`,
+            }),
         ...input.model.headers,
         ...headers,
       },
