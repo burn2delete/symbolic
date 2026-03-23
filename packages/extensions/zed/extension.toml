@@ -4,11 +4,7 @@ description = "The open source coding agent."
 version = "1.0.0"
 schema_version = 1
 authors = ["Anomaly"]
-repository = "https://github.com/SymbolicOS/symbolic/symbolic"
-args = ["acp"]
-
-[agent_servers.symbolic.targets.linux-aarch64]
-archive = "https://github.com/SymbolicOS/symbolic/releases/download/v1.0.0/symbolic-linux-arm64.tar.gz"
+repository = "https://github.com/SymbolicOS/symbolic//github.com/SymbolicOS/symbolic/releases/download/v1.0.0/symbolic-linux-arm64.tar.gz"
 cmd = "./symbolic"
 args = ["acp"]
 
