@@ -53,7 +53,10 @@ export namespace Session {
 
   export function fromRow(row: SessionRow): Info {
     const summary =
-      row.summary_additions !== null || row.summary_deletions !== null || row.summary_files !== null
+      row.summary_additions !== null ||
+      row.summary_deletions !== null ||
+      row.summary_files !== null ||
+      row.summary_diffs !== null
         ? {
             additions: row.summary_additions ?? 0,
             deletions: row.summary_deletions ?? 0,
@@ -500,6 +503,7 @@ export namespace Session {
             summary_additions: input.summary?.additions,
             summary_deletions: input.summary?.deletions,
             summary_files: input.summary?.files,
+            summary_diffs: input.summary?.diffs,
             time_updated: Date.now(),
           })
           .where(eq(SessionTable.id, input.sessionID))
@@ -515,10 +519,13 @@ export namespace Session {
 
   export const diff = fn(SessionID.zod, async (sessionID) => {
     try {
-      return await Storage.read<Snapshot.FileDiff[]>(["session_diff", sessionID])
+      const diffs = await Storage.read<Snapshot.FileDiff[]>(["session_diff", sessionID])
+      if (diffs.length > 0) return diffs
     } catch {
-      return []
     }
+
+    const session = await get(sessionID).catch(() => undefined)
+    return session?.summary?.diffs ?? []
   })
 
   export const messages = fn(

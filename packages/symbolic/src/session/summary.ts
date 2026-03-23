@@ -100,6 +100,7 @@ export namespace SessionSummary {
         additions: diffs.reduce((sum, x) => sum + x.additions, 0),
         deletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
         files: diffs.length,
+        diffs,
       },
     })
     await Storage.write(["session_diff", input.sessionID], diffs)
@@ -138,13 +139,27 @@ export namespace SessionSummary {
         if (message?.info.role === "user" && message.info.summary?.diffs) {
           return normalize(message.info.summary.diffs)
         }
+
+        if (message?.info.role === "assistant") {
+          const parent = await MessageV2.get({
+            sessionID: input.sessionID,
+            messageID: message.info.parentID,
+          }).catch(() => undefined)
+
+          if (parent?.info.role === "user" && parent.info.summary?.diffs) {
+            return normalize(parent.info.summary.diffs)
+          }
+        }
       }
 
-      const diffs = await Storage.read<Snapshot.FileDiff[]>(["session_diff", input.sessionID]).catch(() => [])
-      const next = normalize(diffs)
-      const changed = next.some((item, i) => item.file !== diffs[i]?.file)
-      if (changed) Storage.write(["session_diff", input.sessionID], next).catch(() => {})
-      return next
+      const diffs = await Session.diff(input.sessionID)
+      if (diffs.length > 0) {
+        const next = normalize(diffs)
+        const changed = next.some((item, i) => item.file !== diffs[i]?.file)
+        if (changed) Storage.write(["session_diff", input.sessionID], next).catch(() => {})
+        return next
+      }
+      return []
     },
   )
 
