@@ -41,4 +41,87 @@ describe("plugin.auth-override", () => {
       },
     })
   }, 30000) // Increased timeout for plugin installation
+
+  test("user plugin preserves prompt metadata for overridden auth", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const pluginDir = path.join(dir, ".symbolic", "plugin")
+        await fs.mkdir(pluginDir, { recursive: true })
+
+        await Bun.write(
+          path.join(pluginDir, "custom-copilot-prompts.ts"),
+          [
+            "export default async () => ({",
+            "  auth: {",
+            '    provider: "github-copilot",',
+            "    methods: [",
+            "      {",
+            '        type: "oauth",',
+            '        label: "Copilot Enterprise",',
+            "        prompts: [",
+            "          {",
+            '            type: "select",',
+            '            key: "mode",',
+            '            message: "Mode",',
+            "            options: [",
+            '              { label: "Cloud", value: "cloud" },',
+            '              { label: "Enterprise", value: "enterprise", hint: "Self-hosted" },',
+            "            ],",
+            "          },",
+            "          {",
+            '            type: "text",',
+            '            key: "host",',
+            '            message: "Host",',
+            '            placeholder: "ghe.example.com",',
+            '            when: { key: "mode", op: "eq", value: "enterprise" },',
+            "          },",
+            "        ],",
+            '        authorize: async () => ({ url: "https://example.com", instructions: "ok", method: "auto", callback: async () => ({ type: "failed" }) }),',
+            "      },",
+            '      { type: "api", label: "Token" },',
+            "    ],",
+            "    loader: async () => ({}),",
+            "  },",
+            "})",
+            "",
+          ].join("\n"),
+        )
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const methods = await ProviderAuth.methods()
+        expect(methods["github-copilot"]).toEqual([
+          {
+            type: "oauth",
+            label: "Copilot Enterprise",
+            prompts: [
+              {
+                type: "select",
+                key: "mode",
+                message: "Mode",
+                options: [
+                  { label: "Cloud", value: "cloud" },
+                  { label: "Enterprise", value: "enterprise", hint: "Self-hosted" },
+                ],
+              },
+              {
+                type: "text",
+                key: "host",
+                message: "Host",
+                placeholder: "ghe.example.com",
+                when: { key: "mode", op: "eq", value: "enterprise" },
+              },
+            ],
+          },
+          {
+            type: "api",
+            label: "Token",
+          },
+        ])
+      },
+    })
+  }, 30000)
 })

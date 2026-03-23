@@ -19,10 +19,46 @@ export namespace ProviderAuth {
     return { methods, pending: {} as Record<string, AuthOuathResult> }
   })
 
+  const Prompt = z.union([
+    z.object({
+      type: z.literal("text"),
+      key: z.string(),
+      message: z.string(),
+      placeholder: z.string().optional(),
+      when: z
+        .object({
+          key: z.string(),
+          op: z.union([z.literal("eq"), z.literal("neq")]),
+          value: z.string(),
+        })
+        .optional(),
+    }),
+    z.object({
+      type: z.literal("select"),
+      key: z.string(),
+      message: z.string(),
+      options: z.array(
+        z.object({
+          label: z.string(),
+          value: z.string(),
+          hint: z.string().optional(),
+        }),
+      ),
+      when: z
+        .object({
+          key: z.string(),
+          op: z.union([z.literal("eq"), z.literal("neq")]),
+          value: z.string(),
+        })
+        .optional(),
+    }),
+  ])
+
   export const Method = z
     .object({
       type: z.union([z.literal("oauth"), z.literal("api")]),
       label: z.string(),
+      prompts: z.array(Prompt).optional(),
     })
     .meta({
       ref: "ProviderAuthMethod",
@@ -36,6 +72,24 @@ export namespace ProviderAuth {
         (y): Method => ({
           type: y.type,
           label: y.label,
+          prompts: y.prompts?.map((prompt) => {
+            if (prompt.type === "select") {
+              return {
+                type: "select" as const,
+                key: prompt.key,
+                message: prompt.message,
+                options: prompt.options,
+                when: prompt.when,
+              }
+            }
+            return {
+              type: "text" as const,
+              key: prompt.key,
+              message: prompt.message,
+              placeholder: prompt.placeholder,
+              when: prompt.when,
+            }
+          }),
         }),
       ),
     )
@@ -56,12 +110,22 @@ export namespace ProviderAuth {
     z.object({
       providerID: ProviderID.zod,
       method: z.number(),
+      inputs: z.record(z.string(), z.string()).optional(),
     }),
     async (input): Promise<Authorization | undefined> => {
       const auth = await state().then((s) => s.methods[input.providerID])
       const method = auth.methods[input.method]
       if (method.type === "oauth") {
-        const result = await method.authorize()
+        if (method.prompts && input.inputs) {
+          for (const prompt of method.prompts) {
+            if (prompt.type !== "text" || !prompt.validate) continue
+            const value = input.inputs[prompt.key]
+            if (value === undefined) continue
+            const error = prompt.validate(value)
+            if (error) throw new ValidationFailed({ field: prompt.key, message: error })
+          }
+        }
+        const result = await method.authorize(input.inputs)
         await state().then((s) => (s.pending[input.providerID] = result))
         return {
           url: result.url,
@@ -145,4 +209,11 @@ export namespace ProviderAuth {
   )
 
   export const OauthCallbackFailed = NamedError.create("ProviderAuthOauthCallbackFailed", z.object({}))
+  export const ValidationFailed = NamedError.create(
+    "ProviderAuthValidationFailed",
+    z.object({
+      field: z.string(),
+      message: z.string(),
+    }),
+  )
 }

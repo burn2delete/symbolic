@@ -44,6 +44,37 @@ export type PluginInput = {
 
 export type Plugin = (input: PluginInput) => Promise<Hooks>
 
+type Rule = {
+  key: string
+  op: "eq" | "neq"
+  value: string
+}
+
+type Prompt =
+  | {
+      type: "text"
+      key: string
+      message: string
+      placeholder?: string
+      validate?: (value: string) => string | undefined
+      /** @deprecated Use `when` instead */
+      condition?: (inputs: Record<string, string>) => boolean
+      when?: Rule
+    }
+  | {
+      type: "select"
+      key: string
+      message: string
+      options: Array<{
+        label: string
+        value: string
+        hint?: string
+      }>
+      /** @deprecated Use `when` instead */
+      condition?: (inputs: Record<string, string>) => boolean
+      when?: Rule
+    }
+
 export type RuntimeRule = {
   permission: string
   pattern: string
@@ -220,53 +251,13 @@ export type AuthHook = {
     | {
         type: "oauth"
         label: string
-        prompts?: Array<
-          | {
-              type: "text"
-              key: string
-              message: string
-              placeholder?: string
-              validate?: (value: string) => string | undefined
-              condition?: (inputs: Record<string, string>) => boolean
-            }
-          | {
-              type: "select"
-              key: string
-              message: string
-              options: Array<{
-                label: string
-                value: string
-                hint?: string
-              }>
-              condition?: (inputs: Record<string, string>) => boolean
-            }
-        >
+        prompts?: Prompt[]
         authorize(inputs?: Record<string, string>): Promise<AuthOuathResult>
       }
     | {
         type: "api"
         label: string
-        prompts?: Array<
-          | {
-              type: "text"
-              key: string
-              message: string
-              placeholder?: string
-              validate?: (value: string) => string | undefined
-              condition?: (inputs: Record<string, string>) => boolean
-            }
-          | {
-              type: "select"
-              key: string
-              message: string
-              options: Array<{
-                label: string
-                value: string
-                hint?: string
-              }>
-              condition?: (inputs: Record<string, string>) => boolean
-            }
-        >
+        prompts?: Prompt[]
         authorize?(inputs?: Record<string, string>): Promise<
           | {
               type: "success"
