@@ -27,6 +27,11 @@ function link(tag: string, file: string) {
   return `${host()}/releases/download/v${tag}/${file}`
 }
 
+async function seen(name: string, version: string) {
+  const result = await $`npm view ${`${name}@${version}`} version`.nothrow()
+  return result.exitCode === 0
+}
+
 function npm(name: string) {
   if (name.startsWith("symbolic-")) {
     return `@symbolic-agent/${name}`
@@ -68,6 +73,10 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
       },
       version: version,
       license: pkg.license,
+      repository: {
+        type: "git",
+        url: host(),
+      },
       optionalDependencies: Object.fromEntries(binaries.map((bin) => [bin.npm, bin.version])),
     },
     null,
@@ -77,18 +86,33 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
 
 if (on("SYMBOLIC_PUBLISH_NPM")) {
   const tasks = binaries.map(async (bin) => {
+    if (await seen(bin.npm, bin.version)) {
+      console.log("skip", bin.npm, bin.version)
+      return
+    }
     if (process.platform !== "win32") {
       await $`chmod -R 755 .`.cwd(`./dist/${bin.dir}`)
     }
     const file = `./dist/${bin.dir}/package.json`
-    const pkg = (await Bun.file(file).json()) as { name: string; version: string }
+    const pkg = (await Bun.file(file).json()) as {
+      name: string
+      version: string
+      repository?: { type: string; url: string }
+    }
     pkg.name = bin.npm
+    pkg.repository = {
+      type: "git",
+      url: host(),
+    }
     await Bun.write(file, JSON.stringify(pkg, null, 2))
     await $`bun pm pack`.cwd(`./dist/${bin.dir}`)
     await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${bin.dir}`)
   })
   await Promise.all(tasks)
-  await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
+  const name = process.env.SYMBOLIC_NPM_NAME || "symbolic-agent"
+  if (!(await seen(name, version))) {
+    await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
+  }
 }
 
 if (on("SYMBOLIC_PUBLISH_CONTAINER")) {
