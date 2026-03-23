@@ -1,6 +1,6 @@
 import { createStore, type SetStoreFunction } from "solid-js/store"
 import { createSimpleContext } from "@symbolic-agent/ui/context"
-import { batch, createMemo, createRoot, onCleanup } from "solid-js"
+import { batch, createMemo, createRoot, getOwner, onCleanup } from "solid-js"
 import { useParams } from "@solidjs/router"
 import type { FileSelection } from "@/context/file"
 import { Persist, persisted } from "@/utils/persist"
@@ -250,6 +250,7 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
       }
     }
 
+    const owner = getOwner()
     const load = (dir: string, id: string | undefined) => {
       const key = `${dir}:${id ?? WORKSPACE_KEY}`
       const existing = cache.get(key)
@@ -259,10 +260,13 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
         return existing.value
       }
 
-      const entry = createRoot((dispose) => ({
-        value: createPromptSession(dir, id),
-        dispose,
-      }))
+      const entry = createRoot(
+        (dispose) => ({
+          value: createPromptSession(dir, id),
+          dispose,
+        }),
+        owner,
+      )
 
       cache.set(key, entry)
       prune()
