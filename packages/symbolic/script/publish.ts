@@ -29,7 +29,7 @@ function link(tag: string, file: string) {
 
 function npm(name: string) {
   if (name.startsWith("symbolic-")) {
-    return `symbolic-agent-${name.slice("symbolic-".length)}`
+    return `@symbolic-agent/${name}`
   }
   return name
 }
