@@ -6,6 +6,24 @@ import { buildNotes, getLatestRelease } from "./changelog"
 
 const output = [`version=${Script.version}`]
 
+async function view(tag: string) {
+  const res = await fetch(`https://api.github.com/repos/${process.env.GH_REPO}/releases/tags/${tag}`, {
+    headers: {
+      ...(process.env.GH_TOKEN ? { Authorization: `Bearer ${process.env.GH_TOKEN}` } : {}),
+      Accept: "application/vnd.github+json",
+    },
+  })
+  if (res.status === 404) return
+  if (!res.ok) {
+    throw new Error(`Failed to load release ${tag}: ${res.status} ${res.statusText}`)
+  }
+  const data = (await res.json()) as { id: number; tag_name: string }
+  return {
+    databaseId: data.id,
+    tagName: data.tag_name,
+  }
+}
+
 if (!Script.preview) {
   const previous = await getLatestRelease()
   const notes = previous ? await buildNotes(previous, "HEAD") : []
@@ -13,15 +31,27 @@ if (!Script.preview) {
   const dir = process.env.RUNNER_TEMP ?? "/tmp"
   const file = `${dir}/symbolic-release-notes.txt`
   await Bun.write(file, body)
-  await $`gh release create v${Script.version} -d --title "v${Script.version}" --notes-file ${file} --repo ${process.env.GH_REPO}`
-  const release =
-    await $`gh release view v${Script.version} --json tagName,databaseId --repo ${process.env.GH_REPO}`.json()
+  const tag = `v${Script.version}`
+  let release = await view(tag)
+  if (!release) {
+    await $`gh release create ${tag} -d --title ${tag} --notes-file ${file} --repo ${process.env.GH_REPO}`
+    release = await view(tag)
+  }
+  if (!release) {
+    throw new Error(`Failed to resolve release ${tag}`)
+  }
   output.push(`release=${release.databaseId}`)
   output.push(`tag=${release.tagName}`)
 } else if (Script.channel === "beta") {
-  await $`gh release create v${Script.version} -d --title "v${Script.version}" --repo ${process.env.GH_REPO}`
-  const release =
-    await $`gh release view v${Script.version} --json tagName,databaseId --repo ${process.env.GH_REPO}`.json()
+  const tag = `v${Script.version}`
+  let release = await view(tag)
+  if (!release) {
+    await $`gh release create ${tag} -d --title ${tag} --repo ${process.env.GH_REPO}`
+    release = await view(tag)
+  }
+  if (!release) {
+    throw new Error(`Failed to resolve release ${tag}`)
+  }
   output.push(`release=${release.databaseId}`)
   output.push(`tag=${release.tagName}`)
 }

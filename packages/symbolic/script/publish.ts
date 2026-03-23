@@ -27,17 +27,29 @@ function link(tag: string, file: string) {
   return `${host()}/releases/download/v${tag}/${file}`
 }
 
+function npm(name: string) {
+  if (name.startsWith("symbolic-")) {
+    return `symbolic-agent-${name.slice("symbolic-".length)}`
+  }
+  return name
+}
+
 function tap() {
   return process.env.SYMBOLIC_HOMEBREW_TAP || `${repo().split("/")[0]}/homebrew-tap`
 }
 
-const binaries: Record<string, string> = {}
+const binaries: { dir: string; name: string; npm: string; version: string }[] = []
 for (const filepath of new Bun.Glob("*/package.json").scanSync({ cwd: "./dist" })) {
-  const pkg = await Bun.file(`./dist/${filepath}`).json()
-  binaries[pkg.name] = pkg.version
+  const data = (await Bun.file(`./dist/${filepath}`).json()) as { name: string; version: string }
+  binaries.push({
+    dir: filepath.replace("/package.json", ""),
+    name: data.name,
+    npm: npm(data.name),
+    version: data.version,
+  })
 }
-console.log("binaries", binaries)
-const version = Object.values(binaries)[0]
+console.log("binaries", Object.fromEntries(binaries.map((bin) => [bin.npm, bin.version])))
+const version = binaries[0]?.version
 
 await $`mkdir -p ./dist/${pkg.name}`
 await $`cp -r ./bin ./dist/${pkg.name}/bin`
@@ -56,7 +68,7 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
       },
       version: version,
       license: pkg.license,
-      optionalDependencies: binaries,
+      optionalDependencies: Object.fromEntries(binaries.map((bin) => [bin.npm, bin.version])),
     },
     null,
     2,
@@ -64,12 +76,16 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
 )
 
 if (on("SYMBOLIC_PUBLISH_NPM")) {
-  const tasks = Object.entries(binaries).map(async ([name]) => {
+  const tasks = binaries.map(async (bin) => {
     if (process.platform !== "win32") {
-      await $`chmod -R 755 .`.cwd(`./dist/${name}`)
+      await $`chmod -R 755 .`.cwd(`./dist/${bin.dir}`)
     }
-    await $`bun pm pack`.cwd(`./dist/${name}`)
-    await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${name}`)
+    const file = `./dist/${bin.dir}/package.json`
+    const pkg = (await Bun.file(file).json()) as { name: string; version: string }
+    pkg.name = bin.npm
+    await Bun.write(file, JSON.stringify(pkg, null, 2))
+    await $`bun pm pack`.cwd(`./dist/${bin.dir}`)
+    await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${bin.dir}`)
   })
   await Promise.all(tasks)
   await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
