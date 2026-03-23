@@ -1,4 +1,4 @@
-@import "@symbolic/ui/styles/tailwind";
+@import "@symbolic-agent/ui/styles/tailwind";
 
 @layer components {
   [data-component="getting-started"] {

@@ -1708,7 +1708,7 @@ describe("getPluginName", () => {
 
   test("extracts name from scoped npm package", () => {
     expect(Config.getPluginName("@scope/pkg@1.0.0")).toBe("@scope/pkg")
-    expect(Config.getPluginName("@symbolic/plugin@2.0.0")).toBe("@symbolic/plugin")
+    expect(Config.getPluginName("@symbolic-agent/plugin@2.0.0")).toBe("@symbolic-agent/plugin")
   })
 
   test("returns full string for package without version", () => {

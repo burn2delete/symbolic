@@ -6,7 +6,7 @@ import type {
   QuestionRequest,
   SessionStatus,
   Todo,
-} from "@symbolic/sdk/v2/client"
+} from "@symbolic-agent/sdk/v2/client"
 
 export const SESSION_CACHE_LIMIT = 40
 

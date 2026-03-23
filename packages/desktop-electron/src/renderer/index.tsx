@@ -8,7 +8,7 @@ import {
   PlatformProvider,
   ServerConnection,
   useCommand,
-} from "@symbolic/app"
+} from "@symbolic-agent/app"
 import type { AsyncStorage } from "@solid-primitives/storage"
 import { createResource, onCleanup, onMount, Show } from "solid-js"
 import { render } from "solid-js/web"

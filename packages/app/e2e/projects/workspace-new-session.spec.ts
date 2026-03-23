@@ -1,4 +1,4 @@
-import { base64Decode } from "@symbolic/util/encode"
+import { base64Decode } from "@symbolic-agent/util/encode"
 import type { Page } from "@playwright/test"
 import { test, expect } from "../fixtures"
 import { openSidebar, sessionIDFromUrl, setWorkspacesEnabled, slugFromUrl, waitSlug } from "../actions"

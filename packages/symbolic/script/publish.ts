@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { $ } from "bun"
 import pkg from "../package.json"
-import { Script } from "@symbolic/script"
+import { Script } from "@symbolic-agent/script"
 import { fileURLToPath } from "url"
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
@@ -47,7 +47,7 @@ await Bun.file(`./dist/${pkg.name}/LICENSE`).write(await Bun.file("../../LICENSE
 await Bun.file(`./dist/${pkg.name}/package.json`).write(
   JSON.stringify(
     {
-      name: process.env.SYMBOLIC_NPM_NAME || pkg.name,
+      name: process.env.SYMBOLIC_NPM_NAME || "symbolic-agent",
       bin: {
         [pkg.name]: `./bin/${pkg.name}`,
       },

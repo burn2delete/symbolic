@@ -1,11 +1,11 @@
-import { Resource } from "@symbolic/console-resource"
-import { Actor } from "@symbolic/console-core/actor.js"
+import { Resource } from "@symbolic-agent/console-resource"
+import { Actor } from "@symbolic-agent/console-core/actor.js"
 import { action, json, query } from "@solidjs/router"
 import { withActor } from "~/context/auth.withActor"
-import { Billing } from "@symbolic/console-core/billing.js"
-import { and, Database, desc, eq, isNull } from "@symbolic/console-core/drizzle/index.js"
-import { WorkspaceTable } from "@symbolic/console-core/schema/workspace.sql.js"
-import { UserTable } from "@symbolic/console-core/schema/user.sql.js"
+import { Billing } from "@symbolic-agent/console-core/billing.js"
+import { and, Database, desc, eq, isNull } from "@symbolic-agent/console-core/drizzle/index.js"
+import { WorkspaceTable } from "@symbolic-agent/console-core/schema/workspace.sql.js"
+import { UserTable } from "@symbolic-agent/console-core/schema/user.sql.js"
 
 export function formatDateForTable(date: Date) {
   const options: Intl.DateTimeFormatOptions = {

@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic/web",
+  "name": "@symbolic-agent/web",
   "private": true,
   "version": "1.0.0",
   "description": "Next.js web surface for Symbolic",

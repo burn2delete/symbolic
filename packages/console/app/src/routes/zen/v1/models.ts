@@ -1,9 +1,9 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { and, Database, eq, isNull } from "@symbolic/console-core/drizzle/index.js"
-import { KeyTable } from "@symbolic/console-core/schema/key.sql.js"
-import { WorkspaceTable } from "@symbolic/console-core/schema/workspace.sql.js"
-import { ModelTable } from "@symbolic/console-core/schema/model.sql.js"
-import { ZenData } from "@symbolic/console-core/model.js"
+import { and, Database, eq, isNull } from "@symbolic-agent/console-core/drizzle/index.js"
+import { KeyTable } from "@symbolic-agent/console-core/schema/key.sql.js"
+import { WorkspaceTable } from "@symbolic-agent/console-core/schema/workspace.sql.js"
+import { ModelTable } from "@symbolic-agent/console-core/schema/model.sql.js"
+import { ZenData } from "@symbolic-agent/console-core/model.js"
 
 export async function OPTIONS(input: APIEvent) {
   return new Response(null, {

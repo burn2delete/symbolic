@@ -1,4 +1,4 @@
-import { sampledChecksum } from "@symbolic/util/encode"
+import { sampledChecksum } from "@symbolic-agent/util/encode"
 import {
   DEFAULT_VIRTUAL_FILE_METRICS,
   type DiffLineAnnotation,

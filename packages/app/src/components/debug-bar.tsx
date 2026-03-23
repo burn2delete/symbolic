@@ -1,7 +1,7 @@
 import { useIsRouting, useLocation } from "@solidjs/router"
 import { batch, createEffect, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Tooltip } from "@symbolic/ui/tooltip"
+import { Tooltip } from "@symbolic-agent/ui/tooltip"
 
 type Mem = Performance & {
   memory?: {

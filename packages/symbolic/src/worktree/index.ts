@@ -1,7 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import z from "zod"
-import { NamedError } from "@symbolic/util/error"
+import { NamedError } from "@symbolic-agent/util/error"
 import { Global } from "../global"
 import { Instance } from "../project/instance"
 import { InstanceBootstrap } from "../project/bootstrap"

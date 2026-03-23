@@ -1,7 +1,7 @@
 import { createEffect } from "solid-js"
 import { createStore } from "solid-js/store"
 import { getRequestEvent } from "solid-js/web"
-import { createSimpleContext } from "@symbolic/ui/context"
+import { createSimpleContext } from "@symbolic-agent/ui/context"
 import {
   LOCALES,
   type Locale,

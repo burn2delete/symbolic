@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun"
-import { createSymbolic } from "@symbolic/sdk/v2"
+import { createSymbolic } from "@symbolic-agent/sdk/v2"
 import { parseArgs } from "util"
-import { Script } from "@symbolic/script"
+import { Script } from "@symbolic-agent/script"
 
 type Release = {
   tag_name: string

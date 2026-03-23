@@ -1,8 +1,8 @@
 import { Component, For, Show } from "solid-js"
-import { FileIcon } from "@symbolic/ui/file-icon"
-import { IconButton } from "@symbolic/ui/icon-button"
-import { Tooltip } from "@symbolic/ui/tooltip"
-import { getDirectory, getFilename, getFilenameTruncated } from "@symbolic/util/path"
+import { FileIcon } from "@symbolic-agent/ui/file-icon"
+import { IconButton } from "@symbolic-agent/ui/icon-button"
+import { Tooltip } from "@symbolic-agent/ui/tooltip"
+import { getDirectory, getFilename, getFilenameTruncated } from "@symbolic-agent/util/path"
 import type { ContextItem } from "@/context/prompt"
 
 type PromptContextItem = ContextItem & { key: string }

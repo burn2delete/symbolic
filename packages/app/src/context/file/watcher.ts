@@ -1,4 +1,4 @@
-import type { FileNode } from "@symbolic/sdk/v2"
+import type { FileNode } from "@symbolic-agent/sdk/v2"
 
 type WatcherEvent = {
   type: string

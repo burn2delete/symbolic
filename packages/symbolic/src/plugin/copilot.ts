@@ -1,4 +1,4 @@
-import type { Hooks, PluginInput } from "@symbolic/plugin"
+import type { Hooks, PluginInput } from "@symbolic-agent/plugin"
 import { Installation } from "@/installation"
 import { iife } from "@/util/iife"
 import { setTimeout as sleep } from "node:timers/promises"

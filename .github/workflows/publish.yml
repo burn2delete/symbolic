@@ -473,7 +473,7 @@ jobs:
       - build-tauri
       - build-electron
       - build-terminal
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: ${{ always() && vars.ENABLE_RELEASE_PIPELINE == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     steps:
       - uses: actions/checkout@v3
@@ -556,5 +556,4 @@ jobs:
           AUR_KEY: ${{ secrets.AUR_KEY }}
           GITHUB_TOKEN: ${{ steps.committer.outputs.token }}
           GH_REPO: ${{ needs.version.outputs.repo }}
-          NPM_CONFIG_PROVENANCE: false
           LATEST_YML_DIR: /tmp/latest-yml

@@ -1,6 +1,6 @@
 // @refresh reload
 
-import { iife } from "@symbolic/util/iife"
+import { iife } from "@symbolic-agent/util/iife"
 import { render } from "solid-js/web"
 import { AppBaseProviders, AppInterface } from "@/app"
 import { type Platform, PlatformProvider } from "@/context/platform"

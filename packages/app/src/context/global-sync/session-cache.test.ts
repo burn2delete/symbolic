@@ -7,7 +7,7 @@ import type {
   QuestionRequest,
   SessionStatus,
   Todo,
-} from "@symbolic/sdk/v2/client"
+} from "@symbolic-agent/sdk/v2/client"
 import { dropSessionCaches, pickSessionCacheEvictions } from "./session-cache"
 
 const msg = (id: string, sessionID: string) =>

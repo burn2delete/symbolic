@@ -4,8 +4,8 @@ import { IconWorkspaceLogo } from "../component/icon"
 import { WorkspacePicker } from "./workspace-picker"
 import { UserMenu } from "./user-menu"
 import { withActor } from "~/context/auth.withActor"
-import { User } from "@symbolic/console-core/user.js"
-import { Actor } from "@symbolic/console-core/actor.js"
+import { User } from "@symbolic-agent/console-core/user.js"
+import { Actor } from "@symbolic-agent/console-core/actor.js"
 import { useLanguage } from "~/context/language"
 
 const getUserEmail = query(async (workspaceID: string) => {

@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic/desktop",
+  "name": "@symbolic-agent/desktop",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -13,8 +13,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@symbolic/app": "workspace:*",
-    "@symbolic/ui": "workspace:*",
+    "@symbolic-agent/app": "workspace:*",
+    "@symbolic-agent/ui": "workspace:*",
     "@solid-primitives/i18n": "2.2.1",
     "@solid-primitives/storage": "catalog:",
     "@tauri-apps/api": "^2",

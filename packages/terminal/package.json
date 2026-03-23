@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic/terminal",
+  "name": "@symbolic-agent/terminal",
   "version": "1.0.0",
   "private": true,
   "description": "Standalone Electron host for the Symbolic TUI",

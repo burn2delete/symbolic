@@ -1,8 +1,8 @@
 import { useFile } from "@/context/file"
 import { encodeFilePath } from "@/context/file/path"
-import { Collapsible } from "@symbolic/ui/collapsible"
-import { FileIcon } from "@symbolic/ui/file-icon"
-import { Icon } from "@symbolic/ui/icon"
+import { Collapsible } from "@symbolic-agent/ui/collapsible"
+import { FileIcon } from "@symbolic-agent/ui/file-icon"
+import { Icon } from "@symbolic-agent/ui/icon"
 import {
   createEffect,
   createMemo,
@@ -18,7 +18,7 @@ import {
   type ParentProps,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import type { FileNode } from "@symbolic/sdk/v2"
+import type { FileNode } from "@symbolic-agent/sdk/v2"
 
 const MAX_DEPTH = 128
 

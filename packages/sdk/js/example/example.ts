@@ -1,4 +1,4 @@
-import { createSymbolicClient, createSymbolicServer } from "@symbolic/sdk"
+import { createSymbolicClient, createSymbolicServer } from "@symbolic-agent/sdk"
 import { pathToFileURL } from "bun"
 
 const server = await createSymbolicServer()

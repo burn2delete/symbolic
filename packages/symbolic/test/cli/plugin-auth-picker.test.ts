@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test"
 import { resolvePluginProviders } from "../../src/cli/cmd/providers"
-import type { Hooks } from "@symbolic/plugin"
+import type { Hooks } from "@symbolic-agent/plugin"
 
 function hookWithAuth(provider: string): Hooks {
   return {

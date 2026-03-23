@@ -1,4 +1,4 @@
-import { NamedError } from "@symbolic/util/error"
+import { NamedError } from "@symbolic-agent/util/error"
 import matter from "gray-matter"
 import { z } from "zod"
 import { Filesystem } from "../util/filesystem"

@@ -1,4 +1,4 @@
-import { createSymbolicClient, type Event } from "@symbolic/sdk/v2"
+import { createSymbolicClient, type Event } from "@symbolic-agent/sdk/v2"
 import { createSimpleContext } from "./helper"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { batch, onCleanup, onMount } from "solid-js"

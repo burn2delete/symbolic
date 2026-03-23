@@ -15,7 +15,7 @@ import { SessionCompaction } from "./compaction"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { PartID } from "./schema"
-import type { ChatRuntime, RuntimeEvent, RuntimeInput } from "@symbolic/plugin"
+import type { ChatRuntime, RuntimeEvent, RuntimeInput } from "@symbolic-agent/plugin"
 import type { ProviderMetadata } from "ai"
 import type { SessionID, MessageID } from "./schema"
 

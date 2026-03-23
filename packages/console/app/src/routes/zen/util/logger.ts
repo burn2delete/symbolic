@@ -1,4 +1,4 @@
-import { Resource } from "@symbolic/console-resource"
+import { Resource } from "@symbolic-agent/console-resource"
 
 export const logger = {
   metric: (values: Record<string, any>) => {

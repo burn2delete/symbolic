@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic/github-action",
+  "name": "@symbolic-agent/github-action",
   "description": "GitHub Action runtime for Symbolic",
   "module": "index.ts",
   "type": "module",
@@ -16,6 +16,6 @@
     "@actions/github": "6.0.1",
     "@octokit/graphql": "9.0.1",
     "@octokit/rest": "catalog:",
-    "@symbolic/sdk": "workspace:*"
+    "@symbolic-agent/sdk": "workspace:*"
   }
 }

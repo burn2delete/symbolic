@@ -88,7 +88,7 @@ describe("tool.registry", () => {
           JSON.stringify({
             name: "custom-tools",
             dependencies: {
-              "@symbolic/plugin": "^0.0.0",
+              "@symbolic-agent/plugin": "^0.0.0",
               cowsay: "^1.6.0",
             },
           }),

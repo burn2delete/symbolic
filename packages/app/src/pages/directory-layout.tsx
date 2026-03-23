@@ -6,10 +6,10 @@ import { SyncProvider, useSync } from "@/context/sync"
 import { LocalProvider } from "@/context/local"
 import { useGlobalSDK } from "@/context/global-sdk"
 
-import { DataProvider } from "@symbolic/ui/context"
-import { base64Encode } from "@symbolic/util/encode"
+import { DataProvider } from "@symbolic-agent/ui/context"
+import { base64Encode } from "@symbolic-agent/util/encode"
 import { decode64 } from "@/utils/base64"
-import { showToast } from "@symbolic/ui/toast"
+import { showToast } from "@symbolic-agent/ui/toast"
 import { useLanguage } from "@/context/language"
 function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   const navigate = useNavigate()

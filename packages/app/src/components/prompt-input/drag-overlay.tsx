@@ -1,5 +1,5 @@
 import { Component, Show } from "solid-js"
-import { Icon } from "@symbolic/ui/icon"
+import { Icon } from "@symbolic-agent/ui/icon"
 
 type PromptDragOverlayProps = {
   type: "image" | "@mention" | null

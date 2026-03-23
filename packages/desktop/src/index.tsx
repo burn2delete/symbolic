@@ -8,7 +8,7 @@ import {
   PlatformProvider,
   ServerConnection,
   useCommand,
-} from "@symbolic/app"
+} from "@symbolic-agent/app"
 import type { AsyncStorage } from "@solid-primitives/storage"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { readImage } from "@tauri-apps/plugin-clipboard-manager"

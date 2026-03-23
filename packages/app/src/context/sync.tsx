@@ -1,8 +1,8 @@
 import { batch, createMemo } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
-import { Binary } from "@symbolic/util/binary"
-import { retry } from "@symbolic/util/retry"
-import { createSimpleContext } from "@symbolic/ui/context"
+import { Binary } from "@symbolic-agent/util/binary"
+import { retry } from "@symbolic-agent/util/retry"
+import { createSimpleContext } from "@symbolic-agent/ui/context"
 import {
   clearSessionPrefetch,
   getSessionPrefetch,
@@ -11,7 +11,7 @@ import {
 } from "./global-sync/session-prefetch"
 import { useGlobalSync } from "./global-sync"
 import { useSDK } from "./sdk"
-import type { Message, Part } from "@symbolic/sdk/v2/client"
+import type { Message, Part } from "@symbolic-agent/sdk/v2/client"
 import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } from "./global-sync/session-cache"
 
 function sortParts(parts: Part[]) {

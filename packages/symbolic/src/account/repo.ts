@@ -36,7 +36,7 @@ export namespace AccountRepo {
   }
 }
 
-export class AccountRepo extends ServiceMap.Service<AccountRepo, AccountRepo.Service>()("@symbolic/AccountRepo") {
+export class AccountRepo extends ServiceMap.Service<AccountRepo, AccountRepo.Service>()("@symbolic-agent/AccountRepo") {
   static readonly layer: Layer.Layer<AccountRepo> = Layer.effect(
     AccountRepo,
     Effect.gen(function* () {

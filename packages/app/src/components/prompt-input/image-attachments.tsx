@@ -1,5 +1,5 @@
 import { Component, For, Show } from "solid-js"
-import { Icon } from "@symbolic/ui/icon"
+import { Icon } from "@symbolic-agent/ui/icon"
 import type { ImageAttachmentPart } from "@/context/prompt"
 
 type PromptImageAttachmentsProps = {

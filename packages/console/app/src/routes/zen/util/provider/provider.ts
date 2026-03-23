@@ -1,4 +1,4 @@
-import { ZenData } from "@symbolic/console-core/model.js"
+import { ZenData } from "@symbolic-agent/console-core/model.js"
 import {
   fromAnthropicChunk,
   fromAnthropicRequest,

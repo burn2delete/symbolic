@@ -1,5 +1,5 @@
-import { getFilename } from "@symbolic/util/path"
-import { type Session } from "@symbolic/sdk/v2/client"
+import { getFilename } from "@symbolic-agent/util/path"
+import { type Session } from "@symbolic-agent/sdk/v2/client"
 
 export const workspaceKey = (directory: string) => {
   const drive = directory.match(/^([A-Za-z]:)[\\/]+$/)

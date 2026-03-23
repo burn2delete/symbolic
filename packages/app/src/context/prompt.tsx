@@ -1,10 +1,10 @@
 import { createStore, type SetStoreFunction } from "solid-js/store"
-import { createSimpleContext } from "@symbolic/ui/context"
+import { createSimpleContext } from "@symbolic-agent/ui/context"
 import { batch, createMemo, createRoot, onCleanup } from "solid-js"
 import { useParams } from "@solidjs/router"
 import type { FileSelection } from "@/context/file"
 import { Persist, persisted } from "@/utils/persist"
-import { checksum } from "@symbolic/util/encode"
+import { checksum } from "@symbolic-agent/util/encode"
 
 interface PartBase {
   content: string

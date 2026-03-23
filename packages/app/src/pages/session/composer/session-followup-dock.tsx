@@ -1,8 +1,8 @@
 import { For, Show, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Button } from "@symbolic/ui/button"
-import { DockTray } from "@symbolic/ui/dock-surface"
-import { IconButton } from "@symbolic/ui/icon-button"
+import { Button } from "@symbolic-agent/ui/button"
+import { DockTray } from "@symbolic-agent/ui/dock-surface"
+import { IconButton } from "@symbolic-agent/ui/icon-button"
 import { useLanguage } from "@/context/language"
 
 export function SessionFollowupDock(props: {

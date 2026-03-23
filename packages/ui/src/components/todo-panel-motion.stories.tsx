@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
-import type { Todo } from "@symbolic/sdk/v2"
+import type { Todo } from "@symbolic-agent/sdk/v2"
 import { useGlobalSync } from "@/context/global-sync"
 import { SessionComposerRegion, createSessionComposerState } from "@/pages/session/composer"
 

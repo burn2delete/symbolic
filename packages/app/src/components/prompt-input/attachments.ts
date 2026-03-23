@@ -1,5 +1,5 @@
 import { onCleanup, onMount } from "solid-js"
-import { showToast } from "@symbolic/ui/toast"
+import { showToast } from "@symbolic-agent/ui/toast"
 import { usePrompt, type ContentPart, type ImageAttachmentPart } from "@/context/prompt"
 import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"

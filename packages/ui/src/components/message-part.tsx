@@ -27,7 +27,7 @@ import {
   Todo,
   QuestionAnswer,
   QuestionInfo,
-} from "@symbolic/sdk/v2"
+} from "@symbolic-agent/sdk/v2"
 import { useData } from "../context"
 import { useFileComponent } from "../context/file"
 import { useDialog } from "../context/dialog"
@@ -44,8 +44,8 @@ import { Checkbox } from "./checkbox"
 import { DiffChanges } from "./diff-changes"
 import { Markdown } from "./markdown"
 import { ImagePreview } from "./image-preview"
-import { getDirectory as _getDirectory, getFilename } from "@symbolic/util/path"
-import { checksum } from "@symbolic/util/encode"
+import { getDirectory as _getDirectory, getFilename } from "@symbolic-agent/util/path"
+import { checksum } from "@symbolic-agent/util/encode"
 import { Tooltip } from "./tooltip"
 import { IconButton } from "./icon-button"
 import { TextShimmer } from "./text-shimmer"

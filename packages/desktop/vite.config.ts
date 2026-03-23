@@ -1,5 +1,5 @@
 import { defineConfig } from "vite"
-import appPlugin from "@symbolic/app/vite"
+import appPlugin from "@symbolic-agent/app/vite"
 
 const host = process.env.TAURI_DEV_HOST
 

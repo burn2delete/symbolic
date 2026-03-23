@@ -9,7 +9,7 @@ import { mergeDeep, pipe, unique } from "remeda"
 import { Global } from "../global"
 import fs from "fs/promises"
 import { lazy } from "../util/lazy"
-import { NamedError } from "@symbolic/util/error"
+import { NamedError } from "@symbolic-agent/util/error"
 import { Flag } from "../flag/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -290,8 +290,8 @@ export namespace Config {
       dependencies: {},
     }))
     const deps: Record<string, string> = { ...(json.dependencies ?? {}) }
-    if (local) delete deps["@symbolic/plugin"]
-    if (!local) deps["@symbolic/plugin"] = target
+    if (local) delete deps["@symbolic-agent/plugin"]
+    if (!local) deps["@symbolic-agent/plugin"] = target
     await Filesystem.writeJson(pkg, {
       ...json,
       dependencies: deps,
@@ -351,15 +351,15 @@ export namespace Config {
 
     const parsed = await Filesystem.readJson<{ dependencies?: Record<string, string> }>(pkg).catch(() => null)
     const dependencies = parsed?.dependencies ?? {}
-    const depVersion = dependencies["@symbolic/plugin"]
+    const depVersion = dependencies["@symbolic-agent/plugin"]
     if (!depVersion) return true
 
     const targetVersion = Installation.isLocal() ? "latest" : Installation.VERSION
     if (targetVersion === "latest") {
-      const isOutdated = await PackageRegistry.isOutdated("@symbolic/plugin", depVersion, dir)
+      const isOutdated = await PackageRegistry.isOutdated("@symbolic-agent/plugin", depVersion, dir)
       if (!isOutdated) return false
       log.info("Cached version is outdated, proceeding with install", {
-        pkg: "@symbolic/plugin",
+        pkg: "@symbolic-agent/plugin",
         cachedVersion: depVersion,
       })
       return true

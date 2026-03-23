@@ -36,7 +36,7 @@ import { $ } from "bun"
 import { pathToFileURL, fileURLToPath } from "url"
 import { ConfigMarkdown } from "../config/markdown"
 import { SessionSummary } from "./summary"
-import { NamedError } from "@symbolic/util/error"
+import { NamedError } from "@symbolic-agent/util/error"
 import { fn } from "@/util/fn"
 import { SessionProcessor } from "./processor"
 import { TaskTool } from "@/tool/task"
@@ -48,7 +48,7 @@ import { LLM } from "./llm"
 import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
-import type { RuntimeInput } from "@symbolic/plugin"
+import type { RuntimeInput } from "@symbolic-agent/plugin"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false

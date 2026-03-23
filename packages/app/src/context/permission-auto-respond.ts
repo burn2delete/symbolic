@@ -1,4 +1,4 @@
-import { base64Encode } from "@symbolic/util/encode"
+import { base64Encode } from "@symbolic-agent/util/encode"
 
 export function acceptKey(sessionID: string, directory?: string) {
   if (!directory) return sessionID

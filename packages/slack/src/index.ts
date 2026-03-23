@@ -1,5 +1,5 @@
 import { App } from "@slack/bolt"
-import { createSymbolic, type ToolPart } from "@symbolic/sdk"
+import { createSymbolic, type ToolPart } from "@symbolic-agent/sdk"
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,

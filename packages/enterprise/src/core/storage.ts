@@ -1,5 +1,5 @@
 import { AwsClient } from "aws4fetch"
-import { lazy } from "@symbolic/util/lazy"
+import { lazy } from "@symbolic-agent/util/lazy"
 
 export namespace Storage {
   export interface Adapter {

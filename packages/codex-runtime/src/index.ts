@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node"
-import type { ChatRuntime, Hooks, PluginInput, RuntimeEvent, RuntimeInput } from "@symbolic/plugin"
+import type { ChatRuntime, Hooks, PluginInput, RuntimeEvent, RuntimeInput } from "@symbolic-agent/plugin"
 
 type Dict = Record<string, unknown>
 

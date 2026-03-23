@@ -1,4 +1,4 @@
-import { createSimpleContext } from "@symbolic/ui/context"
+import { createSimpleContext } from "@symbolic-agent/ui/context"
 import { type Accessor, batch, createEffect, createMemo, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"

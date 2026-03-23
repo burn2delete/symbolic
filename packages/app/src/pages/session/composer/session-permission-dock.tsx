@@ -1,8 +1,8 @@
 import { For, Show } from "solid-js"
-import type { PermissionRequest } from "@symbolic/sdk/v2"
-import { Button } from "@symbolic/ui/button"
-import { DockPrompt } from "@symbolic/ui/dock-prompt"
-import { Icon } from "@symbolic/ui/icon"
+import type { PermissionRequest } from "@symbolic-agent/sdk/v2"
+import { Button } from "@symbolic-agent/ui/button"
+import { DockPrompt } from "@symbolic-agent/ui/dock-prompt"
+import { Icon } from "@symbolic-agent/ui/icon"
 import { useLanguage } from "@/context/language"
 
 export function SessionPermissionDock(props: {

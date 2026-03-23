@@ -1,7 +1,7 @@
 import { Match, Show, Switch, createMemo } from "solid-js"
-import { Tooltip, type TooltipProps } from "@symbolic/ui/tooltip"
-import { ProgressCircle } from "@symbolic/ui/progress-circle"
-import { Button } from "@symbolic/ui/button"
+import { Tooltip, type TooltipProps } from "@symbolic-agent/ui/tooltip"
+import { ProgressCircle } from "@symbolic-agent/ui/progress-circle"
+import { Button } from "@symbolic-agent/ui/button"
 
 import { useFile } from "@/context/file"
 import { useLayout } from "@/context/layout"

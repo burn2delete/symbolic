@@ -1,4 +1,4 @@
-import { createSymbolicClient } from "@symbolic/sdk/v2/client"
+import { createSymbolicClient } from "@symbolic-agent/sdk/v2/client"
 import type { ServerConnection } from "@/context/server"
 
 export function createSdkForServer({

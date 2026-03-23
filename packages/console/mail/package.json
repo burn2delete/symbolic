@@ -1,5 +1,5 @@
 {
-  "name": "@symbolic/console-mail",
+  "name": "@symbolic-agent/console-mail",
   "version": "1.0.0",
   "dependencies": {
     "@jsx-email/all": "2.2.3",

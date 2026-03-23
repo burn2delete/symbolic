@@ -1,5 +1,5 @@
-import { type HexColor, resolveThemeVariant, useTheme, withAlpha } from "@symbolic/ui/theme"
-import { showToast } from "@symbolic/ui/toast"
+import { type HexColor, resolveThemeVariant, useTheme, withAlpha } from "@symbolic-agent/ui/theme"
+import { showToast } from "@symbolic-agent/ui/toast"
 import type { FitAddon, Ghostty, Terminal as Term } from "ghostty-web"
 import { type ComponentProps, createEffect, createMemo, onCleanup, onMount, splitProps } from "solid-js"
 import { SerializeAddon } from "@/addons/serialize"

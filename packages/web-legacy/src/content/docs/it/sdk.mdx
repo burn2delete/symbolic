@@ -18,7 +18,7 @@ Usalo per creare integrazioni e controllare symbolic in modo programmatico.
 Installa l'SDK da npm:
 
 ```bash
-npm install @symbolic/sdk
+npm install @symbolic-agent/sdk
 ```
 
 ---
@@ -28,7 +28,7 @@ npm install @symbolic/sdk
 Crea un'istanza di symbolic:
 
 ```javascript
-import { createSymbolic } from "@symbolic/sdk"
+import { createSymbolic } from "@symbolic-agent/sdk"
 
 const { client } = await createSymbolic()
 ```
@@ -52,7 +52,7 @@ Questo avvia sia un server sia un client
 Puoi passare un oggetto di configurazione per personalizzare il comportamento. L'istanza legge comunque `symbolic.json`, ma puoi sovrascrivere o aggiungere configurazione inline:
 
 ```javascript
-import { createSymbolic } from "@symbolic/sdk"
+import { createSymbolic } from "@symbolic-agent/sdk"
 
 const symbolic = await createSymbolic({
   hostname: "127.0.0.1",
@@ -72,7 +72,7 @@ symbolic.server.close()
 Se hai gia un'istanza di symbolic in esecuzione, puoi creare un client per collegarti:
 
 ```javascript
-import { createSymbolicClient } from "@symbolic/sdk"
+import { createSymbolicClient } from "@symbolic-agent/sdk"
 
 const client = createSymbolicClient({
   baseUrl: "http://localhost:4096",
@@ -96,7 +96,7 @@ const client = createSymbolicClient({
 L'SDK include definizioni TypeScript per tutti i tipi API. Importale direttamente:
 
 ```typescript
-import type { Session, Message, Part } from "@symbolic/sdk"
+import type { Session, Message, Part } from "@symbolic-agent/sdk"
 ```
 
 Tutti i tipi sono generati dalla specifica OpenAPI del server e disponibili nel <a href={typesUrl}>file dei tipi</a>.

@@ -6,7 +6,7 @@ import {
   parseDeepLink,
   parseNewSessionDeepLink,
 } from "./deep-links"
-import { type Session } from "@symbolic/sdk/v2/client"
+import { type Session } from "@symbolic-agent/sdk/v2/client"
 import {
   displayName,
   effectiveWorkspaceOrder,

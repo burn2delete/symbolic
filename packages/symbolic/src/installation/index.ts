@@ -1,7 +1,7 @@
 import { BusEvent } from "@/bus/bus-event"
 import path from "path"
 import z from "zod"
-import { NamedError } from "@symbolic/util/error"
+import { NamedError } from "@symbolic-agent/util/error"
 import { Log } from "../util/log"
 import { iife } from "@/util/iife"
 import { Flag } from "../flag/flag"

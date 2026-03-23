@@ -126,7 +126,7 @@ export namespace AccountService {
   }
 }
 
-export class AccountService extends ServiceMap.Service<AccountService, AccountService.Service>()("@symbolic/Account") {
+export class AccountService extends ServiceMap.Service<AccountService, AccountService.Service>()("@symbolic-agent/Account") {
   static readonly layer: Layer.Layer<AccountService, never, AccountRepo | HttpClient.HttpClient> = Layer.effect(
     AccountService,
     Effect.gen(function* () {

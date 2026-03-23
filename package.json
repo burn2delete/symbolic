@@ -19,6 +19,7 @@
   },
   "workspaces": {
     "packages": [
+      "github",
       "packages/*",
       "packages/console/*",
       "packages/sdk/js",
@@ -83,9 +84,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
-    "@symbolic/plugin": "workspace:*",
-    "@symbolic/script": "workspace:*",
-    "@symbolic/sdk": "workspace:*",
+    "@symbolic-agent/plugin": "workspace:*",
+    "@symbolic-agent/script": "workspace:*",
+    "@symbolic-agent/sdk": "workspace:*",
     "typescript": "catalog:"
   },
   "repository": {

@@ -1,4 +1,4 @@
-import type { AssistantMessage, Part, UserMessage } from "@symbolic/sdk/v2"
+import type { AssistantMessage, Part, UserMessage } from "@symbolic-agent/sdk/v2"
 import { Locale } from "@/util/locale"
 
 export type TranscriptOptions = {
