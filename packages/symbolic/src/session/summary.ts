@@ -67,6 +67,17 @@ export namespace SessionSummary {
     return Buffer.from(bytes).toString()
   }
 
+  function normalize(diffs: Snapshot.FileDiff[]) {
+    return diffs.map((item) => {
+      const file = unquoteGitPath(item.file)
+      if (file === item.file) return item
+      return {
+        ...item,
+        file,
+      }
+    })
+  }
+
   export const summarize = fn(
     z.object({
       sessionID: SessionID.zod,
@@ -118,15 +129,19 @@ export namespace SessionSummary {
       messageID: MessageID.zod.optional(),
     }),
     async (input) => {
-      const diffs = await Storage.read<Snapshot.FileDiff[]>(["session_diff", input.sessionID]).catch(() => [])
-      const next = diffs.map((item) => {
-        const file = unquoteGitPath(item.file)
-        if (file === item.file) return item
-        return {
-          ...item,
-          file,
+      if (input.messageID) {
+        const message = await MessageV2.get({
+          sessionID: input.sessionID,
+          messageID: input.messageID,
+        }).catch(() => undefined)
+
+        if (message?.info.role === "user" && message.info.summary?.diffs) {
+          return normalize(message.info.summary.diffs)
         }
-      })
+      }
+
+      const diffs = await Storage.read<Snapshot.FileDiff[]>(["session_diff", input.sessionID]).catch(() => [])
+      const next = normalize(diffs)
       const changed = next.some((item, i) => item.file !== diffs[i]?.file)
       if (changed) Storage.write(["session_diff", input.sessionID], next).catch(() => {})
       return next
