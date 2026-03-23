@@ -1,5 +1,5 @@
 name: publish
-run-name: "${{ format('release {0}', github.event.inputs.version || github.event.inputs.bump || github.ref_name) }}"
+run-name: "release ${{ github.ref_name }}"
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
         required: false
         type: string
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.version || github.event.inputs.bump }}
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   id-token: write
