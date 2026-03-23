@@ -8,8 +8,8 @@ const output = [`version=${Script.version}`]
 
 if (!Script.preview) {
   const previous = await getLatestRelease()
-  const notes = await buildNotes(previous, "HEAD")
-  const body = notes.join("\n") || "No notable changes"
+  const notes = previous ? await buildNotes(previous, "HEAD") : []
+  const body = notes.join("\n") || `Initial ${Script.version} release`
   const dir = process.env.RUNNER_TEMP ?? "/tmp"
   const file = `${dir}/symbolic-release-notes.txt`
   await Bun.write(file, body)

@@ -30,8 +30,6 @@ export async function getLatestRelease(skip?: string) {
     if (target && tag === target) continue
     return tag
   }
-
-  throw new Error("No releases found")
 }
 
 type Commit = {
@@ -308,9 +306,9 @@ Examples:
   const to = values.to!
   const from = values.from ?? (await getLatestRelease())
 
-  console.log(`Generating changelog: v${from} -> ${to}\n`)
+  console.log(`Generating changelog: ${from ? `v${from}` : "initial"} -> ${to}\n`)
 
-  const notes = await buildNotes(from, to)
+  const notes = from ? await buildNotes(from, to) : ["Initial release"]
   console.log("\n=== Final Notes ===")
   console.log(notes.join("\n"))
 }
