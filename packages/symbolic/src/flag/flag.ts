@@ -61,6 +61,7 @@ export namespace Flag {
   export const SYMBOLIC_EXPERIMENTAL_MARKDOWN = !falsy("SYMBOLIC_EXPERIMENTAL_MARKDOWN")
   export const SYMBOLIC_MODELS_URL = process.env["SYMBOLIC_MODELS_URL"]
   export const SYMBOLIC_MODELS_PATH = process.env["SYMBOLIC_MODELS_PATH"]
+  export const SYMBOLIC_DB = process.env["SYMBOLIC_DB"]
   export const SYMBOLIC_DISABLE_CHANNEL_DB = truthy("SYMBOLIC_DISABLE_CHANNEL_DB")
   export const SYMBOLIC_SKIP_MIGRATIONS = truthy("SYMBOLIC_SKIP_MIGRATIONS")
 

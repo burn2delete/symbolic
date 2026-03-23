@@ -29,6 +29,10 @@ const log = Log.create({ service: "db" })
 
 export namespace Database {
   export const Path = iife(() => {
+    if (Flag.SYMBOLIC_DB) {
+      if (path.isAbsolute(Flag.SYMBOLIC_DB)) return Flag.SYMBOLIC_DB
+      return path.join(Global.Path.data, Flag.SYMBOLIC_DB)
+    }
     const channel = Installation.CHANNEL
     if (["latest", "beta"].includes(channel) || Flag.SYMBOLIC_DISABLE_CHANNEL_DB)
       return path.join(Global.Path.data, "symbolic.db")
