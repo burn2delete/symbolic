@@ -37,21 +37,25 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   const prompt = usePrompt()
   const language = useLanguage()
 
-  const addImageAttachment = async (file: File) => {
+  const warn = () => {
+    showToast({
+      title: language.t("prompt.toast.pasteUnsupported.title"),
+      description: language.t("prompt.toast.pasteUnsupported.description"),
+    })
+  }
+
+  const add = async (file: File, toast = true) => {
     const mime = await attachmentMime(file)
     if (!mime) {
-      showToast({
-        title: language.t("prompt.toast.pasteUnsupported.title"),
-        description: language.t("prompt.toast.pasteUnsupported.description"),
-      })
-      return
+      if (toast) warn()
+      return false
     }
 
     const editor = input.editor()
-    if (!editor) return
+    if (!editor) return false
 
     const url = await dataUrl(file, mime)
-    if (!url) return
+    if (!url) return false
 
     const attachment: ImageAttachmentPart = {
       type: "image",
@@ -62,6 +66,21 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     }
     const cursorPosition = prompt.cursor() ?? getCursorPosition(editor)
     prompt.set([...prompt.current(), attachment], cursorPosition)
+    return true
+  }
+
+  const addImageAttachment = (file: File) => add(file)
+
+  const addAttachments = async (files: File[], toast = true) => {
+    let found = false
+
+    for (const file of files) {
+      const ok = await add(file, false)
+      if (ok) found = true
+    }
+
+    if (!found && files.length > 0 && toast) warn()
+    return found
   }
 
   const removeImageAttachment = (id: string) => {
@@ -77,23 +96,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     event.preventDefault()
     event.stopPropagation()
 
-    const items = Array.from(clipboardData.items)
-    const fileItems = items.filter((item) => item.kind === "file")
-    const imageItems = fileItems.filter((item) => item.type.startsWith("image/") || item.type === "application/pdf")
+    const files = Array.from(clipboardData.items).flatMap((item) => {
+      if (item.kind !== "file") return []
+      const file = item.getAsFile()
+      return file ? [file] : []
+    })
 
-    if (imageItems.length > 0) {
-      for (const item of imageItems) {
-        const file = item.getAsFile()
-        if (file) await addImageAttachment(file)
-      }
-      return
-    }
-
-    if (fileItems.length > 0) {
-      showToast({
-        title: language.t("prompt.toast.pasteUnsupported.title"),
-        description: language.t("prompt.toast.pasteUnsupported.description"),
-      })
+    if (files.length > 0) {
+      await addAttachments(files)
       return
     }
 
@@ -167,9 +177,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     const dropped = event.dataTransfer?.files
     if (!dropped) return
 
-    for (const file of Array.from(dropped)) {
-      await addImageAttachment(file)
-    }
+    await addAttachments(Array.from(dropped))
   }
 
   onMount(() => {
@@ -186,6 +194,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
   return {
     addImageAttachment,
+    addAttachments,
     removeImageAttachment,
     handlePaste,
   }
