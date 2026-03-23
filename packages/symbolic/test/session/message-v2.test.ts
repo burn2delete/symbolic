@@ -853,6 +853,9 @@ describe("session.message-v2.fromError", () => {
       "Please reduce the length of the messages or completion",
       "400 status code (no body)",
       "413 status code (no body)",
+      "The model's maximum context length is 8192 tokens",
+      "This model's maximum context length is only 16384 tokens",
+      "Input length of 20000 exceeds context length of 16384",
     ]
 
     cases.forEach((message) => {
@@ -867,6 +870,26 @@ describe("session.message-v2.fromError", () => {
       const result = MessageV2.fromError(error, { providerID })
       expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(true)
     })
+  })
+
+  test("detects context overflow from context_length_exceeded code in APICallError body", () => {
+    const error = new APICallError({
+      message: "Request failed",
+      url: "https://example.com",
+      requestBodyValues: {},
+      statusCode: 422,
+      responseHeaders: { "content-type": "application/json" },
+      responseBody: JSON.stringify({
+        error: {
+          message: "Some message",
+          type: "invalid_request_error",
+          code: "context_length_exceeded",
+        },
+      }),
+      isRetryable: false,
+    })
+    const result = MessageV2.fromError(error, { providerID })
+    expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(true)
   })
 
   test("does not classify 429 no body as context overflow", () => {
