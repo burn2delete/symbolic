@@ -1,7 +1,6 @@
 import { createRoot, getOwner, onCleanup, runWithOwner, type Owner } from "solid-js"
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
-import type { VcsInfo } from "@symbolic-agent/sdk/v2/client"
 import {
   DIR_IDLE_TTL_MS,
   MAX_DIR_STORES,
@@ -11,6 +10,7 @@ import {
   type MetaCache,
   type ProjectMeta,
   type State,
+  type VcsInfo,
   type VcsCache,
 } from "./types"
 import { canDisposeDirectory, pickDirectoriesToEvict } from "./eviction"
@@ -169,6 +169,8 @@ export function createChildStoreManager(input: {
             sessionTotal: 0,
             session_status: {},
             session_diff: {},
+            repo_diff: {},
+            repo_diff_state: {},
             todo: {},
             permission: {},
             question: {},

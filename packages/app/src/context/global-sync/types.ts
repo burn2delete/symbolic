@@ -15,10 +15,10 @@ import type {
   Session,
   SessionStatus,
   Todo,
-  VcsInfo,
 } from "@symbolic-agent/sdk/v2/client"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
+import type { ReviewRepoQuery, ReviewSource } from "@/context/review"
 
 export type ProjectMeta = {
   name?: string
@@ -49,6 +49,12 @@ export type State = {
   session_diff: {
     [sessionID: string]: FileDiff[]
   }
+  repo_diff: {
+    [key: string]: FileDiff[] | undefined
+  }
+  repo_diff_state: {
+    [key: string]: "loading" | "ready" | "unsupported" | "error" | undefined
+  }
   todo: {
     [sessionID: string]: Todo[]
   }
@@ -72,10 +78,23 @@ export type State = {
   }
 }
 
+export type VcsInfo = {
+  branch?: string
+  default_branch?: string
+  head?: string
+  dirty: boolean
+}
+
 export type VcsCache = {
   store: Store<{ value: VcsInfo | undefined }>
   setStore: SetStoreFunction<{ value: VcsInfo | undefined }>
   ready: Accessor<boolean>
+}
+
+export type ReviewCache = {
+  key: string
+  query: ReviewRepoQuery
+  source: ReviewSource
 }
 
 export type MetaCache = {

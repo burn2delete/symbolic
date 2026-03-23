@@ -14,7 +14,7 @@ import { getFilename } from "@symbolic-agent/util/path"
 import { retry } from "@symbolic-agent/util/retry"
 import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
-import type { State, VcsCache } from "./types"
+import type { State, VcsCache, VcsInfo } from "./types"
 import { cmp, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
 
@@ -156,7 +156,7 @@ export async function bootstrapDirectory(input: {
     input.sdk.mcp.status().then((x) => input.setStore("mcp", x.data!)),
     input.sdk.lsp.status().then((x) => input.setStore("lsp", x.data!)),
     input.sdk.vcs.get().then((x) => {
-      const next = x.data ?? input.store.vcs
+      const next = (x.data ? ({ ...x.data, dirty: x.data.dirty ?? false } as VcsInfo) : input.store.vcs) ?? input.store.vcs
       input.setStore("vcs", next)
       if (next?.branch) input.vcsCache.setStore("value", next)
     }),

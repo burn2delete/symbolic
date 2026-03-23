@@ -34,6 +34,8 @@ describe("app session cache", () => {
     const store: {
       session_status: Record<string, SessionStatus | undefined>
       session_diff: Record<string, FileDiff[] | undefined>
+      repo_diff: Record<string, FileDiff[] | undefined>
+      repo_diff_state: Record<string, "loading" | "ready" | "unsupported" | "error" | undefined>
       todo: Record<string, Todo[] | undefined>
       message: Record<string, Message[] | undefined>
       part: Record<string, Part[] | undefined>
@@ -42,6 +44,8 @@ describe("app session cache", () => {
     } = {
       session_status: { ses_1: { type: "busy" } as SessionStatus },
       session_diff: { ses_1: [] },
+      repo_diff: { repo_1: [] },
+      repo_diff_state: { repo_1: "ready" },
       todo: { ses_1: [] as Todo[] },
       message: {},
       part: { msg_1: [part("prt_1", "ses_1", "msg_1")] },
@@ -55,6 +59,8 @@ describe("app session cache", () => {
     expect(store.part.msg_1).toBeUndefined()
     expect(store.todo.ses_1).toBeUndefined()
     expect(store.session_diff.ses_1).toBeUndefined()
+    expect(store.repo_diff.repo_1).toEqual([])
+    expect(store.repo_diff_state.repo_1).toBe("ready")
     expect(store.session_status.ses_1).toBeUndefined()
     expect(store.permission.ses_1).toBeUndefined()
     expect(store.question.ses_1).toBeUndefined()
@@ -65,6 +71,8 @@ describe("app session cache", () => {
     const store: {
       session_status: Record<string, SessionStatus | undefined>
       session_diff: Record<string, FileDiff[] | undefined>
+      repo_diff: Record<string, FileDiff[] | undefined>
+      repo_diff_state: Record<string, "loading" | "ready" | "unsupported" | "error" | undefined>
       todo: Record<string, Todo[] | undefined>
       message: Record<string, Message[] | undefined>
       part: Record<string, Part[] | undefined>
@@ -73,6 +81,8 @@ describe("app session cache", () => {
     } = {
       session_status: {},
       session_diff: {},
+      repo_diff: {},
+      repo_diff_state: {},
       todo: {},
       message: { ses_1: [m] },
       part: { [m.id]: [part("prt_1", "ses_1", m.id)] },

@@ -72,6 +72,8 @@ const baseState = (input: Partial<State> = {}) =>
     sessionTotal: 0,
     session_status: {},
     session_diff: {},
+    repo_diff: {},
+    repo_diff_state: {},
     todo: {},
     permission: {},
     question: {},
@@ -195,6 +197,8 @@ describe("applyDirectoryEvent", () => {
     expect(store.message.ses_1).toBeUndefined()
     expect(store.part[message.id]).toBeUndefined()
     expect(store.session_diff.ses_1).toBeUndefined()
+    expect(store.repo_diff).toEqual({})
+    expect(store.repo_diff_state).toEqual({})
     expect(store.todo.ses_1).toBeUndefined()
     expect(store.permission.ses_1).toBeUndefined()
     expect(store.question.ses_1).toBeUndefined()
@@ -511,8 +515,8 @@ describe("applyDirectoryEvent", () => {
       },
     })
 
-    expect(store.vcs).toEqual({ branch: "feature/test" })
-    expect(cacheStore.value).toEqual({ branch: "feature/test" })
+    expect(store.vcs).toEqual({ dirty: false, branch: "feature/test" })
+    expect(cacheStore.value).toEqual({ dirty: false, branch: "feature/test" })
   })
 
   test("routes disposal and lsp events to side-effect handlers", () => {

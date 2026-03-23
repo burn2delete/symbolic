@@ -11,6 +11,7 @@ import { decode64 } from "@/utils/base64"
 import { same } from "@/utils/same"
 import { createScrollPersistence, type SessionScroll } from "./layout-scroll"
 import { createPathHelpers } from "./file/path"
+import type { ReviewSource } from "@/context/review"
 
 const AVATAR_COLOR_KEYS = ["pink", "mint", "orange", "purple", "cyan", "lime"] as const
 const DEFAULT_PANEL_WIDTH = 344
@@ -39,6 +40,7 @@ type SessionTabs = {
 type SessionView = {
   scroll: Record<string, SessionScroll>
   reviewOpen?: string[]
+  reviewSource?: ReviewSource
   pendingMessage?: string
   pendingMessageAt?: number
 }
@@ -854,6 +856,23 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
               }
 
               this.closePath(path)
+            },
+          },
+          reviewSource: {
+            mode: createMemo(() => s().reviewSource ?? "session"),
+            set(mode: ReviewSource) {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, {
+                  scroll: {},
+                  reviewSource: mode,
+                })
+                return
+              }
+
+              if (current.reviewSource === mode) return
+              setStore("sessionView", session, "reviewSource", mode)
             },
           },
         }

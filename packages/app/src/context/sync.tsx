@@ -11,8 +11,9 @@ import {
 } from "./global-sync/session-prefetch"
 import { useGlobalSync } from "./global-sync"
 import { useSDK } from "./sdk"
-import type { Message, Part } from "@symbolic-agent/sdk/v2/client"
+import type { FileDiff, Message, Part } from "@symbolic-agent/sdk/v2/client"
 import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } from "./global-sync/session-cache"
+import type { ReviewRepoQuery } from "./review"
 
 function sortParts(parts: Part[]) {
   return parts.filter((part) => !!part?.id).sort((a, b) => cmp(a.id, b.id))
@@ -181,6 +182,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     const messagePageSize = 200
     const inflight = new Map<string, Promise<void>>()
     const inflightDiff = new Map<string, Promise<void>>()
+    const inflightRepoDiff = new Map<string, Promise<void>>()
     const inflightTodo = new Map<string, Promise<void>>()
     const optimistic = new Map<string, Map<string, OptimisticItem>>()
     const maxDirs = 30
@@ -512,11 +514,54 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
           const key = keyFor(directory, sessionID)
           return runInflight(inflightDiff, key, () =>
-            retry(() => client.session.diff({ sessionID })).then((diff) => {
+            retry(() => client.session.diff({ sessionID })).then((res) => {
               if (!tracked(directory, sessionID)) return
-              setStore("session_diff", sessionID, reconcile(diff.data ?? [], { key: "file" }))
+              setStore("session_diff", sessionID, reconcile(res.data ?? [], { key: "file" }))
             }),
           )
+        },
+        review: {
+          async diff(
+            input: { sessionID: string; key: string; query: ReviewRepoQuery },
+            opts?: { force?: boolean },
+          ) {
+            const directory = sdk.directory
+            const client = sdk.client
+            const [store, setStore] = globalSync.child(directory)
+            const key = input.key
+
+            touch(directory, setStore, input.sessionID)
+
+            const state = store.repo_diff_state[key]
+            if ((store.repo_diff[key] !== undefined || state === "unsupported" || state === "ready") && !opts?.force) {
+              return
+            }
+
+            setStore("repo_diff_state", key, "loading")
+
+            return runInflight(inflightRepoDiff, `${directory}\n${key}`, async () => {
+              const res = await client.vcs.diff({
+                directory,
+                mode: input.query.mode,
+                ...(input.query.mode === "range" ? { base: input.query.base, head: input.query.head } : {}),
+              })
+
+              if (!tracked(directory, input.sessionID)) return
+
+              if (!res.response?.ok) {
+                const status = res.response?.status
+                if (status === 404 || status === 501) {
+                  setStore("repo_diff_state", key, "unsupported")
+                  return
+                }
+                setStore("repo_diff_state", key, "error")
+                return
+              }
+
+              setStore("repo_diff", key, reconcile((res.data ?? []) as FileDiff[], { key: "file" }))
+              setStore("repo_diff_state", key, "ready")
+            })
+          },
         },
         async todo(sessionID: string, opts?: { force?: boolean }) {
           const directory = sdk.directory

@@ -33,6 +33,7 @@ import { getSessionPrefetch, SESSION_PREFETCH_TTL } from "@/context/global-sync/
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { REVIEW_SOURCES, resolveReview, reviewEmptyKey, reviewSourceKey, type ReviewSource } from "@/context/review"
 import { usePrompt } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useSettings } from "@/context/settings"
@@ -414,11 +415,45 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
-  const diffs = createMemo(() => (params.id ? (sync.data.session_diff[params.id] ?? []) : []))
-  const reviewCount = createMemo(() => Math.max(info()?.summary?.files ?? 0, diffs().length))
-  const hasReview = createMemo(() => reviewCount() > 0)
   const reviewTab = createMemo(() => isDesktop())
   const canReview = createMemo(() => !!params.dir)
+  const source = createMemo(() => view().reviewSource.mode())
+  const resolved = createMemo(() =>
+    resolveReview({
+      source: source(),
+      vcs: sync.data.vcs,
+      directory: sdk.directory,
+    }),
+  )
+  const diffs = createMemo(() => {
+    const id = params.id
+    if (!id) return []
+    const next = resolved()
+    if (next.kind === "session") return sync.data.session_diff[id] ?? []
+    if (next.kind === "repo") return sync.data.repo_diff[next.key] ?? []
+    return []
+  })
+  const reviewCount = createMemo(() => {
+    const next = resolved()
+    if (next.kind === "session") return Math.max(info()?.summary?.files ?? 0, diffs().length)
+    return diffs().length
+  })
+  const hasReview = createMemo(() => {
+    const next = resolved()
+    if (next.kind !== "session") return true
+    return reviewCount() > 0
+  })
+  const diffsReady = createMemo(() => {
+    const id = params.id
+    if (!id) return true
+    const next = resolved()
+    if (next.kind === "session") return sync.data.session_diff[id] !== undefined
+    if (next.kind === "repo") {
+      const state = sync.data.repo_diff_state[next.key]
+      return state !== undefined && state !== "loading"
+    }
+    return true
+  })
   const tabState = createSessionTabs({
     tabs,
     pathFromTab: file.pathFromTab,
@@ -547,7 +582,7 @@ export default function Page() {
   }, desktopReviewOpen())
 
   const turnDiffs = createMemo(() => lastUserMessage()?.summary?.diffs ?? [])
-  const reviewDiffs = createMemo(() => (store.changes === "session" ? diffs() : turnDiffs()))
+  const reviewDiffs = createMemo(() => (source() === "session" && store.changes === "turn" ? turnDiffs() : diffs()))
 
   const newSessionWorktree = createMemo(() => {
     if (store.newSessionWorktree === "create") return "create"
@@ -612,19 +647,6 @@ export default function Page() {
     autoScroll.pause()
     scrollToMessage(msgs[targetIndex], "auto")
   }
-
-  const diffsReady = createMemo(() => {
-    const id = params.id
-    if (!id) return true
-    if (!hasReview()) return true
-    return sync.data.session_diff[id] !== undefined
-  })
-  const reviewEmptyKey = createMemo(() => {
-    const project = sync.project
-    if (project && !project.vcs) return "session.review.noVcs"
-    if (sync.data.config.snapshot === false) return "session.review.noSnapshot"
-    return "session.review.empty"
-  })
 
   function upsert(next: Project) {
     const list = globalSync.data.project
@@ -917,28 +939,43 @@ export default function Page() {
     loadFile: file.load,
   })
 
+  const setSource = (next: ReviewSource) => {
+    view().reviewSource.set(next)
+  }
+
   const changesOptions = ["session", "turn"] as const
   const changesOptionsList = [...changesOptions]
 
-  const changesTitle = () => {
-    if (!hasReview()) {
-      return null
-    }
+  const sourceOptions = [...REVIEW_SOURCES]
 
-    return (
+  const reviewTitle = () => (
+    <div class="flex flex-wrap items-center gap-2">
       <Select
-        options={changesOptionsList}
-        current={store.changes}
-        label={(option) =>
-          option === "session" ? language.t("ui.sessionReview.title") : language.t("ui.sessionReview.title.lastTurn")
-        }
-        onSelect={(option) => option && setStore("changes", option)}
+        options={sourceOptions}
+        current={source()}
+        label={(option) => language.t(reviewSourceKey(option))}
+        onSelect={(option) => option && setSource(option)}
         variant="ghost"
         size="small"
         valueClass="text-14-medium"
       />
-    )
-  }
+      <Show when={source() === "session"}>
+        <Select
+          options={changesOptionsList}
+          current={store.changes}
+          label={(option) =>
+            option === "session"
+              ? language.t("ui.sessionReview.title")
+              : language.t("ui.sessionReview.title.lastTurn")
+          }
+          onSelect={(option) => option && setStore("changes", option)}
+          variant="ghost"
+          size="small"
+          valueClass="text-14-medium"
+        />
+      </Show>
+    </div>
+  )
 
   const emptyTurn = () => (
     <div class="h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6">
@@ -947,13 +984,21 @@ export default function Page() {
   )
 
   const reviewEmpty = (input: { loadingClass: string; emptyClass: string }) => {
-    if (store.changes === "turn") return emptyTurn()
+    const next = resolved()
+
+    if (source() === "session" && store.changes === "turn") return emptyTurn()
 
     if (hasReview() && !diffsReady()) {
       return <div class={input.loadingClass}>{language.t("session.review.loadingChanges")}</div>
     }
 
-    if (reviewEmptyKey() === "session.review.noVcs") {
+    const key = reviewEmptyKey({
+      resolved: next,
+      projectVcs: !!sync.project?.vcs,
+      snapshot: sync.data.config.snapshot !== false,
+    })
+
+    if (key === "session.review.noVcs") {
       return (
         <div class={input.emptyClass}>
           <div class="flex flex-col gap-3">
@@ -969,11 +1014,33 @@ export default function Page() {
       )
     }
 
+    if (key === "session.review.noBranch") {
+      return (
+        <div class={input.emptyClass}>
+          <div class="text-14-regular text-text-weak max-w-56">{language.t(key)}</div>
+        </div>
+      )
+    }
+
     return (
       <div class={input.emptyClass}>
-        <div class="text-14-regular text-text-weak max-w-56">{language.t(reviewEmptyKey())}</div>
+        <div class="text-14-regular text-text-weak max-w-56">{language.t(key)}</div>
       </div>
     )
+  }
+
+  const review = {
+    diffs,
+    count: reviewCount,
+    hasReview,
+    ready: diffsReady,
+    emptyKey: createMemo(() =>
+      reviewEmptyKey({
+        resolved: resolved(),
+        projectVcs: !!sync.project?.vcs,
+        snapshot: sync.data.config.snapshot !== false,
+      }),
+    ),
   }
 
   const reviewContent = (input: {
@@ -985,7 +1052,7 @@ export default function Page() {
   }) => (
     <Show when={!store.deferRender}>
       <SessionReviewTab
-        title={changesTitle()}
+        title={reviewTitle()}
         empty={reviewEmpty(input)}
         diffs={reviewDiffs}
         view={view}
@@ -1132,10 +1199,20 @@ export default function Page() {
       ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review")
       : store.mobileTab === "changes"
     if (!wants) return
-    if (sync.data.session_diff[id] !== undefined) return
     if (sync.status === "loading") return
 
-    void sync.session.diff(id)
+    const next = resolved()
+    if (next.kind === "session") {
+      if (sync.data.session_diff[id] !== undefined) return
+      void sync.session.diff(id)
+      return
+    }
+
+    if (next.kind === "repo") {
+      const state = sync.data.repo_diff_state[next.key]
+      if (state !== undefined) return
+      void sync.session.review.diff({ sessionID: id, key: next.key, query: next.query })
+    }
   })
 
   createEffect(
@@ -1143,6 +1220,7 @@ export default function Page() {
       () =>
         [
           sessionKey(),
+          source(),
           isDesktop()
             ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review")
             : store.mobileTab === "changes",
@@ -1156,6 +1234,8 @@ export default function Page() {
 
         const id = params.id
         if (!id) return
+        const next = untrack(() => resolved())
+        if (next.kind !== "session") return
         if (!untrack(() => sync.data.session_diff[id] !== undefined)) return
 
         diffFrame = requestAnimationFrame(() => {
@@ -1822,6 +1902,7 @@ export default function Page() {
 
         <SessionSidePanel
           reviewPanel={reviewPanel}
+          review={review}
           activeDiff={tree.activeDiff}
           focusReviewDiff={focusReviewDiff}
           reviewSnap={ui.reviewSnap}
