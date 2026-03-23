@@ -7,10 +7,10 @@ ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=${BUN_RUNTIME_TRANSPILER_CACHE_PATH}
 RUN apk add libgcc libstdc++ ripgrep
 
 FROM base AS build-amd64
-COPY dist/symbolic-linux-x64-baseline-musl/bin/symbolic /usr/local/bin/symbolic
+COPY --chmod=755 dist/symbolic-linux-x64-baseline-musl/bin/symbolic /usr/local/bin/symbolic
 
 FROM base AS build-arm64
-COPY dist/symbolic-linux-arm64-musl/bin/symbolic /usr/local/bin/symbolic
+COPY --chmod=755 dist/symbolic-linux-arm64-musl/bin/symbolic /usr/local/bin/symbolic
 
 ARG TARGETARCH
 FROM build-${TARGETARCH}
