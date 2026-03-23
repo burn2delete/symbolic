@@ -1523,6 +1523,7 @@ export type OAuth = {
 export type ApiAuth = {
   type: "api"
   key: string
+  enterpriseUrl?: string
 }
 
 export type WellKnownAuth = {
