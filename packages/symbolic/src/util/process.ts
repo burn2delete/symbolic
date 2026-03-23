@@ -9,6 +9,7 @@ export namespace Process {
   export interface Options {
     cwd?: string
     env?: NodeJS.ProcessEnv | null
+    detached?: boolean
     stdin?: Stdio
     stdout?: Stdio
     stderr?: Stdio
@@ -62,6 +63,7 @@ export namespace Process {
     const proc = launch(cmd[0], cmd.slice(1), {
       cwd: opts.cwd,
       env: opts.env === null ? {} : opts.env ? { ...process.env, ...opts.env } : undefined,
+      detached: opts.detached,
       stdio: [opts.stdin ?? "ignore", opts.stdout ?? "ignore", opts.stderr ?? "ignore"],
       shell: opts.shell,
       windowsHide: process.platform === "win32",

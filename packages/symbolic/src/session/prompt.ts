@@ -30,7 +30,6 @@ import { ReadTool } from "../tool/read"
 import { FileTime } from "../file/time"
 import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
-import { spawn } from "child_process"
 import { Command } from "../command"
 import { $ } from "bun"
 import { pathToFileURL, fileURLToPath } from "url"
@@ -48,6 +47,7 @@ import { LLM } from "./llm"
 import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
+import { Process } from "@/util/process"
 import type { RuntimeInput } from "@symbolic-agent/plugin"
 
 // @ts-ignore
@@ -1724,16 +1724,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       { cwd, sessionID: input.sessionID, callID: part.callID },
       { env: {} },
     )
-    const proc = spawn(shell, args, {
+    const proc = Process.spawn([shell, ...args], {
       cwd,
       detached: process.platform !== "win32",
-      windowsHide: process.platform === "win32",
-      stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         ...shellEnv.env,
         TERM: "dumb",
       },
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
     })
 
     let output = ""
