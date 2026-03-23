@@ -3,7 +3,7 @@ import { cmd } from "./cmd"
 import * as prompts from "@clack/prompts"
 import { UI } from "../ui"
 import { ModelsDev } from "../../provider/models"
-import { map, pipe, sortBy, values } from "remeda"
+import { map, pipe, values } from "remeda"
 import path from "path"
 import os from "os"
 import { Config } from "../../config/config"
@@ -15,6 +15,7 @@ import { Process } from "../../util/process"
 import { text } from "node:stream/consumers"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
+type Item = { id: string; name: string }
 
 async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string, methodName?: string): Promise<boolean> {
   let index = 0
@@ -198,6 +199,20 @@ export function resolvePluginProviders(input: {
   return result
 }
 
+export function rank(items: Item[]) {
+  const priority: Record<string, number> = {
+    symbolic: 0,
+    openai: 1,
+    "github-copilot": 2,
+    google: 3,
+    anthropic: 4,
+    openrouter: 5,
+    vercel: 6,
+  }
+
+  return [...items].sort((a, b) => (priority[a.id] ?? 99) - (priority[b.id] ?? 99) || a.name.localeCompare(b.name))
+}
+
 export const ProvidersCommand = cmd({
   command: "providers",
   aliases: ["auth"],
@@ -322,15 +337,6 @@ export const ProvidersLoginCommand = cmd({
           return filtered
         })
 
-        const priority: Record<string, number> = {
-          symbolic: 0,
-          anthropic: 1,
-          "github-copilot": 2,
-          openai: 3,
-          google: 4,
-          openrouter: 5,
-          vercel: 6,
-        }
         const pluginProviders = resolvePluginProviders({
           hooks: await Plugin.list(),
           existingProviders: providers,
@@ -342,10 +348,7 @@ export const ProvidersLoginCommand = cmd({
           ...pipe(
             providers,
             values(),
-            sortBy(
-              (x) => priority[x.id] ?? 99,
-              (x) => x.name ?? x.id,
-            ),
+            rank,
             map((x) => ({
               label: x.name,
               value: x.id,
