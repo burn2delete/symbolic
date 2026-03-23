@@ -418,7 +418,7 @@ jobs:
         if: ${{ needs.version.outputs.release }}
         run: |
           cert=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application" | awk -F'"' '{print $2}')
-          echo "CSC_NAME=$cert" >> $GITHUB_ENV
+          echo "CSC_NAME=${cert#Developer ID Application: }" >> $GITHUB_ENV
 
       - name: Setup Apple API Key
         if: ${{ needs.version.outputs.release }}
