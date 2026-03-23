@@ -197,9 +197,10 @@ export const { use: useCommand, provider: CommandProvider } = createSimpleContex
     })
     const warnedDuplicates = new Set<string>()
 
+    type Catalog = Record<string, CommandCatalogItem>
     const [catalog, setCatalog, _, catalogReady] = persisted(
       Persist.global("command.catalog.v1"),
-      createStore<Record<string, CommandCatalogItem>>({}),
+      createStore<Catalog>({}),
     )
 
     const bind = (id: string, def: KeybindConfig | undefined) => {
@@ -218,7 +219,7 @@ export const { use: useCommand, provider: CommandProvider } = createSimpleContex
           if (seen.has(opt.id)) {
             if (import.meta.env.DEV && !warnedDuplicates.has(opt.id)) {
               warnedDuplicates.add(opt.id)
-              console.warn(`[command] duplicate command id \"${opt.id}\" registered; keeping first entry`)
+              console.warn(`[command] duplicate command id "${opt.id}" registered; keeping first entry`)
             }
             continue
           }
@@ -233,16 +234,18 @@ export const { use: useCommand, provider: CommandProvider } = createSimpleContex
     createEffect(() => {
       if (!catalogReady()) return
 
-      for (const opt of registered()) {
-        const id = actionId(opt.id)
-        setCatalog(id, {
-          title: opt.title,
-          description: opt.description,
-          category: opt.category,
-          keybind: opt.keybind,
-          slash: opt.slash,
-        })
-      }
+      setCatalog(
+        registered().reduce((acc, opt) => {
+          acc[actionId(opt.id)] = {
+            title: opt.title,
+            description: opt.description,
+            category: opt.category,
+            keybind: opt.keybind,
+            slash: opt.slash,
+          }
+          return acc
+        }, {} as Catalog),
+      )
     })
 
     const catalogOptions = createMemo(() => Object.entries(catalog).map(([id, meta]) => ({ id, ...meta })))
