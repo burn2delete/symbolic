@@ -4,6 +4,7 @@ import {
   cleanupSession,
   cleanupTestProject,
   createTestProject,
+  assertHealthy,
   healthPhase,
   setHealthPhase,
   seedProjects,
@@ -37,6 +38,7 @@ type WorkerFixtures = {
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   page: async ({ page }, use) => {
     let boundary: string | undefined
+    const errs: string[] = []
     setHealthPhase(page, "test")
 
     const onConsole = (msg: { text(): string }) => {
@@ -51,7 +53,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     }
 
     const onPageError = (err: Error) => {
-      console.log(`[e2e:pageerror] ${err.stack || err.message}`)
+      const text = err.stack || err.message
+      errs.push(text)
+      console.log(`[e2e:pageerror] ${text}`)
     }
 
     page.on("console", onConsole)
@@ -60,6 +64,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     page.off("console", onConsole)
     page.off("pageerror", onPageError)
     if (boundary) throw new Error(boundary)
+    if (errs.length) throw new Error(`[e2e:pageerror]\n${errs.join("\n\n")}`)
   },
   directory: [
     async ({}, use) => {
@@ -82,6 +87,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     const gotoSession = async (sessionID?: string) => {
       await page.goto(sessionPath(directory, sessionID))
+      await assertHealthy(page, "gotoSession")
       await expect(page.locator(promptSelector)).toBeVisible()
     }
     await use(gotoSession)
@@ -96,6 +102,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
       const gotoSession = async (sessionID?: string) => {
         await page.goto(sessionPath(root, sessionID))
+        await assertHealthy(page, "gotoSession")
         await expect(page.locator(promptSelector)).toBeVisible()
         const current = sessionIDFromUrl(page.url())
         if (current) trackSession(current)
