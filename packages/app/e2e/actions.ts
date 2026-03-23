@@ -21,6 +21,16 @@ import {
   workspaceMenuTriggerSelector,
 } from "./selectors"
 
+const phase = new WeakMap<Page, "test" | "cleanup">()
+
+export function setHealthPhase(page: Page, value: "test" | "cleanup") {
+  phase.set(page, value)
+}
+
+export function healthPhase(page: Page) {
+  return phase.get(page) ?? "test"
+}
+
 export async function defocus(page: Page) {
   await page
     .evaluate(() => {
@@ -125,9 +135,49 @@ export async function closeDialog(page: Page, dialog: Locator) {
 }
 
 export async function isSidebarClosed(page: Page) {
-  const button = page.getByRole("button", { name: /toggle sidebar/i }).first()
-  await expect(button).toBeVisible()
+  const button = await waitSidebarButton(page, "isSidebarClosed")
   return (await button.getAttribute("aria-expanded")) !== "true"
+}
+
+async function errorBoundaryText(page: Page) {
+  const title = page.getByRole("heading", { name: /something went wrong/i }).first()
+  if (!(await title.isVisible().catch(() => false))) return
+
+  const description = await page
+    .getByText(/an error occurred while loading the application\./i)
+    .first()
+    .textContent()
+    .catch(() => "")
+  const detail = await page
+    .getByRole("textbox", { name: /error details/i })
+    .first()
+    .inputValue()
+    .catch(async () =>
+      (
+        (await page
+          .getByRole("textbox", { name: /error details/i })
+          .first()
+          .textContent()
+          .catch(() => "")) ?? ""
+      ).trim(),
+    )
+
+  return [description ?? "", detail ?? ""].filter(Boolean).join("\n")
+}
+
+export async function assertHealthy(page: Page, context: string) {
+  const text = await errorBoundaryText(page)
+  if (!text) return
+  console.log(`[e2e:error-boundary][${context}]\n${text}`)
+  throw new Error(`Error boundary during ${context}\n${text}`)
+}
+
+async function waitSidebarButton(page: Page, context: string) {
+  const button = page.getByRole("button", { name: /toggle sidebar/i }).first()
+  const boundary = page.getByRole("heading", { name: /something went wrong/i }).first()
+  await button.or(boundary).first().waitFor({ state: "visible", timeout: 10_000 })
+  await assertHealthy(page, context)
+  return button
 }
 
 export async function toggleSidebar(page: Page) {
@@ -138,7 +188,7 @@ export async function toggleSidebar(page: Page) {
 export async function openSidebar(page: Page) {
   if (!(await isSidebarClosed(page))) return
 
-  const button = page.getByRole("button", { name: /toggle sidebar/i }).first()
+  const button = await waitSidebarButton(page, "openSidebar")
   await button.click()
 
   const opened = await expect(button)
@@ -155,7 +205,7 @@ export async function openSidebar(page: Page) {
 export async function closeSidebar(page: Page) {
   if (await isSidebarClosed(page)) return
 
-  const button = page.getByRole("button", { name: /toggle sidebar/i }).first()
+  const button = await waitSidebarButton(page, "closeSidebar")
   await button.click()
 
   const closed = await expect(button)
@@ -170,6 +220,7 @@ export async function closeSidebar(page: Page) {
 }
 
 export async function openSettings(page: Page) {
+  await assertHealthy(page, "openSettings")
   await defocus(page)
 
   const dialog = page.getByRole("dialog")
@@ -182,6 +233,7 @@ export async function openSettings(page: Page) {
 
   if (opened) return dialog
 
+  await assertHealthy(page, "openSettings")
   await page.getByRole("button", { name: "Settings" }).first().click()
   await expect(dialog).toBeVisible()
   return dialog
@@ -273,7 +325,8 @@ export async function waitSlug(page: Page, skip: string[] = []) {
   let next = ""
   await expect
     .poll(
-      () => {
+      async () => {
+        await assertHealthy(page, "waitSlug")
         const slug = slugFromUrl(page.url())
         if (!slug) return ""
         if (skip.includes(slug)) return ""

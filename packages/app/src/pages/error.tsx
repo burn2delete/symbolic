@@ -1,7 +1,7 @@
 import { TextField } from "@symbolic-agent/ui/text-field"
 import { Logo } from "@symbolic-agent/ui/logo"
 import { Button } from "@symbolic-agent/ui/button"
-import { Component, Show } from "solid-js"
+import { Component, Show, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
@@ -222,6 +222,12 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
     checking: false,
     version: undefined as string | undefined,
     actionError: undefined as string | undefined,
+  })
+
+  onMount(() => {
+    const win = window as Window & { __symbolic_e2e?: unknown }
+    if (!win.__symbolic_e2e) return
+    console.error(`[e2e:error-boundary] ${window.location.pathname}\n${formatError(props.error, language.t)}`)
   })
 
   async function checkForUpdates() {
