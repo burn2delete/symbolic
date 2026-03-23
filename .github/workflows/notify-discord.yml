@@ -6,7 +6,7 @@ on:
 
 jobs:
   notify:
-    if: vars.ENABLE_DISCORD_AUTOMATIONS == 'true'
+    if: github.repository == 'SymbolicOS/symbolic' && (vars.ENABLE_DISCORD_AUTOMATIONS == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Send nicely-formatted embed to Discord

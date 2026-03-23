@@ -6,6 +6,7 @@ on:
 
 jobs:
   check-standards:
+    if: github.repository == 'SymbolicOS/symbolic'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,6 +158,7 @@ jobs:
             console.log('PR meets all standards');
 
   check-compliance:
+    if: github.repository == 'SymbolicOS/symbolic'
     runs-on: ubuntu-latest
     permissions:
       contents: read

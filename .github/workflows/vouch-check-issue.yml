@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   check:
+    if: github.repository == 'SymbolicOS/symbolic'
     runs-on: ubuntu-latest
     steps:
       - name: Check if issue author is denounced

@@ -9,8 +9,11 @@ on:
 jobs:
   symbolic:
     if: |
-      contains(github.event.comment.body, ' /symbolic') ||
-      startsWith(github.event.comment.body, '/symbolic')
+      github.repository == 'SymbolicOS/symbolic' &&
+      (
+        contains(github.event.comment.body, ' /symbolic') ||
+        startsWith(github.event.comment.body, '/symbolic')
+      )
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       id-token: write

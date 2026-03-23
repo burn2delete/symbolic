@@ -7,7 +7,7 @@ on:
 
 jobs:
   zed:
-    if: vars.ENABLE_EXTENSION_PUBLISH == 'true'
+    if: github.repository == 'SymbolicOS/symbolic' && (vars.ENABLE_EXTENSION_PUBLISH == 'true')
     name: Release Zed Extension
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
