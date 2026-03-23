@@ -112,21 +112,15 @@ export const PrCommand = cmd({
         UI.println("Starting symbolic...")
         UI.println()
 
-        // Launch symbolic TUI with session ID if available
-        const { spawn } = await import("child_process")
         const symbolicArgs = sessionId ? ["-s", sessionId] : []
-        const symbolicProcess = spawn("symbolic", symbolicArgs, {
-          stdio: "inherit",
+        const symbolicProcess = Process.spawn(["symbolic", ...symbolicArgs], {
+          stdin: "inherit",
+          stdout: "inherit",
+          stderr: "inherit",
           cwd: process.cwd(),
         })
-
-        await new Promise<void>((resolve, reject) => {
-          symbolicProcess.on("exit", (code) => {
-            if (code === 0) resolve()
-            else reject(new Error(`symbolic exited with code ${code}`))
-          })
-          symbolicProcess.on("error", reject)
-        })
+        const code = await symbolicProcess.exited
+        if (code !== 0) throw new Error(`symbolic exited with code ${code}`)
       },
     })
   },
