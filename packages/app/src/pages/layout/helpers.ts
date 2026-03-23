@@ -2,10 +2,11 @@ import { getFilename } from "@symbolic-agent/util/path"
 import { type Session } from "@symbolic-agent/sdk/v2/client"
 
 export const workspaceKey = (directory: string) => {
-  const drive = directory.match(/^([A-Za-z]:)[\\/]+$/)
-  if (drive) return `${drive[1]}${directory.includes("\\") ? "\\" : "/"}`
-  if (/^[\\/]+$/.test(directory)) return directory.includes("\\") ? "\\" : "/"
-  return directory.replace(/[\\/]+$/, "")
+  const value = directory.replaceAll("\\", "/")
+  const drive = value.match(/^([A-Za-z]:)\/+$/)
+  if (drive) return `${drive[1]}/`
+  if (/^\/+$/.test(value)) return "/"
+  return value.replace(/\/+$/, "")
 }
 
 function sortSessions(now: number) {

@@ -1,5 +1,4 @@
-import { batch, createEffect, createMemo, Show, type ParentProps } from "solid-js"
-import { createStore } from "solid-js/store"
+import { createMemo, createResource, Show, type ParentProps } from "solid-js"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { SDKProvider } from "@/context/sdk"
 import { SyncProvider, useSync } from "@/context/sync"
@@ -30,61 +29,57 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
 
 export default function Layout(props: ParentProps) {
   const params = useParams()
-  const navigate = useNavigate()
   const location = useLocation()
   const language = useLanguage()
   const globalSDK = useGlobalSDK()
-  const directory = createMemo(() => decode64(params.dir) ?? "")
-  const [state, setState] = createStore({ invalid: "", resolved: "" })
+  const navigate = useNavigate()
+  let invalid = ""
 
-  createEffect(() => {
-    if (!params.dir) return
-    const raw = directory()
-    if (!raw) {
-      if (state.invalid === params.dir) return
-      setState("invalid", params.dir)
-      showToast({
-        variant: "error",
-        title: language.t("common.requestFailed"),
-        description: language.t("directory.error.invalidUrl"),
-      })
-      navigate("/", { replace: true })
-      return
-    }
+  const [resolved] = createResource(
+    () => {
+      if (params.dir) return [location.pathname, params.dir] as const
+    },
+    async ([pathname, dir]) => {
+      const raw = decode64(dir)
+      if (!raw) {
+        if (invalid === dir) return
+        invalid = dir
+        showToast({
+          variant: "error",
+          title: language.t("common.requestFailed"),
+          description: language.t("directory.error.invalidUrl"),
+        })
+        navigate("/", { replace: true })
+        return
+      }
 
-    const current = params.dir
-    globalSDK
-      .createClient({
-        directory: raw,
-        throwOnError: true,
-      })
-      .path.get()
-      .then((x) => {
-        if (params.dir !== current) return
-        const next = x.data?.directory ?? raw
-        batch(() => {
-          setState("invalid", "")
-          setState("resolved", next)
+      return await globalSDK
+        .createClient({
+          directory: raw,
+          throwOnError: true,
         })
-        if (next === raw) return
-        const path = location.pathname.slice(current.length + 1)
-        navigate(`/${base64Encode(next)}${path}${location.search}${location.hash}`, { replace: true })
-      })
-      .catch(() => {
-        if (params.dir !== current) return
-        batch(() => {
-          setState("invalid", "")
-          setState("resolved", raw)
+        .path.get()
+        .then((x) => {
+          const next = x.data?.directory ?? raw
+          invalid = ""
+          if (next === raw) return next
+          const path = pathname.slice(dir.length + 1)
+          navigate(`/${base64Encode(next)}${path}${location.search}${location.hash}`, { replace: true })
+          return next
         })
-      })
-  })
+        .catch(() => {
+          invalid = ""
+          return raw
+        })
+    },
+  )
 
   return (
-    <Show when={state.resolved}>
+    <Show when={resolved()} keyed>
       {(resolved) => (
-        <SDKProvider directory={resolved}>
+        <SDKProvider directory={() => resolved}>
           <SyncProvider>
-            <DirectoryDataProvider directory={resolved()}>{props.children}</DirectoryDataProvider>
+            <DirectoryDataProvider directory={resolved}>{props.children}</DirectoryDataProvider>
           </SyncProvider>
         </SDKProvider>
       )}
