@@ -299,9 +299,48 @@ it.effect(
     const row = yield* AccountRepo.use((r) => r.getRow(id))
     const value = Option.getOrThrow(row)
     expect(value.access_token).toBe(AccessToken.make("at_v2"))
+    expect(value.email).toBe("test@example.com")
+    expect(value.url).toBe("https://control.example.com")
 
     const active = yield* AccountRepo.use((r) => r.active())
     expect(Option.getOrThrow(active).active_org_id).toBe(OrgID.make("org-2"))
+  }),
+)
+
+it.effect(
+  "persistAccount updates email and url on re-login",
+  Effect.gen(function* () {
+    const id = AccountID.make("user-1")
+
+    yield* AccountRepo.use((r) =>
+      r.persistAccount({
+        id,
+        email: "old@example.com",
+        url: "https://old.example.com",
+        accessToken: AccessToken.make("at_1"),
+        refreshToken: RefreshToken.make("rt_1"),
+        expiry: 1000,
+        orgID: Option.none(),
+      }),
+    )
+
+    yield* AccountRepo.use((r) =>
+      r.persistAccount({
+        id,
+        email: "new@example.com",
+        url: "https://new.example.com",
+        accessToken: AccessToken.make("at_2"),
+        refreshToken: RefreshToken.make("rt_2"),
+        expiry: 2000,
+        orgID: Option.none(),
+      }),
+    )
+
+    const row = yield* AccountRepo.use((r) => r.getRow(id))
+    const value = Option.getOrThrow(row)
+    expect(value.email).toBe("new@example.com")
+    expect(value.url).toBe("https://new.example.com")
+    expect(value.access_token).toBe(AccessToken.make("at_2"))
   }),
 )
 
