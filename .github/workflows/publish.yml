@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   version:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     if: vars.ENABLE_RELEASE_PIPELINE == 'true'
     steps:
       - uses: actions/checkout@v3
@@ -78,7 +78,7 @@ jobs:
 
   build-cli:
     needs: version
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     if: ${{ vars.ENABLE_RELEASE_PIPELINE == 'true' && (vars.ENABLE_RELEASE_CLI != 'false' || vars.ENABLE_RELEASE_TAURI != 'false' || vars.ENABLE_RELEASE_ELECTRON != 'false' || vars.ENABLE_PUBLISH_NPM != 'false' || vars.ENABLE_PUBLISH_CONTAINER != 'false' || vars.ENABLE_PUBLISH_AUR != 'false' || vars.ENABLE_PUBLISH_HOMEBREW != 'false') }}
     steps:
       - uses: actions/checkout@v3
