@@ -197,13 +197,22 @@ export default function Layout(props: ParentProps) {
 
   onMount(() => {
     const stop = () => setSizing(false)
+    const blur = () => reset()
+    const hide = () => {
+      if (document.visibilityState !== "hidden") return
+      reset()
+    }
     window.addEventListener("pointerup", stop)
     window.addEventListener("pointercancel", stop)
     window.addEventListener("blur", stop)
+    window.addEventListener("blur", blur)
+    document.addEventListener("visibilitychange", hide)
     onCleanup(() => {
       window.removeEventListener("pointerup", stop)
       window.removeEventListener("pointercancel", stop)
       window.removeEventListener("blur", stop)
+      window.removeEventListener("blur", blur)
+      document.removeEventListener("visibilitychange", hide)
     })
   })
 
@@ -221,6 +230,12 @@ export default function Layout(props: ParentProps) {
     if (navLeave.current === undefined) return
     clearTimeout(navLeave.current)
     navLeave.current = undefined
+  }
+
+  const reset = () => {
+    disarm()
+    setState("hoverSession", undefined)
+    setHoverProject(undefined)
   }
 
   const arm = () => {
@@ -297,8 +312,7 @@ export default function Layout(props: ParentProps) {
 
   const clearSidebarHoverState = () => {
     if (layout.sidebar.opened()) return
-    setState("hoverSession", undefined)
-    setHoverProject(undefined)
+    reset()
   }
 
   const navigateWithSidebarReset = (href: string) => {
