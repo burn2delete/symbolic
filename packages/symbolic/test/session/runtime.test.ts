@@ -10,6 +10,7 @@ import { SessionPrompt } from "../../src/session/prompt"
 import { MessageV2 } from "../../src/session/message-v2"
 import type { SessionID } from "../../src/session/schema"
 import { tmpdir } from "../fixture/fixture"
+import { setTimeout as sleep } from "node:timers/promises"
 
 type Hit = {
   url: URL
@@ -44,7 +45,7 @@ async function wait<T>(fn: () => Promise<T | undefined>, timeout = 15_000) {
   while (Date.now() < end) {
     const item = await fn()
     if (item !== undefined) return item
-    await Bun.sleep(25)
+    await sleep(25)
   }
   throw new Error("Timed out")
 }

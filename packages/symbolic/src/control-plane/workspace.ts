@@ -11,6 +11,7 @@ import { getAdaptor } from "./adaptors"
 import { WorkspaceInfo } from "./types"
 import { WorkspaceID } from "./schema"
 import { parseSSE } from "./sse"
+import { setTimeout as sleep } from "node:timers/promises"
 
 export namespace Workspace {
   export const Event = {
@@ -117,7 +118,7 @@ export namespace Workspace {
       const adaptor = await getAdaptor(space.type)
       const res = await adaptor.fetch(space, "/event", { method: "GET", signal: stop }).catch(() => undefined)
       if (!res || !res.ok || !res.body) {
-        await Bun.sleep(1000)
+        await sleep(1000)
         continue
       }
       await parseSSE(res.body, stop, (event) => {
@@ -127,7 +128,7 @@ export namespace Workspace {
         })
       })
       // Wait 250ms and retry if SSE connection fails
-      await Bun.sleep(250)
+      await sleep(250)
     }
   }
 
