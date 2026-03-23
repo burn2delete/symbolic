@@ -11,6 +11,11 @@ function host() {
   return `https://github.com/${repo}`
 }
 
+async function open(name: string) {
+  if (!name.startsWith("@")) return
+  await $`npm access public ${name}`.nothrow()
+}
+
 async function seen(name: string, version: string) {
   const result = await $`npm view ${`${name}@${version}`} version`.nothrow()
   return result.exitCode === 0
@@ -19,7 +24,10 @@ async function seen(name: string, version: string) {
 await $`bun tsc`
 const pkg = await import("../package.json").then((m) => m.default)
 const original = JSON.parse(JSON.stringify(pkg))
-if (await seen(pkg.name, pkg.version)) process.exit(0)
+if (await seen(pkg.name, pkg.version)) {
+  await open(pkg.name)
+  process.exit(0)
+}
 for (const [key, value] of Object.entries(pkg.exports)) {
   const file = value.replace("./src/", "./dist/").replace(".ts", "")
   // @ts-ignore
@@ -34,4 +42,5 @@ pkg.repository = {
 }
 await Bun.write("package.json", JSON.stringify(pkg, null, 2))
 await $`bun pm pack && npm publish *.tgz --tag ${Script.channel} --access public`
+await open(pkg.name)
 await Bun.write("package.json", JSON.stringify(original, null, 2))

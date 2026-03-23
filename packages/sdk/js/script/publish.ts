@@ -12,6 +12,11 @@ function host() {
   return `https://github.com/${repo}`
 }
 
+async function open(name: string) {
+  if (!name.startsWith("@")) return
+  await $`npm access public ${name}`.nothrow()
+}
+
 async function seen(name: string, version: string) {
   const result = await $`npm view ${`${name}@${version}`} version`.nothrow()
   return result.exitCode === 0
@@ -24,7 +29,10 @@ const pkg = (await import("../package.json").then((m) => m.default)) as {
   repository?: { type: string; url: string }
 }
 const original = JSON.parse(JSON.stringify(pkg))
-if (await seen(pkg.name, pkg.version)) process.exit(0)
+if (await seen(pkg.name, pkg.version)) {
+  await open(pkg.name)
+  process.exit(0)
+}
 function transformExports(exports: Record<string, string | object>) {
   for (const [key, value] of Object.entries(exports)) {
     if (typeof value === "object" && value !== null) {
@@ -46,4 +54,5 @@ pkg.repository = {
 await Bun.write("package.json", JSON.stringify(pkg, null, 2))
 await $`bun pm pack`
 await $`npm publish *.tgz --tag ${Script.channel} --access public`
+await open(pkg.name)
 await Bun.write("package.json", JSON.stringify(original, null, 2))

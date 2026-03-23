@@ -32,6 +32,11 @@ async function seen(name: string, version: string) {
   return result.exitCode === 0
 }
 
+async function open(name: string) {
+  if (!name.startsWith("@")) return
+  await $`npm access public ${name}`.nothrow()
+}
+
 function npm(name: string) {
   if (name.startsWith("symbolic-")) {
     return `@symbolic-agent/${name}`
@@ -87,6 +92,7 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
 if (on("SYMBOLIC_PUBLISH_NPM")) {
   const tasks = binaries.map(async (bin) => {
     if (await seen(bin.npm, bin.version)) {
+      await open(bin.npm)
       console.log("skip", bin.npm, bin.version)
       return
     }
@@ -107,11 +113,15 @@ if (on("SYMBOLIC_PUBLISH_NPM")) {
     await Bun.write(file, JSON.stringify(pkg, null, 2))
     await $`bun pm pack`.cwd(`./dist/${bin.dir}`)
     await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${bin.dir}`)
+    await open(bin.npm)
   })
   await Promise.all(tasks)
   const name = process.env.SYMBOLIC_NPM_NAME || "@symbolic-agent/cli"
-  if (!(await seen(name, version))) {
+  if (await seen(name, version)) {
+    await open(name)
+  } else {
     await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
+    await open(name)
   }
 }
 
