@@ -1,13 +1,16 @@
-import { describe, test, expect, beforeEach } from "bun:test"
+import { describe, test, expect } from "bun:test"
 import path from "path"
 import fs from "fs/promises"
 import { FileTime } from "../../src/file/time"
 import { Instance } from "../../src/project/instance"
+import { SessionID } from "../../src/session/schema"
 import { Filesystem } from "../../src/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
 
 describe("file/time", () => {
-  const sessionID = "test-session-123"
+  const sessionID = SessionID.make("test-session-123")
+  const session1 = SessionID.make("session1")
+  const session2 = SessionID.make("session2")
 
   describe("read() and get()", () => {
     test("stores read timestamp", async () => {
@@ -18,12 +21,12 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          const before = FileTime.get(sessionID, filepath)
+          const before = await FileTime.get(sessionID, filepath)
           expect(before).toBeUndefined()
 
-          FileTime.read(sessionID, filepath)
+          await FileTime.read(sessionID, filepath)
 
-          const after = FileTime.get(sessionID, filepath)
+          const after = await FileTime.get(sessionID, filepath)
           expect(after).toBeInstanceOf(Date)
           expect(after!.getTime()).toBeGreaterThan(0)
         },
@@ -38,11 +41,11 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read("session1", filepath)
-          FileTime.read("session2", filepath)
+          await FileTime.read(session1, filepath)
+          await FileTime.read(session2, filepath)
 
-          const time1 = FileTime.get("session1", filepath)
-          const time2 = FileTime.get("session2", filepath)
+          const time1 = await FileTime.get(session1, filepath)
+          const time2 = await FileTime.get(session2, filepath)
 
           expect(time1).toBeDefined()
           expect(time2).toBeDefined()
@@ -58,13 +61,13 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read(sessionID, filepath)
-          const first = FileTime.get(sessionID, filepath)!
+          await FileTime.read(sessionID, filepath)
+          const first = (await FileTime.get(sessionID, filepath))!
 
           await new Promise((resolve) => setTimeout(resolve, 10))
 
-          FileTime.read(sessionID, filepath)
-          const second = FileTime.get(sessionID, filepath)!
+          await FileTime.read(sessionID, filepath)
+          const second = (await FileTime.get(sessionID, filepath))!
 
           expect(second.getTime()).toBeGreaterThanOrEqual(first.getTime())
         },
@@ -81,7 +84,7 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read(sessionID, filepath)
+          await FileTime.read(sessionID, filepath)
 
           // Should not throw
           await FileTime.assert(sessionID, filepath)
@@ -110,7 +113,7 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read(sessionID, filepath)
+          await FileTime.read(sessionID, filepath)
 
           // Wait to ensure different timestamps
           await new Promise((resolve) => setTimeout(resolve, 100))
@@ -131,7 +134,7 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read(sessionID, filepath)
+          await FileTime.read(sessionID, filepath)
           await new Promise((resolve) => setTimeout(resolve, 100))
           await fs.writeFile(filepath, "modified", "utf-8")
 
@@ -322,7 +325,7 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read(sessionID, filepath)
+          await FileTime.read(sessionID, filepath)
 
           const stats = Filesystem.stat(filepath)
           expect(stats?.mtime).toBeInstanceOf(Date)
@@ -342,7 +345,7 @@ describe("file/time", () => {
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          FileTime.read(sessionID, filepath)
+          await FileTime.read(sessionID, filepath)
 
           const originalStat = Filesystem.stat(filepath)
 

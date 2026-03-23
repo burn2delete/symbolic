@@ -1,17 +1,16 @@
-import { Bus } from "../bus"
-import { File } from "../file"
-import { Log } from "../util/log"
-import path from "path"
-import z from "zod"
-
-import * as Formatter from "./formatter"
-import { Config } from "../config/config"
-import { mergeDeep } from "remeda"
 import { Effect, Layer, ServiceMap } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { makeRunPromise } from "@/effect/run-service"
+import path from "path"
+import { mergeDeep } from "remeda"
+import z from "zod"
+import { Bus } from "../bus"
+import { Config } from "../config/config"
+import { File } from "../file"
 import { Instance } from "../project/instance"
 import { Process } from "../util/process"
+import { Log } from "../util/log"
+import * as Formatter from "./formatter"
 
 export namespace Format {
   const log = Log.create({ service: "format" })
@@ -27,92 +26,137 @@ export namespace Format {
     })
   export type Status = z.infer<typeof Status>
 
-  interface State {
-    enabled: Record<string, boolean>
-    formatters: Record<string, Formatter.Info>
-  }
-
-  interface Interface {
-    readonly status: () => Effect.Effect<Status[]>
-    readonly formatters: (ext: string) => Effect.Effect<Formatter.Info[]>
+  export interface Interface {
     readonly init: () => Effect.Effect<void>
+    readonly status: () => Effect.Effect<Status[]>
   }
 
-  class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Format") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Format") {}
 
-  const layer = Layer.effect(
+  export const layer = Layer.effect(
     Service,
     Effect.gen(function* () {
-      const state = yield* InstanceState.make<State>(
+      const state = yield* InstanceState.make(
         Effect.fn("Format.state")(function* () {
           const enabled: Record<string, boolean> = {}
+          const formatters: Record<string, Formatter.Info> = {}
+
           const cfg = yield* Effect.promise(() => Config.get())
 
-          const formatters: Record<string, Formatter.Info> = {}
-          if (cfg.formatter === false) {
+          if (cfg.formatter !== false) {
+            for (const item of Object.values(Formatter)) {
+              formatters[item.name] = item
+            }
+            for (const [name, item] of Object.entries(cfg.formatter ?? {})) {
+              if (item.disabled) {
+                delete formatters[name]
+                continue
+              }
+              const info = mergeDeep(formatters[name] ?? {}, {
+                command: [],
+                extensions: [],
+                ...item,
+              })
+
+              if (info.command.length === 0) continue
+
+              formatters[name] = {
+                ...info,
+                name,
+                enabled: async () => true,
+              }
+            }
+          } else {
             log.info("all formatters are disabled")
-            return {
-              enabled,
-              formatters,
+          }
+
+          async function isEnabled(item: Formatter.Info) {
+            let status = enabled[item.name]
+            if (status === undefined) {
+              status = await item.enabled()
+              enabled[item.name] = status
             }
+            return status
           }
 
-          for (const item of Object.values(Formatter)) {
-            formatters[item.name] = item
+          async function getFormatter(ext: string) {
+            const matching = Object.values(formatters).filter((item) => item.extensions.includes(ext))
+            const checks = await Promise.all(
+              matching.map(async (item) => {
+                log.info("checking", { name: item.name, ext })
+                const on = await isEnabled(item)
+                if (on) {
+                  log.info("enabled", { name: item.name, ext })
+                }
+                return {
+                  item,
+                  enabled: on,
+                }
+              }),
+            )
+            return checks.filter((item) => item.enabled).map((item) => item.item)
           }
-          for (const [name, item] of Object.entries(cfg.formatter ?? {})) {
-            if (item.disabled) {
-              delete formatters[name]
-              continue
-            }
-            const result: Formatter.Info = mergeDeep(formatters[name] ?? {}, {
-              command: [],
-              extensions: [],
-              ...item,
-            })
 
-            if (result.command.length === 0) continue
+          yield* Effect.acquireRelease(
+            Effect.sync(() =>
+              Bus.subscribe(
+                File.Event.Edited,
+                Instance.bind(async (payload) => {
+                  const file = payload.properties.file
+                  log.info("formatting", { file })
+                  const ext = path.extname(file)
 
-            result.enabled = async () => true
-            result.name = name
-            formatters[name] = result
-          }
+                  for (const item of await getFormatter(ext)) {
+                    log.info("running", { command: item.command })
+                    try {
+                      const proc = Process.spawn(
+                        item.command.map((part) => part.replace("$FILE", file)),
+                        {
+                          cwd: Instance.directory,
+                          env: { ...process.env, ...item.environment },
+                          stdout: "ignore",
+                          stderr: "ignore",
+                        },
+                      )
+                      const exit = await proc.exited
+                      if (exit !== 0) {
+                        log.error("failed", {
+                          command: item.command,
+                          ...item.environment,
+                        })
+                      }
+                    } catch (error) {
+                      log.error("failed to format file", {
+                        error,
+                        command: item.command,
+                        ...item.environment,
+                        file,
+                      })
+                    }
+                  }
+                }),
+              ),
+            ),
+            (unsubscribe) => Effect.sync(unsubscribe),
+          )
+          log.info("init")
 
           return {
-            enabled,
             formatters,
+            isEnabled,
           }
         }),
       )
 
-      const isEnabled = Effect.fn("Format.isEnabled")(function* (item: Formatter.Info) {
-        const current = yield* InstanceState.get(state)
-        let status = current.enabled[item.name]
-        if (status === undefined) {
-          status = yield* Effect.promise(() => item.enabled())
-          current.enabled[item.name] = status
-        }
-        return status
-      })
-
-      const formatters = Effect.fn("Format.formatters")(function* (ext: string) {
-        const current = yield* InstanceState.get(state)
-        const result: Formatter.Info[] = []
-        for (const item of Object.values(current.formatters)) {
-          log.info("checking", { name: item.name, ext })
-          if (!item.extensions.includes(ext)) continue
-          if (!(yield* isEnabled(item))) continue
-          log.info("enabled", { name: item.name, ext })
-          result.push(item)
-        }
-        return result
+      const init = Effect.fn("Format.init")(function* () {
+        yield* InstanceState.get(state)
       })
 
       const status = Effect.fn("Format.status")(function* () {
-        const current = yield* InstanceState.get(state)
+        const { formatters, isEnabled } = yield* InstanceState.get(state)
         const result: Status[] = []
-        for (const formatter of Object.values(current.formatters)) {
-          const enabled = yield* isEnabled(formatter)
+        for (const formatter of Object.values(formatters)) {
+          const enabled = yield* Effect.promise(() => isEnabled(formatter))
           result.push({
             name: formatter.name,
             extensions: formatter.extensions,
@@ -122,51 +166,17 @@ export namespace Format {
         return result
       })
 
-      const init = Effect.fn("Format.init")(function* () {
-        log.info("init")
-        Bus.subscribe(File.Event.Edited, async (payload) => {
-          const file = payload.properties.file
-          log.info("formatting", { file })
-          const ext = path.extname(file)
-
-          for (const item of await runPromise((svc) => svc.formatters(ext))) {
-            log.info("running", { command: item.command })
-            try {
-              const proc = Process.spawn(item.command.map((x) => x.replace("$FILE", file)), {
-                cwd: Instance.directory,
-                env: { ...process.env, ...item.environment },
-                stdout: "ignore",
-                stderr: "ignore",
-              })
-              const exit = await proc.exited
-              if (exit !== 0)
-                log.error("failed", {
-                  command: item.command,
-                  ...item.environment,
-                })
-            } catch (error) {
-              log.error("failed to format file", {
-                error,
-                command: item.command,
-                ...item.environment,
-                file,
-              })
-            }
-          }
-        })
-      })
-
-      return Service.of({ status, formatters, init })
+      return Service.of({ init, status })
     }),
   )
 
   const runPromise = makeRunPromise(Service, layer)
 
-  export async function status() {
-    return runPromise((svc) => svc.status())
+  export async function init() {
+    return runPromise((svc) => svc.init())
   }
 
-  export function init() {
-    void runPromise((svc) => svc.init())
+  export async function status() {
+    return runPromise((svc) => svc.status())
   }
 }
