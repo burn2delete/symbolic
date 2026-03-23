@@ -543,6 +543,29 @@ test("reply - once resolves the pending ask", async () => {
   })
 })
 
+test("reply - reload rejects pending asks and clears state", async () => {
+  await using tmp = await tmpdir({ git: true })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const askPromise = PermissionNext.ask({
+        id: PermissionID.make("per_reload"),
+        sessionID: SessionID.make("session_reload"),
+        permission: "bash",
+        patterns: ["ls"],
+        metadata: {},
+        always: [],
+        ruleset: [{ permission: "bash", pattern: "*", action: "ask" }],
+      }).catch((err) => err)
+
+      await Instance.reload({ directory: tmp.path })
+
+      expect(await askPromise).toBeInstanceOf(PermissionNext.RejectedError)
+      expect(await PermissionNext.list()).toEqual([])
+    },
+  })
+})
+
 test("reply - reject throws RejectedError", async () => {
   await using tmp = await tmpdir({ git: true })
   await Instance.provide({
@@ -665,6 +688,28 @@ test("ask - checks all patterns and stops on first deny", async () => {
           always: [],
           ruleset: [
             { permission: "bash", pattern: "*", action: "allow" },
+            { permission: "bash", pattern: "rm *", action: "deny" },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(PermissionNext.DeniedError)
+    },
+  })
+})
+
+test("ask - deny wins even when an earlier pattern would ask", async () => {
+  await using tmp = await tmpdir({ git: true })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      await expect(
+        PermissionNext.ask({
+          sessionID: SessionID.make("session_test"),
+          permission: "bash",
+          patterns: ["echo hello", "rm -rf /"],
+          metadata: {},
+          always: [],
+          ruleset: [
+            { permission: "bash", pattern: "echo *", action: "ask" },
             { permission: "bash", pattern: "rm *", action: "deny" },
           ],
         }),

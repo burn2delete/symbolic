@@ -3,6 +3,7 @@ import path from "path"
 import fs from "fs/promises"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
+import { MessageID, SessionID } from "../../src/session/schema"
 import { ToolRegistry } from "../../src/tool/registry"
 
 describe("tool.registry", () => {
@@ -116,6 +117,60 @@ describe("tool.registry", () => {
       fn: async () => {
         const ids = await ToolRegistry.ids()
         expect(ids).toContain("cowsay")
+      },
+    })
+  })
+
+  test("executes custom tools with project directory context", async () => {
+    await using tmp = await tmpdir({
+      git: true,
+      init: async (dir) => {
+        const symbolicDir = path.join(dir, ".symbolic")
+        const toolsDir = path.join(symbolicDir, "tools")
+        await fs.mkdir(toolsDir, { recursive: true })
+
+        await Bun.write(
+          path.join(toolsDir, "context.ts"),
+          [
+            "export default {",
+            "  description: 'context tool',",
+            "  args: {},",
+            "  execute: async (_args, ctx) => {",
+            "    return JSON.stringify({ directory: ctx.directory, worktree: ctx.worktree })",
+            "  },",
+            "}",
+            "",
+          ].join("\n"),
+        )
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const tool = (await ToolRegistry.tools({
+          modelID: "test" as any,
+          providerID: "test" as any,
+        })).find((item) => item.id === "context")
+
+        expect(tool).toBeTruthy()
+        const result = await tool!.execute(
+          {},
+          {
+            sessionID: SessionID.make("ses_tool_context"),
+            messageID: MessageID.make("msg_tool_context"),
+            agent: "test",
+            abort: new AbortController().signal,
+            messages: [],
+            metadata() {},
+            ask: async () => {},
+          },
+        )
+
+        expect(JSON.parse(result.output)).toEqual({
+          directory: tmp.path,
+          worktree: tmp.path,
+        })
       },
     })
   })

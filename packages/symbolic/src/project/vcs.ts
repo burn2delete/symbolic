@@ -6,6 +6,9 @@ import { git } from "@/util/git"
 import { FileWatcher } from "@/file/watcher"
 import { Snapshot } from "../snapshot"
 import { Instance } from "./instance"
+import { Effect, Layer, ServiceMap } from "effect"
+import { InstanceState } from "@/effect/instance-state"
+import { makeRunPromise } from "@/effect/run-service"
 import path from "path"
 import z from "zod"
 
@@ -46,6 +49,15 @@ export namespace Vcs {
     info: Info
     unsubscribe?: () => void
   }
+
+  interface Interface {
+    readonly init: () => Effect.Effect<void>
+    readonly status: () => Effect.Effect<Info>
+    readonly info: () => Effect.Effect<Info>
+    readonly diff: (input: Diff) => Effect.Effect<Snapshot.FileDiff[]>
+  }
+
+  class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Vcs") {}
 
   function work() {
     return Instance.worktree
@@ -123,7 +135,7 @@ export namespace Vcs {
     return Boolean(trim(result))
   }
 
-  export async function status(): Promise<Info> {
+  async function baseStatus(): Promise<Info> {
     if (Instance.project.vcs !== "git") {
       return {
         dirty: false,
@@ -140,7 +152,7 @@ export namespace Vcs {
   }
 
   async function current() {
-    const next = await status()
+    const next = await baseStatus()
     return next
   }
 
@@ -301,68 +313,103 @@ export namespace Vcs {
     return result
   }
 
-  const state = Instance.state(
-    async (): Promise<State> => {
-      if (Instance.project.vcs !== "git") {
-        return {
-          info: {
-            dirty: false,
-          },
-          unsubscribe: undefined,
-        }
-      }
+  const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+      const state = yield* InstanceState.make<State>(
+        Effect.fn("Vcs.state")(function* () {
+          if (Instance.project.vcs !== "git") {
+            return {
+              info: {
+                dirty: false,
+              },
+              unsubscribe: undefined,
+            }
+          }
 
-      const info = await current()
-      log.info("initialized", { info })
+          const info = yield* Effect.promise(() => current())
+          log.info("initialized", { info })
 
-      const entry: State = {
-        info,
-        unsubscribe: undefined,
-      }
+          const entry: State = {
+            info,
+            unsubscribe: undefined,
+          }
 
-      entry.unsubscribe = Bus.subscribe(FileWatcher.Event.Updated, async (evt) => {
-        if (!evt.properties.file.endsWith("HEAD")) return
-        const next = await current()
-        const prev = entry.info
-        if (
-          next.branch === prev.branch &&
-          next.default_branch === prev.default_branch &&
-          next.head === prev.head &&
-          next.dirty === prev.dirty
-        )
-          return
+          entry.unsubscribe = Bus.subscribe(FileWatcher.Event.Updated, async (evt) => {
+            if (!evt.properties.file.endsWith("HEAD")) return
+            const next = await current()
+            const prev = entry.info
+            if (
+              next.branch === prev.branch &&
+              next.default_branch === prev.default_branch &&
+              next.head === prev.head &&
+              next.dirty === prev.dirty
+            )
+              return
 
-        log.info("updated", {
-          from: prev,
-          to: next,
-        })
-        entry.info = next
-        Bus.publish(Event.BranchUpdated, next)
+            log.info("updated", {
+              from: prev,
+              to: next,
+            })
+            entry.info = next
+            Bus.publish(Event.BranchUpdated, next)
+          })
+
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              entry.unsubscribe?.()
+            }),
+          )
+
+          return entry
+        }),
+      )
+
+      const init = Effect.fn("Vcs.init")(function* () {
+        yield* InstanceState.get(state)
       })
 
-      return entry
-    },
-    async (entry) => {
-      entry.unsubscribe?.()
-    },
+      const info = Effect.fn("Vcs.info")(function* () {
+        return yield* Effect.promise(() => current())
+      })
+
+      const diff = Effect.fn("Vcs.diff")(function* (input: Diff) {
+        if (Instance.project.vcs !== "git") return []
+        if (input.mode === "working_tree") return yield* Effect.promise(() => workingTree())
+        if (!input.base || !input.head) return []
+        const base = input.base
+        const head = input.head
+        return yield* Effect.promise(() => build(base, head))
+      })
+
+      return Service.of({
+        init,
+        status: info,
+        info,
+        diff,
+      })
+    }),
   )
 
+  const runPromise = makeRunPromise(Service, layer)
+
   export async function init() {
-    return state()
+    void runPromise((svc) => svc.init())
   }
 
   export async function branch() {
-    return await state().then((s) => s.info.branch)
+    return (await baseStatus()).branch
+  }
+
+  export async function status() {
+    return runPromise((svc) => svc.status())
   }
 
   export async function info() {
-    return await current()
+    return runPromise((svc) => svc.info())
   }
 
   export async function diff(input: Diff): Promise<Snapshot.FileDiff[]> {
-    if (Instance.project.vcs !== "git") return []
-    if (input.mode === "working_tree") return await workingTree()
-    if (!input.base || !input.head) return []
-    return await build(input.base, input.head)
+    return runPromise((svc) => svc.diff(input))
   }
 }

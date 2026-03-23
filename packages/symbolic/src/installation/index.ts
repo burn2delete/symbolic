@@ -1,4 +1,6 @@
 import { BusEvent } from "@/bus/bus-event"
+import { Effect, Layer, ServiceMap } from "effect"
+import { makeRunPromise } from "@/effect/run-service"
 import path from "path"
 import z from "zod"
 import { NamedError } from "@symbolic-agent/util/error"
@@ -15,6 +17,8 @@ declare global {
 
 export namespace Installation {
   const log = Log.create({ service: "installation" })
+
+  export type Method = "curl" | "npm" | "yarn" | "pnpm" | "bun" | "brew" | "scoop" | "choco" | "unknown"
 
   async function text(cmd: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) {
     return Process.text(cmd, {
@@ -48,8 +52,6 @@ export namespace Installation {
     }
   }
 
-  export type Method = Awaited<ReturnType<typeof method>>
-
   export const Event = {
     Updated: BusEvent.define(
       "installation.updated",
@@ -75,13 +77,6 @@ export namespace Installation {
     })
   export type Info = z.infer<typeof Info>
 
-  export async function info() {
-    return {
-      version: VERSION,
-      latest: await latest(),
-    }
-  }
-
   export function isPreview() {
     return CHANNEL !== "latest"
   }
@@ -90,7 +85,26 @@ export namespace Installation {
     return CHANNEL === "local"
   }
 
-  export async function method() {
+  export const UpgradeFailedError = NamedError.create(
+    "UpgradeFailedError",
+    z.object({
+      stderr: z.string(),
+    }),
+  )
+
+  async function getBrewFormula() {
+    const tap = await text(["brew", "list", "--formula", "anomalyco/tap/symbolic"])
+    if (tap.includes("symbolic")) return "anomalyco/tap/symbolic"
+    const core = await text(["brew", "list", "--formula", "symbolic"])
+    if (core.includes("symbolic")) return "symbolic"
+    return "symbolic"
+  }
+
+  export const VERSION = typeof SYMBOLIC_VERSION === "string" ? SYMBOLIC_VERSION : "local"
+  export const CHANNEL = typeof SYMBOLIC_CHANNEL === "string" ? SYMBOLIC_CHANNEL : "local"
+  export const USER_AGENT = `symbolic/${CHANNEL}/${VERSION}/${Flag.SYMBOLIC_CLIENT}`
+
+  async function methodImpl(): Promise<Method> {
     if (process.execPath.includes(path.join(".symbolic", "bin"))) return "curl"
     if (process.execPath.includes(path.join(".local", "bin"))) return "curl"
     const exec = process.execPath.toLowerCase()
@@ -127,41 +141,94 @@ export namespace Installation {
     ]
 
     checks.sort((a, b) => {
-      const aMatches = exec.includes(a.name)
-      const bMatches = exec.includes(b.name)
-      if (aMatches && !bMatches) return -1
-      if (!aMatches && bMatches) return 1
+      const left = exec.includes(a.name)
+      const right = exec.includes(b.name)
+      if (left && !right) return -1
+      if (!left && right) return 1
       return 0
     })
 
     for (const check of checks) {
       const output = await check.command()
-      const installedName =
-        check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "symbolic" : "symbolic"
-      if (output.includes(installedName)) {
-        return check.name
-      }
+      if (output.includes("symbolic")) return check.name
     }
 
     return "unknown"
   }
 
-  export const UpgradeFailedError = NamedError.create(
-    "UpgradeFailedError",
-    z.object({
-      stderr: z.string(),
-    }),
-  )
+  async function latestImpl(installMethod?: Method) {
+    const detected = installMethod || (await methodImpl())
 
-  async function getBrewFormula() {
-    const tapFormula = await text(["brew", "list", "--formula", "anomalyco/tap/symbolic"])
-    if (tapFormula.includes("symbolic")) return "anomalyco/tap/symbolic"
-    const coreFormula = await text(["brew", "list", "--formula", "symbolic"])
-    if (coreFormula.includes("symbolic")) return "symbolic"
-    return "symbolic"
+    if (detected === "brew") {
+      const formula = await getBrewFormula()
+      if (formula.includes("/")) {
+        const infoJson = await text(["brew", "info", "--json=v2", formula])
+        const info = JSON.parse(infoJson)
+        const version = info.formulae?.[0]?.versions?.stable
+        if (!version) throw new Error(`Could not detect version for tap formula: ${formula}`)
+        return version
+      }
+      return fetch("https://formulae.brew.sh/api/formula/symbolic.json")
+        .then((res) => {
+          if (!res.ok) throw new Error(res.statusText)
+          return res.json()
+        })
+        .then((data: any) => data.versions.stable)
+    }
+
+    if (detected === "npm" || detected === "bun" || detected === "pnpm") {
+      const registry = await iife(async () => {
+        const value = (await text(["npm", "config", "get", "registry"])).trim()
+        const reg = value || "https://registry.npmjs.org"
+        return reg.endsWith("/") ? reg.slice(0, -1) : reg
+      })
+      return fetch(`${registry}/symbolic/${CHANNEL}`)
+        .then((res) => {
+          if (!res.ok) throw new Error(res.statusText)
+          return res.json()
+        })
+        .then((data: any) => data.version)
+    }
+
+    if (detected === "choco") {
+      return fetch(
+        "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27symbolic%27%20and%20IsLatestVersion&$select=Version",
+        { headers: { Accept: "application/json;odata=verbose" } },
+      )
+        .then((res) => {
+          if (!res.ok) throw new Error(res.statusText)
+          return res.json()
+        })
+        .then((data: any) => data.d.results[0].Version)
+    }
+
+    if (detected === "scoop") {
+      return fetch("https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/symbolic.json", {
+        headers: { Accept: "application/json" },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(res.statusText)
+          return res.json()
+        })
+        .then((data: any) => data.version)
+    }
+
+    return fetch("https://api.github.com/repos/SymbolicOS/symbolic/releases/latest")
+      .then((res) => {
+        if (!res.ok) throw new Error(res.statusText)
+        return res.json()
+      })
+      .then((data: any) => data.tag_name.replace(/^v/, ""))
   }
 
-  export async function upgrade(method: Method, target: string) {
+  async function infoImpl() {
+    return {
+      version: VERSION,
+      latest: await latestImpl(),
+    }
+  }
+
+  async function upgradeImpl(method: Method, target: string) {
     let result: Process.Result | undefined
     switch (method) {
       case "curl":
@@ -205,7 +272,6 @@ export namespace Installation {
         result = await Process.run(["brew", "upgrade", formula], { env, nothrow: true })
         break
       }
-
       case "choco":
         result = await Process.run(["choco", "upgrade", "symbolic", `--version=${target}`, "-y"], { nothrow: true })
         break
@@ -218,9 +284,7 @@ export namespace Installation {
     if (!result || result.code !== 0) {
       const stderr =
         method === "choco" ? "not running from an elevated command shell" : result?.stderr.toString("utf8") || ""
-      throw new UpgradeFailedError({
-        stderr: stderr,
-      })
+      throw new UpgradeFailedError({ stderr })
     }
     log.info("upgraded", {
       method,
@@ -231,73 +295,50 @@ export namespace Installation {
     await Process.text([process.execPath, "--version"], { nothrow: true })
   }
 
-  export const VERSION = typeof SYMBOLIC_VERSION === "string" ? SYMBOLIC_VERSION : "local"
-  export const CHANNEL = typeof SYMBOLIC_CHANNEL === "string" ? SYMBOLIC_CHANNEL : "local"
-  export const USER_AGENT = `symbolic/${CHANNEL}/${VERSION}/${Flag.SYMBOLIC_CLIENT}`
+  export interface Interface {
+    readonly info: () => Effect.Effect<Info>
+    readonly method: () => Effect.Effect<Method>
+    readonly latest: (method?: Method) => Effect.Effect<string>
+    readonly upgrade: (method: Method, target: string) => Effect.Effect<void, InstanceType<typeof UpgradeFailedError>>
+  }
+
+  export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Installation") {}
+
+  export const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+      const info = Effect.fn("Installation.info")(() => Effect.promise(() => infoImpl()))
+      const method = Effect.fn("Installation.method")(() => Effect.promise(() => methodImpl()))
+      const latest = Effect.fn("Installation.latest")((input?: Method) => Effect.promise(() => latestImpl(input)))
+      const upgrade = Effect.fn("Installation.upgrade")((method: Method, target: string) =>
+        Effect.tryPromise({
+          try: () => upgradeImpl(method, target),
+          catch: (cause) => {
+            if (UpgradeFailedError.isInstance(cause)) return cause
+            throw cause
+          },
+        }),
+      )
+
+      return Service.of({ info, method, latest, upgrade })
+    }),
+  )
+
+  const runPromise = makeRunPromise(Service, layer)
+
+  export async function info() {
+    return runPromise((svc) => svc.info())
+  }
+
+  export async function method() {
+    return runPromise((svc) => svc.method())
+  }
 
   export async function latest(installMethod?: Method) {
-    const detectedMethod = installMethod || (await method())
+    return runPromise((svc) => svc.latest(installMethod))
+  }
 
-    if (detectedMethod === "brew") {
-      const formula = await getBrewFormula()
-      if (formula.includes("/")) {
-        const infoJson = await text(["brew", "info", "--json=v2", formula])
-        const info = JSON.parse(infoJson)
-        const version = info.formulae?.[0]?.versions?.stable
-        if (!version) throw new Error(`Could not detect version for tap formula: ${formula}`)
-        return version
-      }
-      return fetch("https://formulae.brew.sh/api/formula/symbolic.json")
-        .then((res) => {
-          if (!res.ok) throw new Error(res.statusText)
-          return res.json()
-        })
-        .then((data: any) => data.versions.stable)
-    }
-
-    if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {
-      const registry = await iife(async () => {
-        const r = (await text(["npm", "config", "get", "registry"])).trim()
-        const reg = r || "https://registry.npmjs.org"
-        return reg.endsWith("/") ? reg.slice(0, -1) : reg
-      })
-      const channel = CHANNEL
-      return fetch(`${registry}/symbolic/${channel}`)
-        .then((res) => {
-          if (!res.ok) throw new Error(res.statusText)
-          return res.json()
-        })
-        .then((data: any) => data.version)
-    }
-
-    if (detectedMethod === "choco") {
-      return fetch(
-        "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27symbolic%27%20and%20IsLatestVersion&$select=Version",
-        { headers: { Accept: "application/json;odata=verbose" } },
-      )
-        .then((res) => {
-          if (!res.ok) throw new Error(res.statusText)
-          return res.json()
-        })
-        .then((data: any) => data.d.results[0].Version)
-    }
-
-    if (detectedMethod === "scoop") {
-      return fetch("https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/symbolic.json", {
-        headers: { Accept: "application/json" },
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error(res.statusText)
-          return res.json()
-        })
-        .then((data: any) => data.version)
-    }
-
-    return fetch("https://api.github.com/repos/SymbolicOS/symbolic/releases/latest")
-      .then((res) => {
-        if (!res.ok) throw new Error(res.statusText)
-        return res.json()
-      })
-      .then((data: any) => data.tag_name.replace(/^v/, ""))
+  export async function upgrade(method: Method, target: string) {
+    return runPromise((svc) => svc.upgrade(method, target))
   }
 }

@@ -190,6 +190,31 @@ describe("session.prompt special characters", () => {
   })
 })
 
+describe("session.prompt command", () => {
+  test("throws a clear error for unknown commands", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+
+        await expect(
+          SessionPrompt.command({
+            sessionID: session.id,
+            command: "missing-command",
+            arguments: "",
+          }),
+        ).rejects.toMatchObject({
+          name: "UnknownError",
+          data: {
+            message: 'Command not found: "missing-command"',
+          },
+        })
+      },
+    })
+  })
+})
+
 describe("session.prompt agent variant", () => {
   test("applies agent variant only when using agent model", async () => {
     const prev = process.env.OPENAI_API_KEY

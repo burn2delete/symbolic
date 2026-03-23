@@ -1,32 +1,65 @@
-import { Instance } from "../project/instance"
+import { Effect, Layer, ManagedRuntime, ServiceMap } from "effect"
+import { InstanceState } from "@/effect/instance-state"
 import { Log } from "../util/log"
 import { Flag } from "../flag/flag"
 import { Filesystem } from "../util/filesystem"
 
 export namespace FileTime {
   const log = Log.create({ service: "file.time" })
+
+  interface State {
+    read: {
+      [sessionID: string]: {
+        [path: string]: Date | undefined
+      }
+    }
+    locks: Map<string, Promise<void>>
+  }
+
+  export interface Interface {
+    readonly state: () => Effect.Effect<State>
+  }
+
+  class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/FileTime") {}
   // Per-session read times plus per-file write locks.
   // All tools that overwrite existing files should run their
   // assert/read/write/update sequence inside withLock(filepath, ...)
   // so concurrent writes to the same file are serialized.
-  export const state = Instance.state(() => {
-    const read: {
-      [sessionID: string]: {
-        [path: string]: Date | undefined
-      }
-    } = {}
-    const locks = new Map<string, Promise<void>>()
-    return {
-      read,
-      locks,
-    }
-  })
+  const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+      const store = yield* InstanceState.make<State>(
+        Effect.fn("FileTime.state")(() =>
+          Effect.sync(() => ({
+            read: {},
+            locks: new Map<string, Promise<void>>(),
+          })),
+        ),
+      )
+
+      const state = Effect.fn("FileTime.state")(function* () {
+        return yield* InstanceState.get(store)
+      })
+
+      return Service.of({ state })
+    }),
+  )
+
+  const runtime = ManagedRuntime.make(layer)
+
+  function runSync<A>(fn: (svc: Interface) => Effect.Effect<A>) {
+    return runtime.runSync(Service.use(fn))
+  }
+
+  function state() {
+    return runSync((svc) => svc.state())
+  }
 
   export function read(sessionID: string, file: string) {
     log.info("read", { sessionID, file })
-    const { read } = state()
-    read[sessionID] = read[sessionID] || {}
-    read[sessionID][file] = new Date()
+    const next = state()
+    next.read[sessionID] = next.read[sessionID] || {}
+    next.read[sessionID][file] = new Date()
   }
 
   export function get(sessionID: string, file: string) {
@@ -35,19 +68,19 @@ export namespace FileTime {
 
   export async function withLock<T>(filepath: string, fn: () => Promise<T>): Promise<T> {
     const current = state()
-    const currentLock = current.locks.get(filepath) ?? Promise.resolve()
+    const lock = current.locks.get(filepath) ?? Promise.resolve()
     let release: () => void = () => {}
-    const nextLock = new Promise<void>((resolve) => {
+    const gate = new Promise<void>((resolve) => {
       release = resolve
     })
-    const chained = currentLock.then(() => nextLock)
-    current.locks.set(filepath, chained)
-    await currentLock
+    const chain = lock.then(() => gate)
+    current.locks.set(filepath, chain)
+    await lock
     try {
       return await fn()
     } finally {
       release()
-      if (current.locks.get(filepath) === chained) {
+      if (current.locks.get(filepath) === chain) {
         current.locks.delete(filepath)
       }
     }

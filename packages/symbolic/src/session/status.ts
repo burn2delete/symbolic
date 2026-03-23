@@ -1,6 +1,8 @@
 import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
-import { Instance } from "@/project/instance"
+import { InstanceState } from "@/effect/instance-state"
+import { makeRunPromise } from "@/effect/run-service"
+import { Effect, Layer, ServiceMap } from "effect"
 import { SessionID } from "./schema"
 import z from "zod"
 
@@ -42,36 +44,68 @@ export namespace SessionStatus {
     ),
   }
 
-  const state = Instance.state(() => {
-    const data: Record<string, Info> = {}
-    return data
-  })
-
-  export function get(sessionID: SessionID) {
-    return (
-      state()[sessionID] ?? {
-        type: "idle",
-      }
-    )
+  interface Api {
+    readonly get: (sessionID: SessionID) => Effect.Effect<Info>
+    readonly list: () => Effect.Effect<Map<SessionID, Info>>
+    readonly set: (sessionID: SessionID, status: Info) => Effect.Effect<void>
   }
 
-  export function list() {
-    return state()
-  }
+  class Service extends ServiceMap.Service<Service, Api>()("@symbolic-agent/SessionStatus") {}
 
-  export function set(sessionID: SessionID, status: Info) {
-    Bus.publish(Event.Status, {
-      sessionID,
-      status,
-    })
-    if (status.type === "idle") {
-      // deprecated
-      Bus.publish(Event.Idle, {
-        sessionID,
+  const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+      const state = yield* InstanceState.make(
+        Effect.fn("SessionStatus.state")(() => Effect.succeed(new Map<SessionID, Info>())),
+      )
+
+      const get = Effect.fn("SessionStatus.get")(function* (sessionID: SessionID) {
+        const data = yield* InstanceState.get(state)
+        return data.get(sessionID) ?? {
+          type: "idle" as const,
+        }
       })
-      delete state()[sessionID]
-      return
-    }
-    state()[sessionID] = status
+
+      const list = Effect.fn("SessionStatus.list")(function* () {
+        return new Map(yield* InstanceState.get(state))
+      })
+
+      const set = Effect.fn("SessionStatus.set")(function* (sessionID: SessionID, status: Info) {
+        const data = yield* InstanceState.get(state)
+        yield* Effect.promise(() =>
+          Bus.publish(Event.Status, {
+            sessionID,
+            status,
+          }),
+        )
+        if (status.type === "idle") {
+          // deprecated
+          yield* Effect.promise(() =>
+            Bus.publish(Event.Idle, {
+              sessionID,
+            }),
+          )
+          data.delete(sessionID)
+          return
+        }
+        data.set(sessionID, status)
+      })
+
+      return Service.of({ get, list, set })
+    }),
+  )
+
+  const runPromise = makeRunPromise(Service, layer)
+
+  export async function get(sessionID: SessionID) {
+    return runPromise((svc) => svc.get(sessionID))
+  }
+
+  export async function list() {
+    return runPromise((svc) => svc.list())
+  }
+
+  export async function set(sessionID: SessionID, status: Info) {
+    return runPromise((svc) => svc.set(sessionID, status))
   }
 }

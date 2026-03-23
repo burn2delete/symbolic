@@ -1,15 +1,16 @@
 import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import { Config } from "@/config/config"
+import { InstanceState } from "@/effect/instance-state"
+import { makeRunPromise } from "@/effect/run-service"
 import { SessionID, MessageID } from "@/session/schema"
 import { PermissionID } from "./schema"
-import { Instance } from "@/project/instance"
 import { Database, eq } from "@/storage/db"
 import { PermissionTable } from "@/session/session.sql"
-import { fn } from "@/util/fn"
 import { Log } from "@/util/log"
 import { ProjectID } from "@/project/schema"
 import { Wildcard } from "@/util/wildcard"
+import { Effect, Layer, ServiceMap } from "effect"
 import os from "os"
 import z from "zod"
 
@@ -111,94 +112,132 @@ export namespace PermissionNext {
   interface PendingEntry {
     info: Request
     resolve: () => void
-    reject: (e: any) => void
+    reject: (err: CorrectedError | RejectedError) => void
   }
 
-  const state = Instance.state(() => {
-    const projectID = Instance.project.id
-    const row = Database.use((db) =>
-      db.select().from(PermissionTable).where(eq(PermissionTable.project_id, projectID)).get(),
-    )
-    const stored = row?.data ?? ([] as Ruleset)
+  interface State {
+    pending: Map<PermissionID, PendingEntry>
+    approved: Ruleset
+  }
 
-    return {
-      pending: new Map<PermissionID, PendingEntry>(),
-      approved: stored,
-    }
+  const AskInput = Request.partial({ id: true }).extend({
+    ruleset: Ruleset,
   })
 
-  export const ask = fn(
-    Request.partial({ id: true }).extend({
-      ruleset: Ruleset,
-    }),
-    async (input) => {
-      const s = await state()
-      const { ruleset, ...request } = input
-      for (const pattern of request.patterns ?? []) {
-        const rule = evaluate(request.permission, pattern, ruleset, s.approved)
-        log.info("evaluated", { permission: request.permission, pattern, action: rule })
-        if (rule.action === "deny")
-          throw new DeniedError(ruleset.filter((r) => Wildcard.match(request.permission, r.permission)))
-        if (rule.action === "ask") {
-          const id = input.id ?? PermissionID.ascending()
-          return new Promise<void>((resolve, reject) => {
-            const info: Request = {
-              id,
-              ...request,
-            }
-            s.pending.set(id, {
-              info,
-              resolve,
-              reject,
-            })
-            Bus.publish(Event.Asked, info)
-          })
-        }
-        if (rule.action === "allow") continue
-      }
-    },
-  )
+  const ReplyInput = z.object({
+    requestID: PermissionID.zod,
+    reply: Reply,
+    message: z.string().optional(),
+  })
 
-  export const reply = fn(
-    z.object({
-      requestID: PermissionID.zod,
-      reply: Reply,
-      message: z.string().optional(),
-    }),
-    async (input) => {
-      const s = await state()
-      const existing = s.pending.get(input.requestID)
-      if (!existing) return
-      s.pending.delete(input.requestID)
-      Bus.publish(Event.Replied, {
-        sessionID: existing.info.sessionID,
-        requestID: existing.info.id,
-        reply: input.reply,
+  interface Api {
+    readonly ask: (input: z.infer<typeof AskInput>) => Effect.Effect<void, DeniedError | CorrectedError | RejectedError>
+    readonly reply: (input: z.infer<typeof ReplyInput>) => Effect.Effect<void>
+    readonly list: () => Effect.Effect<Request[]>
+  }
+
+  class Service extends ServiceMap.Service<Service, Api>()("@symbolic-agent/PermissionNext") {}
+
+  const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+      const state = yield* InstanceState.make<State>(
+        Effect.fn("PermissionNext.state")(function* (ctx) {
+          const row = Database.use((db) =>
+            db.select().from(PermissionTable).where(eq(PermissionTable.project_id, ctx.project.id)).get(),
+          )
+          const next = {
+            pending: new Map<PermissionID, PendingEntry>(),
+            approved: row?.data ?? ([] as Ruleset),
+          }
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              for (const item of next.pending.values()) {
+                item.reject(new RejectedError())
+              }
+              next.pending.clear()
+            }),
+          )
+          return next
+        }),
+      )
+
+      const ask = Effect.fn("PermissionNext.ask")(function* (input: z.infer<typeof AskInput>) {
+        const next = yield* InstanceState.get(state)
+        const { ruleset, ...request } = input
+        let pending = false
+
+        for (const pattern of request.patterns ?? []) {
+          const rule = evaluate(request.permission, pattern, ruleset, next.approved)
+          log.info("evaluated", { permission: request.permission, pattern, action: rule })
+          if (rule.action === "deny") {
+            return yield* Effect.fail(
+              new DeniedError(ruleset.filter((item) => Wildcard.match(request.permission, item.permission))),
+            )
+          }
+          if (rule.action === "ask") pending = true
+        }
+
+        if (!pending) return
+
+        const id = input.id ?? PermissionID.ascending()
+        const info: Request = {
+          id,
+          ...request,
+        }
+        yield* Effect.promise(
+          () =>
+            new Promise<void>((resolve, reject) => {
+              next.pending.set(id, {
+                info,
+                resolve: () => {
+                  next.pending.delete(id)
+                  resolve()
+                },
+                reject: (err) => {
+                  next.pending.delete(id)
+                  reject(err)
+                },
+              })
+              Bus.publish(Event.Asked, info)
+            }),
+        )
       })
-      if (input.reply === "reject") {
-        existing.reject(input.message ? new CorrectedError(input.message) : new RejectedError())
-        // Reject all other pending permissions for this session
-        const sessionID = existing.info.sessionID
-        for (const [id, pending] of s.pending) {
-          if (pending.info.sessionID === sessionID) {
-            s.pending.delete(id)
+
+      const reply = Effect.fn("PermissionNext.reply")(function* (input: z.infer<typeof ReplyInput>) {
+        const next = yield* InstanceState.get(state)
+        const existing = next.pending.get(input.requestID)
+        if (!existing) return
+
+        next.pending.delete(input.requestID)
+        Bus.publish(Event.Replied, {
+          sessionID: existing.info.sessionID,
+          requestID: existing.info.id,
+          reply: input.reply,
+        })
+
+        if (input.reply === "reject") {
+          existing.reject(input.message ? new CorrectedError(input.message) : new RejectedError())
+          for (const [id, item] of next.pending.entries()) {
+            if (item.info.sessionID !== existing.info.sessionID) continue
+            next.pending.delete(id)
             Bus.publish(Event.Replied, {
-              sessionID: pending.info.sessionID,
-              requestID: pending.info.id,
+              sessionID: item.info.sessionID,
+              requestID: item.info.id,
               reply: "reject",
             })
-            pending.reject(new RejectedError())
+            item.reject(new RejectedError())
           }
+          return
         }
-        return
-      }
-      if (input.reply === "once") {
-        existing.resolve()
-        return
-      }
-      if (input.reply === "always") {
+
+        if (input.reply === "once") {
+          existing.resolve()
+          return
+        }
+
         for (const pattern of existing.info.always) {
-          s.approved.push({
+          next.approved.push({
             permission: existing.info.permission,
             pattern,
             action: "allow",
@@ -207,29 +246,33 @@ export namespace PermissionNext {
 
         existing.resolve()
 
-        const sessionID = existing.info.sessionID
-        for (const [id, pending] of s.pending) {
-          if (pending.info.sessionID !== sessionID) continue
-          const ok = pending.info.patterns.every(
-            (pattern) => evaluate(pending.info.permission, pattern, s.approved).action === "allow",
+        for (const [id, item] of next.pending.entries()) {
+          if (item.info.sessionID !== existing.info.sessionID) continue
+          const ok = item.info.patterns.every(
+            (pattern) => evaluate(item.info.permission, pattern, next.approved).action === "allow",
           )
           if (!ok) continue
-          s.pending.delete(id)
+          next.pending.delete(id)
           Bus.publish(Event.Replied, {
-            sessionID: pending.info.sessionID,
-            requestID: pending.info.id,
+            sessionID: item.info.sessionID,
+            requestID: item.info.id,
             reply: "always",
           })
-          pending.resolve()
+          item.resolve()
         }
 
         // TODO: we don't save the permission ruleset to disk yet until there's
         // UI to manage it
-        // db().insert(PermissionTable).values({ projectID: Instance.project.id, data: s.approved })
-        //   .onConflictDoUpdate({ target: PermissionTable.projectID, set: { data: s.approved } }).run()
-        return
-      }
-    },
+        // db().insert(PermissionTable).values({ projectID: Instance.project.id, data: next.approved })
+        //   .onConflictDoUpdate({ target: PermissionTable.projectID, set: { data: next.approved } }).run()
+      })
+
+      const list = Effect.fn("PermissionNext.list")(function* () {
+        return Array.from((yield* InstanceState.get(state)).pending.values(), (item) => item.info)
+      })
+
+      return Service.of({ ask, reply, list })
+    }),
   )
 
   export function evaluate(permission: string, pattern: string, ...rulesets: Ruleset[]): Rule {
@@ -278,8 +321,17 @@ export namespace PermissionNext {
     }
   }
 
+  const runPromise = makeRunPromise(Service, layer)
+
+  export async function ask(input: z.infer<typeof AskInput>) {
+    return runPromise((svc) => svc.ask(input))
+  }
+
+  export async function reply(input: z.infer<typeof ReplyInput>) {
+    return runPromise((svc) => svc.reply(input))
+  }
+
   export async function list() {
-    const s = await state()
-    return Array.from(s.pending.values(), (x) => x.info)
+    return runPromise((svc) => svc.list())
   }
 }

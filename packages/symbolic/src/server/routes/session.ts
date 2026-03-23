@@ -88,8 +88,7 @@ export const SessionRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        const result = SessionStatus.list()
-        return c.json(result)
+        return c.json(Object.fromEntries(await SessionStatus.list()))
       },
     )
     .get(
