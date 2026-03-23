@@ -148,7 +148,7 @@ export namespace Project {
 
         // generate id from root commit
         if (!id) {
-          const roots = await git(["rev-list", "--max-parents=0", "--all"], {
+          const roots = await git(["rev-list", "--max-parents=0", "HEAD"], {
             cwd: sandbox,
           })
             .then(async (result) =>
@@ -171,7 +171,7 @@ export namespace Project {
 
           id = roots[0] ? ProjectID.make(roots[0]) : undefined
           if (id) {
-            await Filesystem.write(path.join(dotgit, "symbolic"), id).catch(() => undefined)
+            await Filesystem.write(path.join(worktree, ".git", "symbolic"), id).catch(() => undefined)
           }
         }
 
@@ -218,23 +218,18 @@ export namespace Project {
     })
 
     const row = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, data.id)).get())
-    const existing = await iife(async () => {
-      if (row) return fromRow(row)
-      const fresh: Info = {
-        id: data.id,
-        worktree: data.worktree,
-        vcs: data.vcs as Info["vcs"],
-        sandboxes: [],
-        time: {
-          created: Date.now(),
-          updated: Date.now(),
-        },
-      }
-      if (data.id !== ProjectID.global) {
-        await migrateFromGlobal(data.id, data.worktree)
-      }
-      return fresh
-    })
+    const existing = row
+      ? fromRow(row)
+      : {
+          id: data.id,
+          worktree: data.worktree,
+          vcs: data.vcs as Info["vcs"],
+          sandboxes: [] as string[],
+          time: {
+            created: Date.now(),
+            updated: Date.now(),
+          },
+        }
 
     if (Flag.SYMBOLIC_EXPERIMENTAL_ICON_DISCOVERY) discover(existing)
 
@@ -277,6 +272,9 @@ export namespace Project {
     Database.use((db) =>
       db.insert(ProjectTable).values(insert).onConflictDoUpdate({ target: ProjectTable.id, set: updateSet }).run(),
     )
+    if (data.id !== ProjectID.global) {
+      await migrateFromGlobal(data.id, data.worktree)
+    }
     GlobalBus.emit("event", {
       payload: {
         type: Event.Updated.type,
