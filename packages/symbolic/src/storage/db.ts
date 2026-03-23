@@ -1,8 +1,3 @@
-import { Database as BunDatabase } from "bun:sqlite"
-import { drizzle, type SQLiteBunDatabase } from "drizzle-orm/bun-sqlite"
-import { migrate } from "drizzle-orm/bun-sqlite/migrator"
-import { type SQLiteTransaction } from "drizzle-orm/sqlite-core"
-export * from "drizzle-orm"
 import { Context } from "../util/context"
 import { lazy } from "../util/lazy"
 import { Global } from "../global"
@@ -11,12 +6,15 @@ import { NamedError } from "@symbolic-agent/util/error"
 import z from "zod"
 import path from "path"
 import { readFileSync, readdirSync, existsSync } from "fs"
-import * as schema from "./schema"
 import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
 import { iife } from "@/util/iife"
+import { close as closeBun, open as openBun, type Client as BunClient, type Handle as BunHandle } from "./db/bun"
+import type { Journal } from "./db/shared"
 
 declare const SYMBOLIC_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
+
+export * from "drizzle-orm"
 
 export const NotFoundError = NamedError.create(
   "NotFoundError",
@@ -40,15 +38,11 @@ export namespace Database {
     return path.join(Global.Path.data, `symbolic-${safe}.db`)
   })
 
-  type Schema = typeof schema
-  export type Transaction = SQLiteTransaction<"sync", void, Schema>
-
-  type Client = SQLiteBunDatabase
-
-  type Journal = { sql: string; timestamp: number; name: string }[]
+  type Client = BunClient
+  export type Transaction = Parameters<Parameters<Client["transaction"]>[0]>[0]
 
   const state = {
-    sqlite: undefined as BunDatabase | undefined,
+    sqlite: undefined as BunHandle | undefined,
   }
 
   function time(tag: string) {
@@ -87,19 +81,6 @@ export namespace Database {
   export const Client = lazy(() => {
     log.info("opening database", { path: Path })
 
-    const sqlite = new BunDatabase(Path, { create: true })
-    state.sqlite = sqlite
-
-    sqlite.run("PRAGMA journal_mode = WAL")
-    sqlite.run("PRAGMA synchronous = NORMAL")
-    sqlite.run("PRAGMA busy_timeout = 5000")
-    sqlite.run("PRAGMA cache_size = -64000")
-    sqlite.run("PRAGMA foreign_keys = ON")
-    sqlite.run("PRAGMA wal_checkpoint(PASSIVE)")
-
-    const db = drizzle({ client: sqlite })
-
-    // Apply schema migrations
     const entries =
       typeof SYMBOLIC_MIGRATIONS !== "undefined"
         ? SYMBOLIC_MIGRATIONS
@@ -109,26 +90,22 @@ export namespace Database {
         count: entries.length,
         mode: typeof SYMBOLIC_MIGRATIONS !== "undefined" ? "bundled" : "dev",
       })
-      if (Flag.SYMBOLIC_SKIP_MIGRATIONS) {
-        for (const item of entries) {
-          item.sql = "select 1;"
-        }
-      }
-      migrate(db, entries)
     }
 
+    const { db, handle } = openBun(Path, entries, Flag.SYMBOLIC_SKIP_MIGRATIONS)
+    state.sqlite = handle
     return db
   })
 
   export function close() {
     const sqlite = state.sqlite
     if (!sqlite) return
-    sqlite.close()
+    closeBun(sqlite)
     state.sqlite = undefined
     Client.reset()
   }
 
-  export type TxOrDb = SQLiteTransaction<"sync", void, any, any> | Client
+  export type TxOrDb = Transaction | Client
 
   const ctx = Context.create<{
     tx: TxOrDb
@@ -163,7 +140,9 @@ export namespace Database {
     } catch (err) {
       if (err instanceof Context.NotFound) {
         const effects: (() => void | Promise<void>)[] = []
-        const result = (Client().transaction as any)((tx: TxOrDb) => {
+        const db = Client()
+        const run = db.transaction.bind(db) as (fn: (tx: Transaction) => T) => T
+        const result = run((tx) => {
           return ctx.provide({ tx, effects }, () => callback(tx))
         })
         for (const effect of effects) effect()

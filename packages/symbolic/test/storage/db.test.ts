@@ -52,3 +52,13 @@ describe("Database.Path", () => {
     expect(probe("/tmp/symbolic-test.db")).toBe("/tmp/symbolic-test.db")
   })
 })
+
+describe("Database.close", () => {
+  test("resets the cached client", () => {
+    const first = Database.Client()
+    Database.close()
+    const second = Database.Client()
+
+    expect(second).not.toBe(first)
+  })
+})
