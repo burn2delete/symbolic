@@ -4,10 +4,25 @@ import { usePrompt, type ContentPart, type ImageAttachmentPart } from "@/context
 import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
+import { attachmentMime } from "./files"
 import { normalizePaste, pasteMode } from "./paste"
 
-export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
-export const ACCEPTED_FILE_TYPES = [...ACCEPTED_IMAGE_TYPES, "application/pdf"]
+function dataUrl(file: File, mime: string) {
+  return new Promise<string>((resolve) => {
+    const reader = new FileReader()
+    reader.addEventListener("error", () => resolve(""))
+    reader.addEventListener("load", () => {
+      const value = typeof reader.result === "string" ? reader.result : ""
+      const idx = value.indexOf(",")
+      if (idx === -1) {
+        resolve(value)
+        return
+      }
+      resolve(`data:${mime};base64,${value.slice(idx + 1)}`)
+    })
+    reader.readAsDataURL(file)
+  })
+}
 
 type PromptAttachmentsInput = {
   editor: () => HTMLDivElement | undefined
@@ -23,24 +38,30 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   const language = useLanguage()
 
   const addImageAttachment = async (file: File) => {
-    if (!ACCEPTED_FILE_TYPES.includes(file.type)) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const editor = input.editor()
-      if (!editor) return
-      const dataUrl = reader.result as string
-      const attachment: ImageAttachmentPart = {
-        type: "image",
-        id: uuid(),
-        filename: file.name,
-        mime: file.type,
-        dataUrl,
-      }
-      const cursorPosition = prompt.cursor() ?? getCursorPosition(editor)
-      prompt.set([...prompt.current(), attachment], cursorPosition)
+    const mime = await attachmentMime(file)
+    if (!mime) {
+      showToast({
+        title: language.t("prompt.toast.pasteUnsupported.title"),
+        description: language.t("prompt.toast.pasteUnsupported.description"),
+      })
+      return
     }
-    reader.readAsDataURL(file)
+
+    const editor = input.editor()
+    if (!editor) return
+
+    const url = await dataUrl(file, mime)
+    if (!url) return
+
+    const attachment: ImageAttachmentPart = {
+      type: "image",
+      id: uuid(),
+      filename: file.name,
+      mime,
+      dataUrl: url,
+    }
+    const cursorPosition = prompt.cursor() ?? getCursorPosition(editor)
+    prompt.set([...prompt.current(), attachment], cursorPosition)
   }
 
   const removeImageAttachment = (id: string) => {
@@ -58,7 +79,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
     const items = Array.from(clipboardData.items)
     const fileItems = items.filter((item) => item.kind === "file")
-    const imageItems = fileItems.filter((item) => ACCEPTED_FILE_TYPES.includes(item.type))
+    const imageItems = fileItems.filter((item) => item.type.startsWith("image/") || item.type === "application/pdf")
 
     if (imageItems.length > 0) {
       for (const item of imageItems) {
@@ -147,9 +168,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     if (!dropped) return
 
     for (const file of Array.from(dropped)) {
-      if (ACCEPTED_FILE_TYPES.includes(file.type)) {
-        await addImageAttachment(file)
-      }
+      await addImageAttachment(file)
     }
   }
 

@@ -37,7 +37,8 @@ import { usePlatform } from "@/context/platform"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { createTextFragment, getCursorPosition, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
-import { createPromptAttachments, ACCEPTED_FILE_TYPES } from "./prompt-input/attachments"
+import { createPromptAttachments } from "./prompt-input/attachments"
+import { ACCEPTED_FILE_TYPES } from "./prompt-input/files"
 import {
   canNavigateHistoryAtCursor,
   navigatePromptHistory,
@@ -1304,11 +1305,16 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept={ACCEPTED_FILE_TYPES.join(",")}
               class="hidden"
               onChange={(e) => {
-                const file = e.currentTarget.files?.[0]
-                if (file) addImageAttachment(file)
+                const list = e.currentTarget.files
+                if (list) {
+                  for (const file of Array.from(list)) {
+                    void addImageAttachment(file)
+                  }
+                }
                 e.currentTarget.value = ""
               }}
             />
