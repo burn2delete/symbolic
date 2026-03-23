@@ -3,6 +3,7 @@ import fs from "fs/promises"
 import path from "path"
 import { which } from "../../src/util/which"
 import { tmpdir } from "../fixture/fixture"
+import { Global } from "../../src/global"
 
 async function cmd(dir: string, name: string, exec = true) {
   const ext = process.platform === "win32" ? ".cmd" : ""
@@ -96,5 +97,18 @@ describe("util.which", () => {
     const file = await cmd(bin, "mixed")
 
     same(which("mixed", envPath(bin)), file)
+  })
+
+  test("finds commands from Symbolic-managed bin directories", async () => {
+    const name = `symbolic-which-${Date.now().toString(36)}`
+    const cache = path.join(Global.Path.cache, "node_modules", ".bin")
+    await fs.mkdir(cache, { recursive: true })
+    const file = await cmd(cache, name)
+
+    try {
+      same(which(name, env("")), file)
+    } finally {
+      await fs.rm(file, { force: true })
+    }
   })
 })
