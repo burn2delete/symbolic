@@ -81,6 +81,7 @@ import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { formatTranscript } from "../../util/transcript"
 import { UI } from "@/cli/ui.ts"
 import { useTuiConfig } from "../../context/tui-config"
+import { isDenied } from "../../util/denied"
 
 addDefaultParsers(parsers.parsers)
 
@@ -1665,12 +1666,7 @@ function InlineTool(props: {
 
   const error = createMemo(() => (props.part.state.status === "error" ? props.part.state.error : undefined))
 
-  const denied = createMemo(
-    () =>
-      error()?.includes("rejected permission") ||
-      error()?.includes("specified a rule") ||
-      error()?.includes("user dismissed"),
-  )
+  const denied = createMemo(() => isDenied(error()))
 
   return (
     <box
