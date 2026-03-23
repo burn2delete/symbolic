@@ -73,8 +73,15 @@ await import(`../packages/sdk/js/script/build.ts`)
 
 if (Script.release) {
   if (!Script.preview) {
-    await $`git commit -am "release: v${Script.version}"`
-    await $`git tag v${Script.version}`
+    const diff = (await $`git status --short`.text()).trim()
+    if (diff) {
+      await $`git commit -am "release: v${Script.version}"`
+    }
+    await $`git fetch origin --tags`
+    const tag = (await $`git tag -l v${Script.version}`.text()).trim()
+    if (!tag) {
+      await $`git tag v${Script.version}`
+    }
     await $`git fetch origin`
     await $`git cherry-pick HEAD..origin/dev`.nothrow()
     await $`git push origin HEAD --tags --no-verify --force-with-lease`
