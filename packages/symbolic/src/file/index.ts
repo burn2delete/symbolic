@@ -12,6 +12,9 @@ import fuzzysort from "fuzzysort"
 import { Global } from "../global"
 import { git } from "@/util/git"
 import { Protected } from "./protected"
+import { Effect, Layer, ServiceMap } from "effect"
+import { InstanceState } from "@/effect/instance-state"
+import { makeRunPromise } from "@/effect/run-service"
 
 export namespace File {
   const log = Log.create({ service: "file" })
@@ -332,84 +335,119 @@ export namespace File {
     ),
   }
 
-  const state = Instance.state(async () => {
-    type Entry = { files: string[]; dirs: string[] }
-    let cache: Entry = { files: [], dirs: [] }
-    let fetching = false
+  type Entry = { files: string[]; dirs: string[] }
+  type Search = {
+    cache: Entry
+    fetching: boolean
+    init: () => Promise<void>
+    files: () => Promise<Entry>
+  }
 
-    const isGlobalHome = Instance.directory === Global.Path.home && Instance.project.id === "global"
-
-    const fn = async (result: Entry) => {
-      // Disable scanning if in root of file system
-      if (Instance.directory === path.parse(Instance.directory).root) return
-      fetching = true
-
-      if (isGlobalHome) {
-        const dirs = new Set<string>()
-        const ignore = Protected.names()
-
-        const ignoreNested = new Set(["node_modules", "dist", "build", "target", "vendor"])
-        const shouldIgnore = (name: string) => name.startsWith(".") || ignore.has(name)
-        const shouldIgnoreNested = (name: string) => name.startsWith(".") || ignoreNested.has(name)
-
-        const top = await fs.promises
-          .readdir(Instance.directory, { withFileTypes: true })
-          .catch(() => [] as fs.Dirent[])
-
-        for (const entry of top) {
-          if (!entry.isDirectory()) continue
-          if (shouldIgnore(entry.name)) continue
-          dirs.add(entry.name + "/")
-
-          const base = path.join(Instance.directory, entry.name)
-          const children = await fs.promises.readdir(base, { withFileTypes: true }).catch(() => [] as fs.Dirent[])
-          for (const child of children) {
-            if (!child.isDirectory()) continue
-            if (shouldIgnoreNested(child.name)) continue
-            dirs.add(entry.name + "/" + child.name + "/")
-          }
-        }
-
-        result.dirs = Array.from(dirs).toSorted()
-        cache = result
-        fetching = false
-        return
-      }
-
-      const set = new Set<string>()
-      for await (const file of Ripgrep.files({ cwd: Instance.directory })) {
-        result.files.push(file)
-        let current = file
-        while (true) {
-          const dir = path.dirname(current)
-          if (dir === ".") break
-          if (dir === current) break
-          current = dir
-          if (set.has(dir)) continue
-          set.add(dir)
-          result.dirs.push(dir + "/")
-        }
-      }
-      cache = result
-      fetching = false
-    }
-    fn(cache)
-
-    return {
-      async files() {
-        if (!fetching) {
-          fn({
+  function create(ctx: { directory: string; project: { id: string } }) {
+    const state: Search = {
+      cache: { files: [], dirs: [] },
+      fetching: false,
+      init: async () => {
+        await load(state.cache)
+      },
+      files: async () => {
+        if (!state.fetching) {
+          void load({
             files: [],
             dirs: [],
           })
         }
-        return cache
+        return state.cache
       },
     }
-  })
+
+    const root = path.parse(ctx.directory).root
+    const globalHome = ctx.directory === Global.Path.home && ctx.project.id === "global"
+
+    const load = async (next: Entry) => {
+      if (ctx.directory === root) return
+      state.fetching = true
+
+      if (globalHome) {
+        const dirs = new Set<string>()
+        const ignore = Protected.names()
+        const nested = new Set(["node_modules", "dist", "build", "target", "vendor"])
+        const skip = (name: string) => name.startsWith(".") || ignore.has(name)
+        const skipNested = (name: string) => name.startsWith(".") || nested.has(name)
+        const top = await fs.promises.readdir(ctx.directory, { withFileTypes: true }).catch(() => [] as fs.Dirent[])
+
+        for (const item of top) {
+          if (!item.isDirectory()) continue
+          if (skip(item.name)) continue
+          dirs.add(item.name + "/")
+
+          const base = path.join(ctx.directory, item.name)
+          const children = await fs.promises.readdir(base, { withFileTypes: true }).catch(() => [] as fs.Dirent[])
+          for (const child of children) {
+            if (!child.isDirectory()) continue
+            if (skipNested(child.name)) continue
+            dirs.add(item.name + "/" + child.name + "/")
+          }
+        }
+
+        next.dirs = Array.from(dirs).toSorted()
+        state.cache = next
+        state.fetching = false
+        return
+      }
+
+      const seen = new Set<string>()
+      for await (const file of Ripgrep.files({ cwd: ctx.directory })) {
+        next.files.push(file)
+        let current = file
+        while (true) {
+          const dir = path.dirname(current)
+          if (dir === "." || dir === current) break
+          current = dir
+          if (seen.has(dir)) continue
+          seen.add(dir)
+          next.dirs.push(dir + "/")
+        }
+      }
+
+      state.cache = next
+      state.fetching = false
+    }
+
+    void state.init()
+    return state
+  }
+
+  interface Interface {
+    readonly init: () => Effect.Effect<void>
+    readonly files: () => Effect.Effect<Entry>
+  }
+
+  class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/FileSearch") {}
+
+  const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+      const state = yield* InstanceState.make(Effect.fn("File.search")((ctx) => Effect.sync(() => create(ctx))))
+
+      const init = Effect.fn("File.init")(function* () {
+        const search = yield* InstanceState.get(state)
+        yield* Effect.promise(() => search.init())
+      })
+
+      const files = Effect.fn("File.files")(function* () {
+        const search = yield* InstanceState.get(state)
+        return yield* Effect.promise(() => search.files())
+      })
+
+      return Service.of({ init, files })
+    }),
+  )
+
+  const runPromise = makeRunPromise(Service, layer)
 
   export function init() {
-    state()
+    void runPromise((svc) => svc.init())
   }
 
   export async function status() {
@@ -618,7 +656,7 @@ export namespace File {
     const kind = input.type ?? (input.dirs === false ? "file" : "all")
     log.info("search", { query, kind })
 
-    const result = await state().then((x) => x.files())
+    const result = await runPromise((svc) => svc.files())
 
     const hidden = (item: string) => {
       const normalized = item.replaceAll("\\", "/").replace(/\/+$/, "")
