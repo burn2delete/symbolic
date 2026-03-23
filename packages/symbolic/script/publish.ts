@@ -64,7 +64,7 @@ await Bun.file(`./dist/${pkg.name}/LICENSE`).write(await Bun.file("../../LICENSE
 await Bun.file(`./dist/${pkg.name}/package.json`).write(
   JSON.stringify(
     {
-      name: process.env.SYMBOLIC_NPM_NAME || "symbolic-agent",
+      name: process.env.SYMBOLIC_NPM_NAME || "@symbolic-agent/cli",
       bin: {
         [pkg.name]: `./bin/${pkg.name}`,
       },
@@ -109,7 +109,7 @@ if (on("SYMBOLIC_PUBLISH_NPM")) {
     await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${bin.dir}`)
   })
   await Promise.all(tasks)
-  const name = process.env.SYMBOLIC_NPM_NAME || "symbolic-agent"
+  const name = process.env.SYMBOLIC_NPM_NAME || "@symbolic-agent/cli"
   if (!(await seen(name, version))) {
     await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
   }
