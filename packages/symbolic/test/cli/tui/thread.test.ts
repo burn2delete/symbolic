@@ -7,11 +7,20 @@ const stop = new Error("stop")
 const seen = {
   tui: [] as string[],
   inst: [] as string[],
+  prompt: [] as string[],
 }
 
+let piped = ""
+
+mock.module("node:stream/consumers", () => ({
+  text: async () => piped,
+  buffer: async () => Buffer.alloc(0),
+}))
+
 mock.module("../../../src/cli/cmd/tui/app", () => ({
-  tui: async (input: { directory: string }) => {
+  tui: async (input: { directory: string; args?: { prompt?: string } }) => {
     seen.tui.push(input.directory)
+    if (input.args?.prompt !== undefined) seen.prompt.push(input.args.prompt)
     throw stop
   },
 }))
@@ -116,6 +125,7 @@ describe("tui thread", () => {
     const type = process.platform === "win32" ? "junction" : "dir"
     seen.tui.length = 0
     seen.inst.length = 0
+    seen.prompt.length = 0
     await fs.symlink(tmp.path, link, type)
 
     Object.defineProperty(process.stdin, "isTTY", {
@@ -153,5 +163,40 @@ describe("tui thread", () => {
 
   test("uses the real cwd after resolving a relative project from PWD", async () => {
     await check(".")
+  })
+
+  test("prepends piped stdin to the prompt", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const cwd = process.cwd()
+    const worker = globalThis.Worker
+    const tty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY")
+    seen.tui.length = 0
+    seen.inst.length = 0
+    seen.prompt.length = 0
+    piped = "from-stdin"
+
+    Object.defineProperty(process.stdin, "isTTY", {
+      configurable: true,
+      value: false,
+    })
+    globalThis.Worker = class extends EventTarget {
+      onerror = null
+      onmessage = null
+      onmessageerror = null
+      postMessage() {}
+      terminate() {}
+    } as unknown as typeof Worker
+
+    try {
+      process.chdir(tmp.path)
+      await expect(call()).rejects.toBe(stop)
+      expect(seen.prompt[0]).toBe("from-stdin\nhi")
+    } finally {
+      piped = ""
+      process.chdir(cwd)
+      if (tty) Object.defineProperty(process.stdin, "isTTY", tty)
+      else delete (process.stdin as { isTTY?: boolean }).isTTY
+      globalThis.Worker = worker
+    }
   })
 })
