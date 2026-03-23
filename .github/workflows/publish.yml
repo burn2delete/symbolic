@@ -1,5 +1,5 @@
 name: publish
-run-name: "${{ format('release {0}', inputs.bump) }}"
+run-name: "${{ format('release {0}', github.event.inputs.version || github.event.inputs.bump || github.ref_name) }}"
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
         required: false
         type: string
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.version || inputs.bump }}
+concurrency: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.version || github.event.inputs.bump }}
 
 permissions:
   id-token: write
@@ -48,7 +48,7 @@ jobs:
           symbolic-app-id: ${{ vars.SYMBOLIC_APP_ID }}
           symbolic-app-secret: ${{ secrets.SYMBOLIC_APP_SECRET }}
 
-      - if: inputs.bump || inputs.version
+      - if: github.event.inputs.bump || github.event.inputs.version
         uses: ./.github/actions/setup-symbolic-cli
 
       - name: Resolve release target
@@ -66,8 +66,8 @@ jobs:
           ./script/version.ts
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-          SYMBOLIC_BUMP: ${{ inputs.bump }}
-          SYMBOLIC_VERSION: ${{ inputs.version }}
+          SYMBOLIC_BUMP: ${{ github.event.inputs.bump }}
+          SYMBOLIC_VERSION: ${{ github.event.inputs.version }}
           SYMBOLIC_API_KEY: ${{ secrets.SYMBOLIC_API_KEY }}
           GH_REPO: ${{ steps.target.outputs.full }}
     outputs:
