@@ -1,7 +1,7 @@
 import { Database as Sqlite } from "bun:sqlite"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
-import type { Journal, Query } from "./shared"
+import type { Journal, Query } from "./shared.ts"
 
 export type Handle = InstanceType<typeof Sqlite>
 export type Client = ReturnType<typeof drizzle>

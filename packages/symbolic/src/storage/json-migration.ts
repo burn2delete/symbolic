@@ -7,17 +7,8 @@ import path from "path"
 import { existsSync } from "fs"
 import { Filesystem } from "../util/filesystem"
 import { Glob } from "../util/glob"
-import type * as BunDriver from "./db/bun"
-import type * as NodeDriver from "./db/node"
+import { wrap } from "#db"
 import type { Client, Raw } from "./db/shared"
-
-type Driver = {
-  wrap(sqlite: Raw): Client
-}
-
-const driver: Driver = (process.versions.bun ? await import("./db/bun") : await import("./db/node")) as
-  | typeof BunDriver
-  | typeof NodeDriver
 
 export namespace JsonMigration {
   const log = Log.create({ service: "json-migration" })
@@ -52,8 +43,8 @@ export namespace JsonMigration {
     log.info("starting json to sqlite migration", { storageDir })
     const start = performance.now()
 
-    const db = "insert" in input ? input : driver.wrap(input)
-    const sqlite = "insert" in input ? input.$client : input
+    const db = ("insert" in input ? input : wrap(input)) as Client
+    const sqlite = ("insert" in input ? input.$client : input) as Raw
 
     // Optimize SQLite for bulk inserts
     sqlite.exec("PRAGMA journal_mode = WAL")

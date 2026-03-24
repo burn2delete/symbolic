@@ -167,11 +167,10 @@ export namespace MCP {
     const queue = [pid]
     while (queue.length > 0) {
       const current = queue.shift()!
-      const out = await Process.text(["pgrep", "-P", String(current)], { nothrow: true })
-      if (out.code !== 0) continue
-      for (const tok of out.stdout.toString().trim().split(/\s+/)) {
+      const lines = await Process.lines(["pgrep", "-P", String(current)], { nothrow: true })
+      for (const tok of lines) {
         const cpid = parseInt(tok, 10)
-        if (!isNaN(cpid) && pids.indexOf(cpid) === -1) {
+        if (!isNaN(cpid) && !pids.includes(cpid)) {
           pids.push(cpid)
           queue.push(cpid)
         }

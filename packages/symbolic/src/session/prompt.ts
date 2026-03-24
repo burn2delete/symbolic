@@ -31,7 +31,6 @@ import { FileTime } from "../file/time"
 import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
 import { Command } from "../command"
-import { $ } from "bun"
 import { pathToFileURL, fileURLToPath } from "url"
 import { ConfigMarkdown } from "../config/markdown"
 import { SessionSummary } from "./summary"
@@ -1889,13 +1888,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
     const shell = ConfigMarkdown.shell(template)
     if (shell.length > 0) {
+      const sh = Shell.preferred()
       const results = await Promise.all(
         shell.map(async ([, cmd]) => {
-          try {
-            return await $`${{ raw: cmd }}`.quiet().nothrow().text()
-          } catch (error) {
-            return `Error executing command: ${error instanceof Error ? error.message : String(error)}`
-          }
+          return (await Process.text([cmd], { shell: sh, nothrow: true })).text
         }),
       )
       let index = 0

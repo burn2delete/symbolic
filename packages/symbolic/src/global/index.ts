@@ -18,7 +18,7 @@ export namespace Global {
       return process.env.SYMBOLIC_TEST_HOME || os.homedir()
     },
     data,
-    bin: path.join(data, "bin"),
+    bin: path.join(cache, "bin"),
     log: path.join(data, "log"),
     cache,
     config,
@@ -51,4 +51,5 @@ if (version !== CACHE_VERSION) {
     )
   } catch (e) {}
   await Filesystem.write(path.join(Global.Path.cache, "version"), CACHE_VERSION)
+  await fs.mkdir(Global.Path.bin, { recursive: true })
 }

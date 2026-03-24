@@ -9,9 +9,8 @@ import { readFileSync, readdirSync, existsSync } from "fs"
 import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
 import { iife } from "../util/iife"
-import type * as BunDriver from "./db/bun"
-import type * as NodeDriver from "./db/node"
-import type { Client as DbClient } from "./db/bun"
+import { close as closeDriver, open, openReadonly, query as queryDriver } from "#db"
+import type { Client as DbClient } from "#db"
 import type { Journal, Query, Raw, Transaction } from "./db/shared"
 
 declare const SYMBOLIC_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
@@ -28,20 +27,7 @@ export const NotFoundError = NamedError.create(
 const log = Log.create({ service: "db" })
 
 type Client = DbClient
-
-type Driver = {
-  open(path: string, entries: Journal, skip: boolean): {
-    db: Client
-    handle: Raw
-  }
-  wrap(sqlite: Raw): Client
-  openReadonly(path: string): Raw
-  query(sqlite: Raw, sql: string): Query[]
-  close(sqlite: Raw): void
-}
-
 const runtime: "bun" | "node" = process.versions.bun ? "bun" : "node"
-const driver: Driver = (runtime === "bun" ? await import("./db/bun") : await import("./db/node")) as unknown as Driver
 
 export namespace Database {
   export const Runtime = runtime
@@ -109,7 +95,7 @@ export namespace Database {
       })
     }
 
-    const { db, handle } = driver.open(Path, entries, Flag.SYMBOLIC_SKIP_MIGRATIONS)
+    const { db, handle } = open(Path, entries, Flag.SYMBOLIC_SKIP_MIGRATIONS)
     state.sqlite = handle
     return db
   })
@@ -117,7 +103,7 @@ export namespace Database {
   export function close() {
     const sqlite = state.sqlite
     if (!sqlite) return
-    driver.close(sqlite)
+    closeDriver(sqlite)
     state.sqlite = undefined
     Client.reset()
   }
@@ -125,11 +111,11 @@ export namespace Database {
   export type TxOrDb = Transaction | Client
 
   export function query(sql: string): Query[] {
-    const sqlite = driver.openReadonly(Path)
+    const sqlite = openReadonly(Path)
     try {
-      return driver.query(sqlite, sql)
+      return queryDriver(sqlite, sql)
     } finally {
-      driver.close(sqlite)
+      closeDriver(sqlite)
     }
   }
 

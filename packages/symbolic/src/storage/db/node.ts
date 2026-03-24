@@ -1,6 +1,6 @@
 import Sqlite from "better-sqlite3"
 import { drizzle } from "drizzle-orm/better-sqlite3"
-import type { Journal, Query } from "./shared"
+import type { Journal, Query } from "./shared.ts"
 
 type Handle = InstanceType<typeof Sqlite>
 

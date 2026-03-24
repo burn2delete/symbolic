@@ -1,12 +1,36 @@
-import { Hono } from "hono"
+import { Hono, type Context, type Handler } from "hono"
 import { describeRoute, validator, resolver } from "hono-openapi"
-import { upgradeWebSocket } from "hono/bun"
 import z from "zod"
 import { Pty } from "@/pty"
 import { PtyID } from "@/pty/schema"
 import { NotFoundError } from "../../storage/db"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
+
+type WsSocket = {
+  raw: unknown
+  close(code?: number, reason?: string): void
+}
+
+type WsMessage = {
+  data: unknown
+}
+
+type WsHandlers = {
+  onOpen?(event: Event, ws: WsSocket): void | Promise<void>
+  onMessage?(event: WsMessage): void
+  onClose?(): void
+  onError?(): void
+}
+
+type Events = (c: Context) => WsHandlers | Promise<WsHandlers>
+
+const upgrade = (fn: Events): Handler => {
+  return async (c, next) => {
+    const { upgradeWebSocket } = await import("hono/bun")
+    return (upgradeWebSocket as unknown as (fn: Events) => Handler)(fn)(c, next)
+  }
+}
 
 export const PtyRoutes = lazy(() =>
   new Hono()
@@ -150,7 +174,7 @@ export const PtyRoutes = lazy(() =>
         },
       }),
       validator("param", z.object({ ptyID: PtyID.zod })),
-      upgradeWebSocket(async (c) => {
+      upgrade(async (c: Context) => {
         const id = PtyID.zod.parse(c.req.param("ptyID"))
         const cursor = (() => {
           const value = c.req.query("cursor")
@@ -180,7 +204,7 @@ export const PtyRoutes = lazy(() =>
         let ready = false
 
         return {
-          async onOpen(_event, ws) {
+          async onOpen(_event: Event, ws: WsSocket) {
             const socket = ws.raw
             if (!isSocket(socket)) {
               ws.close()
@@ -191,7 +215,7 @@ export const PtyRoutes = lazy(() =>
             for (const msg of pending) handler?.onMessage(msg)
             pending.length = 0
           },
-          onMessage(event) {
+          onMessage(event: WsMessage) {
             if (typeof event.data !== "string") return
             if (!ready) {
               pending.push(event.data)

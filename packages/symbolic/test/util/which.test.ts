@@ -111,4 +111,16 @@ describe("util.which", () => {
       await fs.rm(file, { force: true })
     }
   })
+
+  test("finds commands from Symbolic cache bin", async () => {
+    const name = `symbolic-bin-${Date.now().toString(36)}`
+    await fs.mkdir(Global.Path.bin, { recursive: true })
+    const file = await cmd(Global.Path.bin, name)
+
+    try {
+      same(which(name, env("")), file)
+    } finally {
+      await fs.rm(file, { force: true })
+    }
+  })
 })

@@ -37,7 +37,6 @@ import { InstanceBootstrap } from "../project/bootstrap"
 import { NotFoundError } from "../storage/db"
 import { Snapshot } from "../snapshot"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
-import { websocket } from "hono/bun"
 import { HTTPException } from "hono/http-exception"
 import { errors } from "./error"
 import { Filesystem } from "@/util/filesystem"
@@ -630,7 +629,7 @@ export namespace Server {
   /** @deprecated do not use this dumb shit */
   export let url: URL
 
-  export function listen(opts: {
+  export async function listen(opts: {
     port: number
     hostname: string
     mdns?: boolean
@@ -639,6 +638,7 @@ export namespace Server {
   }) {
     url = new URL(`http://${opts.hostname}:${opts.port}`)
     const app = createApp(opts)
+    const { websocket } = await import("hono/bun")
     const args = {
       hostname: opts.hostname,
       idleTimeout: 0,

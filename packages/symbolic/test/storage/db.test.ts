@@ -41,7 +41,7 @@ function probe(db: string) {
 }
 
 function nodeProbe(db: string) {
-  const file = pathToFileURL(path.join(root, "src/storage/db/node.ts")).href
+  const file = pathToFileURL(path.join(root, "src/storage/db.node.ts")).href
   const child = Bun.spawnSync({
     cmd: [
       "node",
