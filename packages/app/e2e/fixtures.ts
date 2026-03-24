@@ -138,6 +138,9 @@ async function seedStorage(page: Page, input: { directory: string; extra?: strin
     const win = window as E2EWindow
     win.__symbolic_e2e = {
       ...win.__symbolic_e2e,
+      prompt: {
+        enabled: true,
+      },
       terminal: {
         enabled: true,
         terminals: {},

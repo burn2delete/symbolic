@@ -5,6 +5,7 @@ export type TerminalProbeState = {
   connects: number
   rendered: string
   settled: number
+  focusing: number
 }
 
 type TerminalProbeControl = {
@@ -13,6 +14,10 @@ type TerminalProbeControl = {
 
 export type E2EWindow = Window & {
   __symbolic_e2e?: {
+    prompt?: {
+      enabled?: boolean
+      current?: import("./prompt").PromptProbeState
+    }
     terminal?: {
       enabled?: boolean
       terminals?: Record<string, TerminalProbeState>
@@ -26,6 +31,7 @@ const seed = (): TerminalProbeState => ({
   connects: 0,
   rendered: "",
   settled: 0,
+  focusing: 0,
 })
 
 const root = () => {
@@ -81,6 +87,15 @@ export const terminalProbe = (id: string) => {
       if (!state) return
       const prev = state[id] ?? seed()
       state[id] = { ...prev, settled: prev.settled + 1 }
+    },
+    focus(count: number) {
+      set({ focusing: Math.max(0, count) })
+    },
+    step() {
+      const state = terms()
+      if (!state) return
+      const prev = state[id] ?? seed()
+      state[id] = { ...prev, focusing: Math.max(0, prev.focusing - 1) }
     },
     control(next: Partial<TerminalProbeControl>) {
       const state = controls()
