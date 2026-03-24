@@ -40,7 +40,12 @@ import { createGateway } from "@ai-sdk/gateway"
 import { createTogetherAI } from "@ai-sdk/togetherai"
 import { createPerplexity } from "@ai-sdk/perplexity"
 import { createVercel } from "@ai-sdk/vercel"
-import { createGitLab, VERSION as GITLAB_PROVIDER_VERSION } from "@gitlab/gitlab-ai-provider"
+import {
+  createGitLab,
+  VERSION as GITLAB_PROVIDER_VERSION,
+  discoverWorkflowModels,
+  isWorkflowModel,
+} from "gitlab-ai-provider"
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers"
 import { GoogleAuth } from "google-auth-library"
 import { ProviderTransform } from "./transform"
@@ -124,18 +129,20 @@ export namespace Provider {
     "@ai-sdk/togetherai": createTogetherAI,
     "@ai-sdk/perplexity": createPerplexity,
     "@ai-sdk/vercel": createVercel,
-    "@gitlab/gitlab-ai-provider": createGitLab,
+    "gitlab-ai-provider": createGitLab,
     // @ts-ignore (TODO: kill this code so we dont have to maintain it)
     "@ai-sdk/github-copilot": createGitHubCopilotOpenAICompatible,
   }
 
   type CustomModelLoader = (sdk: any, modelID: string, options?: Record<string, any>) => Promise<any>
   type CustomVarsLoader = (options: Record<string, any>) => Record<string, string>
+  type CustomDiscoverModels = () => Promise<Record<string, Model>>
   type CustomLoader = (provider: Info) => Promise<{
     autoload: boolean
     getModel?: CustomModelLoader
     vars?: CustomVarsLoader
     options?: Record<string, any>
+    discoverModels?: CustomDiscoverModels
   }>
 
   function useLanguageModel(sdk: any) {
@@ -518,7 +525,10 @@ export namespace Provider {
     },
     gitlab: async (input) => {
       const auth = await Auth.get(input.id)
-      const instanceUrl = (auth && "enterpriseUrl" in auth ? auth.enterpriseUrl : undefined) || Env.get("GITLAB_INSTANCE_URL") || "https://gitlab.com"
+      const instanceUrl =
+        (auth && "enterpriseUrl" in auth ? auth.enterpriseUrl : undefined) ||
+        Env.get("GITLAB_INSTANCE_URL") ||
+        "https://gitlab.com"
       const apiKey = await (async () => {
         if (auth?.type === "oauth") return auth.access
         if (auth?.type === "api") return auth.key
@@ -534,27 +544,99 @@ export namespace Provider {
         ...(providerConfig?.options?.aiGatewayHeaders || {}),
       }
 
+      const featureFlags = {
+        duo_agent_platform_agentic_chat: true,
+        duo_agent_platform: true,
+        ...(providerConfig?.options?.featureFlags || {}),
+      }
+
       return {
         autoload: !!apiKey,
         options: {
           instanceUrl,
           apiKey,
           aiGatewayHeaders,
-          featureFlags: {
-            duo_agent_platform_agentic_chat: true,
-            duo_agent_platform: true,
-            ...(providerConfig?.options?.featureFlags || {}),
-          },
+          featureFlags,
         },
-        async getModel(sdk: ReturnType<typeof createGitLab>, modelID: string) {
+        async getModel(sdk: ReturnType<typeof createGitLab>, modelID: string, options?: Record<string, any>) {
+          if (modelID.startsWith("duo-workflow-")) {
+            const workflowRef = options?.workflowRef as string | undefined
+            const id = isWorkflowModel(modelID) ? modelID : "duo-workflow"
+            const model = sdk.workflowChat(id, { featureFlags })
+            if (workflowRef) {
+              model.selectedModelRef = workflowRef
+            }
+            return model
+          }
           return sdk.agenticChat(modelID, {
             aiGatewayHeaders,
-            featureFlags: {
-              duo_agent_platform_agentic_chat: true,
-              duo_agent_platform: true,
-              ...(providerConfig?.options?.featureFlags || {}),
-            },
+            featureFlags,
           })
+        },
+        async discoverModels(): Promise<Record<string, Model>> {
+          if (!apiKey) {
+            log.info("gitlab model discovery skipped: no apiKey")
+            return {}
+          }
+
+          try {
+            const getHeaders = (): Record<string, string> =>
+              auth?.type === "api" ? { "PRIVATE-TOKEN": apiKey } : { Authorization: `Bearer ${apiKey}` }
+
+            log.info("gitlab model discovery starting", { instanceUrl })
+            const result = await discoverWorkflowModels(
+              { instanceUrl, getHeaders },
+              { workingDirectory: Instance.directory },
+            )
+
+            if (!result.models.length) {
+              log.info("gitlab model discovery skipped: no models found", {
+                project: result.project ? { id: result.project.id, path: result.project.pathWithNamespace } : null,
+              })
+              return {}
+            }
+
+            const models: Record<string, Model> = {}
+            for (const item of result.models) {
+              if (input.models[item.id]) continue
+              models[item.id] = {
+                id: ModelID.make(item.id),
+                providerID: ProviderID.make("gitlab"),
+                name: `Agent Platform (${item.name})`,
+                family: "",
+                api: {
+                  id: item.id,
+                  url: instanceUrl,
+                  npm: "gitlab-ai-provider",
+                },
+                status: "active",
+                headers: {},
+                options: { workflowRef: item.ref },
+                cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+                limit: { context: item.context, output: item.output },
+                capabilities: {
+                  temperature: false,
+                  reasoning: true,
+                  attachment: true,
+                  toolcall: true,
+                  input: { text: true, audio: false, image: true, video: false, pdf: true },
+                  output: { text: true, audio: false, image: false, video: false, pdf: false },
+                  interleaved: false,
+                },
+                release_date: "",
+                variants: {},
+              }
+            }
+
+            log.info("gitlab model discovery complete", {
+              count: Object.keys(models).length,
+              models: Object.keys(models),
+            })
+            return models
+          } catch (error) {
+            log.warn("gitlab model discovery failed", { error })
+            return {}
+          }
         },
       }
     },
@@ -854,6 +936,9 @@ export namespace Provider {
     const varsLoaders: {
       [providerID: string]: CustomVarsLoader
     } = {}
+    const discoveryLoaders: {
+      [providerID: string]: CustomDiscoverModels
+    } = {}
     const sdk = new Map<string, SDK>()
 
     log.info("init")
@@ -1054,6 +1139,7 @@ export namespace Provider {
       if (result && (result.autoload || providers[providerID])) {
         if (result.getModel) modelLoaders[providerID] = result.getModel
         if (result.vars) varsLoaders[providerID] = result.vars
+        if (result.discoverModels) discoveryLoaders[providerID] = result.discoverModels
         const opts = result.options ?? {}
         const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
         mergeProvider(providerID, patch)
@@ -1113,6 +1199,18 @@ export namespace Provider {
       }
 
       log.info("found", { providerID })
+    }
+
+    const gitlab = ProviderID.make("gitlab")
+    if (discoveryLoaders[gitlab] && providers[gitlab]) {
+      await discoveryLoaders[gitlab]()
+        .then((found) => {
+          for (const [modelID, model] of Object.entries(found)) {
+            if (providers[gitlab].models[modelID]) continue
+            providers[gitlab].models[modelID] = model
+          }
+        })
+        .catch((error) => log.warn("state discovery error", { id: "gitlab", error }))
     }
 
     return {
@@ -1295,7 +1393,7 @@ export namespace Provider {
 
     try {
       const language = s.modelLoaders[model.providerID]
-        ? await s.modelLoaders[model.providerID](sdk, model.api.id, provider.options)
+        ? await s.modelLoaders[model.providerID](sdk, model.api.id, { ...provider.options, ...model.options })
         : sdk.languageModel(model.api.id)
       s.models.set(key, language)
       return language

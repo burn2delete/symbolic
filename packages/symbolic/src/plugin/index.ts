@@ -11,7 +11,7 @@ import { CodexRuntimePlugin } from "@symbolic-agent/codex-runtime"
 import { Session } from "../session"
 import { NamedError } from "@symbolic-agent/util/error"
 import { CopilotAuthPlugin } from "./copilot"
-import { GitlabAuthPlugin } from "./gitlab"
+import { gitlabAuthPlugin as GitlabAuthPlugin } from "opencode-gitlab-auth"
 import { Effect, Layer, ServiceMap } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { makeRunPromise } from "@/effect/run-service"
@@ -22,7 +22,12 @@ export namespace Plugin {
   const BUILTIN = ["symbolic-anthropic-auth@0.0.13"]
   const DEPRECATED_PLUGIN_PACKAGES = ["symbolic-openai-codex-auth", "symbolic-copilot-auth"]
 
-  const INTERNAL_PLUGINS: PluginInstance[] = [CodexAuthPlugin, CodexRuntimePlugin, CopilotAuthPlugin, GitlabAuthPlugin]
+  const INTERNAL_PLUGINS: PluginInstance[] = [
+    CodexAuthPlugin,
+    CodexRuntimePlugin,
+    CopilotAuthPlugin,
+    GitlabAuthPlugin as unknown as PluginInstance,
+  ]
 
   type State = {
     hooks: Hooks[]

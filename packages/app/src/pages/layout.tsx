@@ -297,19 +297,20 @@ export default function Layout(props: ParentProps) {
         last: server.projects.last(),
       }
     },
-    async (state) => {
-      if (!state) return false
+    async (value) => {
+      if (!value) return false
+      if (!untrack(() => state.autoselect)) return false
 
-      const list = state.list
+      const list = value.list
       if (list.length === 0) {
-        if (!state.last) return false
+        if (!value.last) return false
         setState("autoselect", false)
-        openProject(state.last, false)
-        navigateToProject(state.last)
+        openProject(value.last, false)
+        navigateToProject(value.last)
         return true
       }
 
-      const next = list.find((project) => project.worktree === state.last) ?? list[0]
+      const next = list.find((project) => project.worktree === value.last) ?? list[0]
       if (!next) return false
       setState("autoselect", false)
       openProject(next.worktree, false)

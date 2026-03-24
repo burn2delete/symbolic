@@ -1,17 +1,17 @@
-import fs from "fs/promises"
 import path from "path"
-import { Duration, Effect, Layer, ServiceMap } from "effect"
+import { Cause, Duration, Effect, Layer, Schedule, ServiceMap } from "effect"
 import type { Agent } from "../agent/agent"
+import { AppFileSystem } from "@/filesystem"
+import { PermissionNext } from "../permission/next"
 import { Identifier } from "../id/id"
-import { evaluate } from "@/permission/evaluate"
-import { Filesystem } from "../util/filesystem"
-import { Glob } from "../util/glob"
+import { Log } from "../util/log"
 import { ToolID } from "./schema"
 import { TRUNCATION_DIR } from "./truncation-dir"
 import { makeRunPromise } from "@/effect/run-service"
 
 export namespace TruncateEffect {
-  const day = Duration.days(7)
+  const log = Log.create({ service: "truncation" })
+  const RETENTION = Duration.days(7)
 
   export const MAX_LINES = 2000
   export const MAX_BYTES = 50 * 1024
@@ -26,9 +26,9 @@ export namespace TruncateEffect {
     direction?: "head" | "tail"
   }
 
-  function has(agent?: Agent.Info) {
+  function hasTaskTool(agent?: Agent.Info) {
     if (!agent?.permission) return false
-    return evaluate("task", "*", agent.permission).action !== "deny"
+    return PermissionNext.evaluate("task", "*", agent.permission).action !== "deny"
   }
 
   export interface Interface {
@@ -41,14 +41,17 @@ export namespace TruncateEffect {
   export const layer = Layer.effect(
     Service,
     Effect.gen(function* () {
+      const fs = yield* AppFileSystem.Service
+
       const cleanup = Effect.fn("Truncate.cleanup")(function* () {
-        const cutoff = Identifier.timestamp(Identifier.create("tool", false, Date.now() - Duration.toMillis(day)))
-        const entries = yield* Effect.promise(() =>
-          Glob.scan("tool_*", { cwd: TRUNCATION_DIR, include: "file" }).catch(() => [] as string[]),
+        const cutoff = Identifier.timestamp(Identifier.create("tool", false, Date.now() - Duration.toMillis(RETENTION)))
+        const entries = yield* fs.readDirectory(TRUNCATION_DIR).pipe(
+          Effect.map((all) => all.filter((name) => name.startsWith("tool_"))),
+          Effect.catch(() => Effect.succeed([] as string[])),
         )
         for (const entry of entries) {
           if (Identifier.timestamp(entry) >= cutoff) continue
-          yield* Effect.promise(() => fs.unlink(path.join(TRUNCATION_DIR, entry)).catch(() => undefined))
+          yield* fs.remove(path.join(TRUNCATION_DIR, entry)).pipe(Effect.catch(() => Effect.void))
         }
       })
 
@@ -57,46 +60,47 @@ export namespace TruncateEffect {
         const maxBytes = options.maxBytes ?? MAX_BYTES
         const direction = options.direction ?? "head"
         const lines = text.split("\n")
-        const bytes = Buffer.byteLength(text, "utf-8")
+        const totalBytes = Buffer.byteLength(text, "utf-8")
 
-        if (lines.length <= maxLines && bytes <= maxBytes) {
+        if (lines.length <= maxLines && totalBytes <= maxBytes) {
           return { content: text, truncated: false } as const
         }
 
         const out: string[] = []
-        let hit = false
-        let used = 0
+        let bytes = 0
+        let hitBytes = false
 
         if (direction === "head") {
           for (let i = 0; i < lines.length && i < maxLines; i++) {
             const size = Buffer.byteLength(lines[i], "utf-8") + (i > 0 ? 1 : 0)
-            if (used + size > maxBytes) {
-              hit = true
+            if (bytes + size > maxBytes) {
+              hitBytes = true
               break
             }
             out.push(lines[i])
-            used += size
+            bytes += size
           }
         } else {
           for (let i = lines.length - 1; i >= 0 && out.length < maxLines; i--) {
             const size = Buffer.byteLength(lines[i], "utf-8") + (out.length > 0 ? 1 : 0)
-            if (used + size > maxBytes) {
-              hit = true
+            if (bytes + size > maxBytes) {
+              hitBytes = true
               break
             }
             out.unshift(lines[i])
-            used += size
+            bytes += size
           }
         }
 
-        const removed = hit ? bytes - used : lines.length - out.length
-        const unit = hit ? "bytes" : "lines"
+        const removed = hitBytes ? totalBytes - bytes : lines.length - out.length
+        const unit = hitBytes ? "bytes" : "lines"
         const preview = out.join("\n")
-
         const file = path.join(TRUNCATION_DIR, ToolID.ascending())
-        yield* Effect.promise(() => Filesystem.write(file, text))
 
-        const hint = has(agent)
+        yield* fs.ensureDir(TRUNCATION_DIR).pipe(Effect.orDie)
+        yield* fs.writeFileString(file, text).pipe(Effect.orDie)
+
+        const hint = hasTaskTool(agent)
           ? `The tool call succeeded but the output was truncated. Full output saved to: ${file}\nUse the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.`
           : `The tool call succeeded but the output was truncated. Full output saved to: ${file}\nUse Grep to search the full content or Read with offset/limit to view specific sections.`
 
@@ -110,11 +114,23 @@ export namespace TruncateEffect {
         } as const
       })
 
+      yield* cleanup().pipe(
+        Effect.catchCause((cause) => {
+          log.error("truncation cleanup failed", { cause: Cause.pretty(cause) })
+          return Effect.void
+        }),
+        Effect.repeat(Schedule.spaced(Duration.hours(1))),
+        Effect.delay(Duration.minutes(1)),
+        Effect.forkScoped,
+      )
+
       return Service.of({ cleanup, output })
     }),
   )
 
-  const runPromise = makeRunPromise(Service, layer)
+  export const defaultLayer = layer.pipe(Layer.provide(AppFileSystem.defaultLayer))
+
+  const runPromise = makeRunPromise(Service, defaultLayer)
 
   export async function cleanup() {
     return runPromise((svc) => svc.cleanup())

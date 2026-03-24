@@ -1,9 +1,11 @@
 import { test, expect } from "bun:test"
 import path from "path"
+import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 import { Provider } from "../../src/provider/provider"
+import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Env } from "../../src/env"
 import { Global } from "../../src/global"
 
@@ -75,9 +77,8 @@ test("GitLab Duo: loads with OAuth token from auth.json", async () => {
     },
   })
 
-  const authPath = path.join(Global.Path.data, "auth.json")
   await Bun.write(
-    authPath,
+    path.join(Global.Path.data, "auth.json"),
     JSON.stringify({
       gitlab: {
         type: "oauth",
@@ -112,9 +113,8 @@ test("GitLab Duo: loads with Personal Access Token from auth.json", async () => 
     },
   })
 
-  const authPath2 = path.join(Global.Path.data, "auth.json")
   await Bun.write(
-    authPath2,
+    path.join(Global.Path.data, "auth.json"),
     JSON.stringify({
       gitlab: {
         type: "api",
@@ -283,6 +283,82 @@ test("GitLab Duo: has multiple agentic chat models available", async () => {
       expect(models).toContain("duo-chat-haiku-4-5")
       expect(models).toContain("duo-chat-sonnet-4-5")
       expect(models).toContain("duo-chat-opus-4-5")
+    },
+  })
+})
+
+test("GitLab Duo: workflow models use workflow language model", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "symbolic.json"),
+        JSON.stringify({
+          $schema: "https://symbolic.computer/config.json",
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    init: async () => {
+      Env.set("GITLAB_TOKEN", "test-token")
+    },
+    fn: async () => {
+      const providers = await Provider.list()
+      providers["gitlab"].models["duo-workflow-sonnet-4-6"] = {
+        id: ModelID.make("duo-workflow-sonnet-4-6"),
+        providerID: ProviderID.make("gitlab"),
+        name: "Agent Platform (Claude Sonnet 4.6)",
+        family: "",
+        api: {
+          id: "duo-workflow-sonnet-4-6",
+          url: "https://gitlab.com",
+          npm: "gitlab-ai-provider",
+        },
+        status: "active",
+        headers: {},
+        options: { workflowRef: "claude_sonnet_4_6" },
+        cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+        limit: { context: 200000, output: 64000 },
+        capabilities: {
+          temperature: false,
+          reasoning: true,
+          attachment: true,
+          toolcall: true,
+          input: { text: true, audio: false, image: true, video: false, pdf: true },
+          output: { text: true, audio: false, image: false, video: false, pdf: false },
+          interleaved: false,
+        },
+        release_date: "",
+        variants: {},
+      }
+      const model = await Provider.getModel(ProviderID.make("gitlab"), ModelID.make("duo-workflow-sonnet-4-6"))
+      const language = await Provider.getLanguage(model)
+      expect(language).toBeInstanceOf(GitLabWorkflowLanguageModel)
+    },
+  })
+})
+
+test("GitLab Duo: agentic chat models stay on agentic chat", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "symbolic.json"),
+        JSON.stringify({
+          $schema: "https://symbolic.computer/config.json",
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    init: async () => {
+      Env.set("GITLAB_TOKEN", "test-token")
+    },
+    fn: async () => {
+      const model = await Provider.getModel(ProviderID.make("gitlab"), ModelID.make("duo-chat-sonnet-4-5"))
+      const language = await Provider.getLanguage(model)
+      expect(language).not.toBeInstanceOf(GitLabWorkflowLanguageModel)
     },
   })
 })

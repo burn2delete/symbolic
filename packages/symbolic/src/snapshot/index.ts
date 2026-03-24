@@ -1,6 +1,4 @@
 import path from "path"
-import fs from "fs/promises"
-import { Filesystem } from "../util/filesystem"
 import { Log } from "../util/log"
 import { Flag } from "../flag/flag"
 import { Global } from "../global"
@@ -9,11 +7,14 @@ import { Config } from "../config/config"
 import { Instance } from "../project/instance"
 import { Scheduler } from "../scheduler"
 import { Process } from "@/util/process"
+import { AppFileSystem } from "@/filesystem"
+import { makeRunPromise } from "@/effect/run-service"
 
 export namespace Snapshot {
   const log = Log.create({ service: "snapshot" })
   const hour = 60 * 60 * 1000
   const prune = "7.days"
+  const runFs = makeRunPromise(AppFileSystem.Service, AppFileSystem.defaultLayer)
 
   function args(git: string, cmd: string[]) {
     return ["--git-dir", git, "--work-tree", Instance.worktree, ...cmd]
@@ -33,10 +34,7 @@ export namespace Snapshot {
     const cfg = await Config.get()
     if (cfg.snapshot === false) return
     const git = gitdir()
-    const exists = await fs
-      .stat(git)
-      .then(() => true)
-      .catch(() => false)
+    const exists = await runFs((fs) => fs.exists(git))
     if (!exists) return
     const result = await Process.run(["git", ...args(git, ["gc", `--prune=${prune}`])], {
       cwd: Instance.directory,
@@ -58,7 +56,9 @@ export namespace Snapshot {
     const cfg = await Config.get()
     if (cfg.snapshot === false) return
     const git = gitdir()
-    if (await fs.mkdir(git, { recursive: true })) {
+    const existed = await runFs((fs) => fs.exists(git))
+    await runFs((fs) => fs.ensureDir(git))
+    if (!existed) {
       await Process.run(["git", "init"], {
         env: {
           ...process.env,
@@ -209,7 +209,7 @@ export namespace Snapshot {
             })
           } else {
             log.info("file did not exist in snapshot, deleting", { file })
-            await fs.unlink(file).catch(() => {})
+            await runFs((fs) => fs.remove(file)).catch(() => {})
           }
         }
         files.add(file)
@@ -390,14 +390,14 @@ export namespace Snapshot {
   async function syncExclude(git: string) {
     const file = await excludes()
     const target = path.join(git, "info", "exclude")
-    await fs.mkdir(path.join(git, "info"), { recursive: true })
+    await runFs((fs) => fs.ensureDir(path.join(git, "info")))
     if (!file) {
-      await Filesystem.write(target, "")
+      await runFs((fs) => fs.writeFileString(target, ""))
       return
     }
-    const text = await Filesystem.readText(file).catch(() => "")
+    const text = await runFs((fs) => fs.readFileString(file)).catch(() => "")
 
-    await Filesystem.write(target, text)
+    await runFs((fs) => fs.writeFileString(target, text))
   }
 
   async function excludes() {
@@ -406,10 +406,7 @@ export namespace Snapshot {
       nothrow: true,
     }).then((x) => x.text)
     if (!file.trim()) return
-    const exists = await fs
-      .stat(file.trim())
-      .then(() => true)
-      .catch(() => false)
+    const exists = await runFs((fs) => fs.exists(file.trim()))
     if (!exists) return
     return file.trim()
   }
