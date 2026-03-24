@@ -9,6 +9,7 @@ import { Splash } from "@symbolic-agent/ui/logo"
 import { ThemeProvider } from "@symbolic-agent/ui/theme"
 import { MetaProvider } from "@solidjs/meta"
 import { type BaseRouterProps, Navigate, Route, Router } from "@solidjs/router"
+import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { type Duration, Effect } from "effect"
 import {
   type Component,
@@ -86,6 +87,11 @@ function MarkedProviderWithNativeParser(props: ParentProps) {
   return <MarkedProvider nativeParser={platform.parseMarkdown}>{props.children}</MarkedProvider>
 }
 
+function QueryProvider(props: ParentProps) {
+  const client = new QueryClient()
+  return <QueryClientProvider client={client}>{props.children}</QueryClientProvider>
+}
+
 function AppShellProviders(props: ParentProps) {
   return (
     <SettingsProvider>
@@ -141,11 +147,13 @@ export function AppBaseProviders(props: ParentProps) {
         <LanguageProvider>
           <UiI18nBridge>
             <ErrorBoundary fallback={(error) => <ErrorPage error={error} />}>
-              <DialogProvider>
-                <MarkedProviderWithNativeParser>
-                  <FileComponentProvider component={File}>{props.children}</FileComponentProvider>
-                </MarkedProviderWithNativeParser>
-              </DialogProvider>
+              <QueryProvider>
+                <DialogProvider>
+                  <MarkedProviderWithNativeParser>
+                    <FileComponentProvider component={File}>{props.children}</FileComponentProvider>
+                  </MarkedProviderWithNativeParser>
+                </DialogProvider>
+              </QueryProvider>
             </ErrorBoundary>
           </UiI18nBridge>
         </LanguageProvider>
