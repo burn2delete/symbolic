@@ -69,12 +69,13 @@ describe("vcs endpoints", () => {
         expect(await Vcs.status()).toEqual({
           dirty: false,
         })
-        expect(await Vcs.diff({ mode: "working_tree" })).toEqual([])
+        expect(await Vcs.diff({ mode: "git" })).toEqual([])
+        expect(await Vcs.diff({ mode: "branch" })).toEqual([])
       },
     })
   })
 
-  test("returns working tree diffs with unicode and quoted paths", async () => {
+  test("returns git diffs with unicode and quoted paths", async () => {
     await using tmp = await tmpdir({ git: true })
     const app = Server.Default()
     const base = path.join(tmp.path, "base.txt")
@@ -84,7 +85,7 @@ describe("vcs endpoints", () => {
     await Bun.write(base, "left\n")
     await commit(tmp.path, "base")
 
-    const clean = await app.request("/vcs/diff?mode=working_tree", {
+    const clean = await app.request("/vcs/diff?mode=git", {
       headers: {
         "x-symbolic-directory": tmp.path,
       },
@@ -95,7 +96,7 @@ describe("vcs endpoints", () => {
     await fs.rm(base, { force: true })
     await Bun.write(quote, "uno\ndos")
 
-    const res = await app.request("/vcs/diff?mode=working_tree", {
+    const res = await app.request("/vcs/diff?mode=git", {
       headers: {
         "x-symbolic-directory": tmp.path,
       },
@@ -122,7 +123,7 @@ describe("vcs endpoints", () => {
     ])
   })
 
-  test("returns range diffs and empty comparisons", async () => {
+  test("returns branch diffs and empty comparisons", async () => {
     await using tmp = await tmpdir({ git: true })
     const app = Server.Default()
     const left = path.join(tmp.path, "left.txt")
@@ -131,16 +132,7 @@ describe("vcs endpoints", () => {
     await fs.mkdir(path.dirname(quote), { recursive: true })
     await Bun.write(left, "one\n")
     await commit(tmp.path, "one")
-
-    const base = (await $`git rev-parse HEAD`.cwd(tmp.path).text()).trim()
-
-    await Bun.write(left, "two\n")
-    await Bun.write(quote, "alpha\nbeta")
-    await commit(tmp.path, "two")
-
-    const head = (await $`git rev-parse HEAD`.cwd(tmp.path).text()).trim()
-
-    const same = await app.request(`/vcs/diff?mode=range&base=${base}&head=${base}`, {
+    const same = await app.request("/vcs/diff?mode=branch", {
       headers: {
         "x-symbolic-directory": tmp.path,
       },
@@ -148,7 +140,12 @@ describe("vcs endpoints", () => {
     expect(same.status).toBe(200)
     expect(await same.json()).toEqual([])
 
-    const res = await app.request(`/vcs/diff?mode=range&base=${base}&head=${head}`, {
+    await $`git checkout -b feature`.cwd(tmp.path).quiet()
+    await Bun.write(left, "two\n")
+    await commit(tmp.path, "two")
+    await Bun.write(quote, "alpha\nbeta")
+
+    const res = await app.request("/vcs/diff?mode=branch", {
       headers: {
         "x-symbolic-directory": tmp.path,
       },

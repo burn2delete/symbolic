@@ -1,4 +1,4 @@
-import type { Project, UserMessage } from "@symbolic-agent/sdk/v2"
+import type { FileDiff, Project, UserMessage } from "@symbolic-agent/sdk/v2"
 import { useDialog } from "@symbolic-agent/ui/context/dialog"
 import {
   batch,
@@ -33,7 +33,6 @@ import { getSessionPrefetch, SESSION_PREFETCH_TTL } from "@/context/global-sync/
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { REVIEW_SOURCES, resolveReview, reviewEmptyKey, reviewSourceKey, type ReviewSource } from "@/context/review"
 import { usePrompt } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useSettings } from "@/context/settings"
@@ -57,6 +56,9 @@ import { formatServerError } from "@/utils/server-errors"
 
 const emptyUserMessages: UserMessage[] = []
 const emptyFollowups: (FollowupDraft & { id: string })[] = []
+
+type ChangeMode = "git" | "branch" | "session" | "turn"
+type VcsMode = "git" | "branch"
 
 type SessionHistoryWindowInput = {
   sessionID: () => string | undefined
@@ -415,51 +417,17 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
+  const diffs = createMemo(() => (params.id ? (sync.data.session_diff[params.id] ?? []) : []))
+  const sessionCount = createMemo(() => Math.max(info()?.summary?.files ?? 0, diffs().length))
+  const hasSessionReview = createMemo(() => sessionCount() > 0)
   const reviewTab = createMemo(() => isDesktop())
-  const canReview = createMemo(() => !!params.dir)
-  const source = createMemo(() => view().reviewSource.mode())
-  const resolved = createMemo(() =>
-    resolveReview({
-      source: source(),
-      vcs: sync.data.vcs,
-      directory: sdk.directory,
-    }),
-  )
-  const diffs = createMemo(() => {
-    const id = params.id
-    if (!id) return []
-    const next = resolved()
-    if (next.kind === "session") return sync.data.session_diff[id] ?? []
-    if (next.kind === "repo") return sync.data.repo_diff[next.key] ?? []
-    return []
-  })
-  const reviewCount = createMemo(() => {
-    const next = resolved()
-    if (next.kind === "session") return Math.max(info()?.summary?.files ?? 0, diffs().length)
-    return diffs().length
-  })
-  const hasReview = createMemo(() => {
-    const next = resolved()
-    if (next.kind !== "session") return true
-    return reviewCount() > 0
-  })
-  const diffsReady = createMemo(() => {
-    const id = params.id
-    if (!id) return true
-    const next = resolved()
-    if (next.kind === "session") return sync.data.session_diff[id] !== undefined
-    if (next.kind === "repo") {
-      const state = sync.data.repo_diff_state[next.key]
-      return state !== undefined && state !== "loading"
-    }
-    return true
-  })
+  const canReview = createMemo(() => !!params.id)
   const tabState = createSessionTabs({
     tabs,
     pathFromTab: file.pathFromTab,
     normalizeTab,
     review: reviewTab,
-    hasReview,
+    hasReview: canReview,
   })
   const contextOpen = tabState.contextOpen
   const openedTabs = tabState.openedTabs
@@ -535,9 +503,20 @@ export default function Page() {
   const [store, setStore] = createStore({
     messageId: undefined as string | undefined,
     mobileTab: "session" as "session" | "changes",
-    changes: "session" as "session" | "turn",
+    changes: "git" as ChangeMode,
     newSessionWorktree: "main",
     deferRender: false,
+  })
+
+  const [vcs, setVcs] = createStore({
+    diff: {
+      git: [] as FileDiff[],
+      branch: [] as FileDiff[],
+    },
+    ready: {
+      git: false,
+      branch: false,
+    },
   })
 
   const [followup, setFollowup] = createStore({
@@ -567,6 +546,40 @@ export default function Page() {
   let refreshTimer: number | undefined
   let diffFrame: number | undefined
   let diffTimer: number | undefined
+  const vcsTask = new Map<VcsMode, Promise<void>>()
+
+  const resetVcs = () => {
+    vcsTask.clear()
+    setVcs({
+      diff: { git: [], branch: [] },
+      ready: { git: false, branch: false },
+    })
+  }
+
+  const loadVcs = (mode: VcsMode, force = false) => {
+    if (sync.project?.vcs !== "git") return Promise.resolve()
+    if (vcs.ready[mode] && !force) return Promise.resolve()
+    const current = vcsTask.get(mode)
+    if (current) return current
+
+    const task = sdk.client.vcs
+      .diff({ mode })
+      .then((result) => {
+        setVcs("diff", mode, result.data ?? [])
+        setVcs("ready", mode, true)
+      })
+      .catch((error) => {
+        console.debug("[session-review] failed to load vcs diff", { mode, error })
+        setVcs("diff", mode, [])
+        setVcs("ready", mode, true)
+      })
+      .finally(() => {
+        vcsTask.delete(mode)
+      })
+
+    vcsTask.set(mode, task)
+    return task
+  }
 
   createComputed((prev) => {
     const open = desktopReviewOpen()
@@ -582,7 +595,50 @@ export default function Page() {
   }, desktopReviewOpen())
 
   const turnDiffs = createMemo(() => lastUserMessage()?.summary?.diffs ?? [])
-  const reviewDiffs = createMemo(() => (source() === "session" && store.changes === "turn" ? turnDiffs() : diffs()))
+  const changesOptions = createMemo<ChangeMode[]>(() => {
+    const list: ChangeMode[] = []
+    const git = sync.project?.vcs === "git"
+    if (git) list.push("git")
+    if (git && sync.data.vcs?.branch && sync.data.vcs?.default_branch && sync.data.vcs.branch !== sync.data.vcs.default_branch) {
+      list.push("branch")
+    }
+    list.push("session", "turn")
+    return list
+  })
+  const vcsMode = createMemo<VcsMode | undefined>(() => {
+    if (store.changes === "git" || store.changes === "branch") return store.changes
+  })
+  const reviewDiffs = createMemo(() => {
+    if (store.changes === "git") return vcs.diff.git
+    if (store.changes === "branch") return vcs.diff.branch
+    if (store.changes === "session") return diffs()
+    return turnDiffs()
+  })
+  const reviewCount = createMemo(() => {
+    if (store.changes === "git") return vcs.diff.git.length
+    if (store.changes === "branch") return vcs.diff.branch.length
+    if (store.changes === "session") return sessionCount()
+    return turnDiffs().length
+  })
+  const hasReview = createMemo(() => reviewCount() > 0)
+  const diffsReady = createMemo(() => {
+    const id = params.id
+    if (!id) return true
+    if (!hasSessionReview()) return true
+    return sync.data.session_diff[id] !== undefined
+  })
+  const reviewReady = createMemo(() => {
+    if (store.changes === "git") return vcs.ready.git
+    if (store.changes === "branch") return vcs.ready.branch
+    if (store.changes === "session") return !hasSessionReview() || diffsReady()
+    return true
+  })
+  const sessionEmptyKey = createMemo(() => {
+    const project = sync.project
+    if (project && !project.vcs) return "session.review.noVcs"
+    if (sync.data.config.snapshot === false) return "session.review.noSnapshot"
+    return "session.review.empty"
+  })
 
   const newSessionWorktree = createMemo(() => {
     if (store.newSessionWorktree === "create") return "create"
@@ -764,8 +820,18 @@ export default function Page() {
       sessionKey,
       () => {
         setStore("messageId", undefined)
-        setStore("changes", "session")
+        setStore("changes", "git")
         setUi("pendingMessage", undefined)
+      },
+      { defer: true },
+    ),
+  )
+
+  createEffect(
+    on(
+      () => sdk.directory,
+      () => {
+        resetVcs()
       },
       { defer: true },
     ),
@@ -893,6 +959,38 @@ export default function Page() {
   }
 
   const mobileChanges = createMemo(() => !isDesktop() && store.mobileTab === "changes")
+  const wantsReview = createMemo(() =>
+    isDesktop() ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review") : store.mobileTab === "changes",
+  )
+
+  createEffect(() => {
+    const list = changesOptions()
+    if (list.includes(store.changes)) return
+    const next = list[0]
+    if (!next) return
+    setStore("changes", next)
+  })
+
+  createEffect(() => {
+    const mode = vcsMode()
+    if (!mode) return
+    if (!wantsReview()) return
+    void loadVcs(mode)
+  })
+
+  createEffect(
+    on(
+      () => sync.data.session_status[params.id ?? ""]?.type,
+      (next, prev) => {
+        const mode = vcsMode()
+        if (!mode) return
+        if (!wantsReview()) return
+        if (next !== "idle" || prev === undefined || prev === "idle") return
+        void loadVcs(mode, true)
+      },
+      { defer: true },
+    ),
+  )
 
   const fileTreeTab = () => layout.fileTree.tab()
   const setFileTreeTab = (value: "changes" | "all") => layout.fileTree.setTab(value)
@@ -939,108 +1037,79 @@ export default function Page() {
     loadFile: file.load,
   })
 
-  const setSource = (next: ReviewSource) => {
-    view().reviewSource.set(next)
-  }
+  const changesTitle = () => {
+    if (!canReview()) return null
 
-  const changesOptions = ["session", "turn"] as const
-  const changesOptionsList = [...changesOptions]
+    const label = (option: ChangeMode) => {
+      if (option === "git") return language.t("ui.sessionReview.title.git")
+      if (option === "branch") return language.t("ui.sessionReview.title.branch")
+      if (option === "session") return language.t("ui.sessionReview.title")
+      return language.t("ui.sessionReview.title.lastTurn")
+    }
 
-  const sourceOptions = [...REVIEW_SOURCES]
-
-  const reviewTitle = () => (
-    <div class="flex flex-wrap items-center gap-2">
+    return (
       <Select
-        options={sourceOptions}
-        current={source()}
-        label={(option) => language.t(reviewSourceKey(option))}
-        onSelect={(option) => option && setSource(option)}
+        options={changesOptions()}
+        current={store.changes}
+        label={label}
+        onSelect={(option) => option && setStore("changes", option)}
         variant="ghost"
         size="small"
         valueClass="text-14-medium"
       />
-      <Show when={source() === "session"}>
-        <Select
-          options={changesOptionsList}
-          current={store.changes}
-          label={(option) =>
-            option === "session"
-              ? language.t("ui.sessionReview.title")
-              : language.t("ui.sessionReview.title.lastTurn")
-          }
-          onSelect={(option) => option && setStore("changes", option)}
-          variant="ghost"
-          size="small"
-          valueClass="text-14-medium"
-        />
-      </Show>
+    )
+  }
+
+  const empty = (text: string) => (
+    <div class="h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6">
+      <div class="text-14-regular text-text-weak max-w-56">{text}</div>
     </div>
   )
 
-  const emptyTurn = () => (
-    <div class="h-full pb-64 -mt-4 flex flex-col items-center justify-center text-center gap-6">
-      <div class="text-14-regular text-text-weak max-w-56">{language.t("session.review.noChanges")}</div>
-    </div>
-  )
+  const reviewEmptyText = createMemo(() => {
+    if (store.changes === "git") return language.t("session.review.noUncommittedChanges")
+    if (store.changes === "branch") return language.t("session.review.noBranchChanges")
+    if (store.changes === "turn") return language.t("session.review.noChanges")
+    return language.t(sessionEmptyKey())
+  })
 
   const reviewEmpty = (input: { loadingClass: string; emptyClass: string }) => {
-    const next = resolved()
+    if (store.changes === "git" || store.changes === "branch") {
+      if (!reviewReady()) return <div class={input.loadingClass}>{language.t("session.review.loadingChanges")}</div>
+      return empty(reviewEmptyText())
+    }
 
-    if (source() === "session" && store.changes === "turn") return emptyTurn()
+    if (store.changes === "turn") {
+      return empty(reviewEmptyText())
+    }
 
-    if (hasReview() && !diffsReady()) {
+    if (hasSessionReview() && !diffsReady()) {
       return <div class={input.loadingClass}>{language.t("session.review.loadingChanges")}</div>
     }
 
-    const key = reviewEmptyKey({
-      resolved: next,
-      projectVcs: !!sync.project?.vcs,
-      snapshot: sync.data.config.snapshot !== false,
-    })
-
-    if (key === "session.review.noVcs") {
+    if (sessionEmptyKey() === "session.review.noVcs") {
       return (
         <div class={input.emptyClass}>
           <div class="flex flex-col gap-3">
-            <div class="text-14-medium text-text-strong">Create a Git repository</div>
+            <div class="text-14-medium text-text-strong">{language.t("session.review.noVcs.createGit.title")}</div>
             <div class="text-14-regular text-text-base max-w-md" style={{ "line-height": "var(--line-height-normal)" }}>
-              Track, review, and undo changes in this project
+              {language.t("session.review.noVcs.createGit.description")}
             </div>
           </div>
           <Button size="large" disabled={ui.git} onClick={initGit}>
-            {ui.git ? "Creating Git repository..." : "Create Git repository"}
+            {ui.git
+              ? language.t("session.review.noVcs.createGit.actionLoading")
+              : language.t("session.review.noVcs.createGit.action")}
           </Button>
-        </div>
-      )
-    }
-
-    if (key === "session.review.noBranch") {
-      return (
-        <div class={input.emptyClass}>
-          <div class="text-14-regular text-text-weak max-w-56">{language.t(key)}</div>
         </div>
       )
     }
 
     return (
       <div class={input.emptyClass}>
-        <div class="text-14-regular text-text-weak max-w-56">{language.t(key)}</div>
+        <div class="text-14-regular text-text-weak max-w-56">{reviewEmptyText()}</div>
       </div>
     )
-  }
-
-  const review = {
-    diffs,
-    count: reviewCount,
-    hasReview,
-    ready: diffsReady,
-    emptyKey: createMemo(() =>
-      reviewEmptyKey({
-        resolved: resolved(),
-        projectVcs: !!sync.project?.vcs,
-        snapshot: sync.data.config.snapshot !== false,
-      }),
-    ),
   }
 
   const reviewContent = (input: {
@@ -1052,7 +1121,7 @@ export default function Page() {
   }) => (
     <Show when={!store.deferRender}>
       <SessionReviewTab
-        title={reviewTitle()}
+        title={changesTitle()}
         empty={reviewEmpty(input)}
         diffs={reviewDiffs}
         view={view}
@@ -1154,7 +1223,7 @@ export default function Page() {
     const pending = tree.pendingDiff
     if (!pending) return
     if (!tree.reviewScroll) return
-    if (!diffsReady()) return
+    if (!reviewReady()) return
 
     const attempt = (count: number) => {
       if (tree.pendingDiff !== pending) return
@@ -1195,37 +1264,18 @@ export default function Page() {
     const id = params.id
     if (!id) return
 
-    const wants = isDesktop()
-      ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review")
-      : store.mobileTab === "changes"
-    if (!wants) return
+    if (!wantsReview()) return
     if (sync.status === "loading") return
 
-    const next = resolved()
-    if (next.kind === "session") {
-      if (sync.data.session_diff[id] !== undefined) return
-      void sync.session.diff(id)
-      return
-    }
-
-    if (next.kind === "repo") {
-      const state = sync.data.repo_diff_state[next.key]
-      if (state !== undefined) return
-      void sync.session.review.diff({ sessionID: id, key: next.key, query: next.query })
-    }
+    if (store.changes !== "session") return
+    if (sync.data.session_diff[id] !== undefined) return
+    void sync.session.diff(id)
   })
 
   createEffect(
     on(
-      () =>
-        [
-          sessionKey(),
-          source(),
-          isDesktop()
-            ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review")
-            : store.mobileTab === "changes",
-        ] as const,
-      ([key, wants]) => {
+      () => [sessionKey(), store.changes, wantsReview()] as const,
+      ([key, mode, wants]) => {
         if (diffFrame !== undefined) cancelAnimationFrame(diffFrame)
         if (diffTimer !== undefined) window.clearTimeout(diffTimer)
         diffFrame = undefined
@@ -1234,8 +1284,7 @@ export default function Page() {
 
         const id = params.id
         if (!id) return
-        const next = untrack(() => resolved())
-        if (next.kind !== "session") return
+        if (mode !== "session") return
         if (!untrack(() => sync.data.session_diff[id] !== undefined)) return
 
         diffFrame = requestAnimationFrame(() => {
@@ -1901,8 +1950,13 @@ export default function Page() {
         </div>
 
         <SessionSidePanel
+          canReview={canReview}
+          diffs={reviewDiffs}
+          diffsReady={reviewReady}
+          empty={reviewEmptyText}
+          hasReview={hasReview}
+          reviewCount={reviewCount}
           reviewPanel={reviewPanel}
-          review={review}
           activeDiff={tree.activeDiff}
           focusReviewDiff={focusReviewDiff}
           reviewSnap={ui.reviewSnap}

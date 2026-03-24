@@ -357,17 +357,11 @@ export namespace Server {
         validator(
           "query",
           z.object({
-            mode: z.enum(["working_tree", "range"]),
-            base: z.string().optional(),
-            head: z.string().optional(),
+            mode: Vcs.Mode,
           }),
         ),
         async (c) => {
-          const query = c.req.valid("query")
-          if (query.mode === "range" && (!query.base || !query.head)) {
-            throw new HTTPException(400, { message: "base and head are required for range diffs" })
-          }
-          return c.json(await Vcs.diff(query))
+          return c.json(await Vcs.diff(c.req.valid("query")))
         },
       )
       .get(

@@ -28,7 +28,8 @@ test("returns metadata for non-git directories", async () => {
       expect(await Vcs.status()).toEqual({
         dirty: false,
       })
-      expect(await Vcs.diff({ mode: "working_tree" })).toEqual([])
+      expect(await Vcs.diff({ mode: "git" })).toEqual([])
+      expect(await Vcs.diff({ mode: "branch" })).toEqual([])
     },
   })
 })
@@ -58,7 +59,7 @@ test("returns status and diffs for git worktrees", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      expect(await Vcs.diff({ mode: "working_tree" })).toEqual(
+      expect(await Vcs.diff({ mode: "git" })).toEqual(
         sort([
           {
             file: "base.txt",
@@ -72,6 +73,46 @@ test("returns status and diffs for git worktrees", async () => {
             file: 'src/quo"te-µ.txt',
             before: "",
             after: "uno\ndos",
+            additions: 2,
+            deletions: 0,
+            status: "added",
+          },
+        ]),
+      )
+    },
+  })
+})
+
+test("returns merge-base branch diffs", async () => {
+  await using tmp = await tmpdir({ git: true })
+  const left = path.join(tmp.path, "left.txt")
+  const quote = path.join(tmp.path, "src", 'quo"te-µ.txt')
+
+  await fs.mkdir(path.dirname(quote), { recursive: true })
+  await Bun.write(left, "one\n")
+  await commit(tmp.path, "one")
+  await $`git checkout -b feature`.cwd(tmp.path).quiet()
+  await Bun.write(left, "two\n")
+  await commit(tmp.path, "two")
+  await Bun.write(quote, "alpha\nbeta")
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      expect(await Vcs.diff({ mode: "branch" })).toEqual(
+        sort([
+          {
+            file: "left.txt",
+            before: "one\n",
+            after: "two\n",
+            additions: 1,
+            deletions: 1,
+            status: "modified",
+          },
+          {
+            file: 'src/quo"te-µ.txt',
+            before: "",
+            after: "alpha\nbeta",
             additions: 2,
             deletions: 0,
             status: "added",

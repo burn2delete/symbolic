@@ -18,20 +18,20 @@ describe("review helper", () => {
     expect(resolveReview({ source: "working_tree", directory: "/tmp", vcs })).toEqual({
       kind: "repo",
       source: "working_tree",
-      query: { mode: "working_tree" },
-      key: "/tmp\nworking_tree\n\n",
+      query: { mode: "git" },
+      key: "/tmp\ngit",
     })
     expect(resolveReview({ source: "default_branch", directory: "/tmp", vcs })).toEqual({
       kind: "repo",
       source: "default_branch",
-      query: { mode: "range", base: "main", head: "HEAD" },
-      key: "/tmp\nrange\nmain\nHEAD",
+      query: { mode: "branch" },
+      key: "/tmp\nbranch",
     })
     expect(resolveReview({ source: "branch", directory: "/tmp", vcs })).toEqual({
       kind: "repo",
       source: "branch",
-      query: { mode: "range", base: "main", head: "feature/demo" },
-      key: "/tmp\nrange\nmain\nfeature/demo",
+      query: { mode: "branch" },
+      key: "/tmp\nbranch",
     })
   })
 
@@ -88,7 +88,7 @@ describe("review helper", () => {
     ).toBe("session.review.prUnsupported")
     expect(
       reviewEmptyKey({
-        resolved: { kind: "repo", source: "working_tree", query: { mode: "working_tree" }, key: "k" },
+        resolved: { kind: "repo", source: "working_tree", query: { mode: "git" }, key: "k" },
       }),
     ).toBe("session.review.noRepoChanges")
     expect(reviewEmptyKey({ resolved: { kind: "session", source: "session" }, snapshot: false })).toBe(

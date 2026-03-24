@@ -268,7 +268,7 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "vcs.branch.updated": {
-      const props = event.properties as { branch: string }
+      const props = event.properties as { branch?: string }
       if (input.store.vcs?.branch === props.branch) break
       const next = { ...(input.store.vcs ?? { dirty: false }), branch: props.branch }
       input.setStore("vcs", next)

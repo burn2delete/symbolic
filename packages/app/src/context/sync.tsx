@@ -543,7 +543,6 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               const res = await client.vcs.diff({
                 directory,
                 mode: input.query.mode,
-                ...(input.query.mode === "range" ? { base: input.query.base, head: input.query.head } : {}),
               })
 
               if (!tracked(directory, input.sessionID)) return

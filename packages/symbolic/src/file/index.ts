@@ -10,7 +10,7 @@ import { Instance } from "../project/instance"
 import { Ripgrep } from "./ripgrep"
 import fuzzysort from "fuzzysort"
 import { Global } from "../global"
-import { git } from "@/util/git"
+import { Git } from "@/git"
 import { Protected } from "./protected"
 import { Effect, Layer, ServiceMap } from "effect"
 import { InstanceState } from "@/effect/instance-state"
@@ -455,7 +455,7 @@ export namespace File {
     if (project.vcs !== "git") return []
 
     const diffOutput = (
-      await git(["-c", "core.fsmonitor=false", "-c", "core.quotepath=false", "diff", "--numstat", "HEAD"], {
+      await Git.run(["-c", "core.fsmonitor=false", "-c", "core.quotepath=false", "diff", "--numstat", "HEAD"], {
         cwd: Instance.directory,
       })
     ).text()
@@ -476,7 +476,7 @@ export namespace File {
     }
 
     const untrackedOutput = (
-      await git(
+      await Git.run(
         ["-c", "core.fsmonitor=false", "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
         {
           cwd: Instance.directory,
@@ -504,7 +504,7 @@ export namespace File {
 
     // Get deleted files
     const deletedOutput = (
-      await git(
+      await Git.run(
         ["-c", "core.fsmonitor=false", "-c", "core.quotepath=false", "diff", "--name-only", "--diff-filter=D", "HEAD"],
         {
           cwd: Instance.directory,
@@ -581,14 +581,14 @@ export namespace File {
     const content = (await Filesystem.readText(full).catch(() => "")).trim()
 
     if (project.vcs === "git") {
-      let diff = (await git(["-c", "core.fsmonitor=false", "diff", "--", file], { cwd: Instance.directory })).text()
+      let diff = (await Git.run(["-c", "core.fsmonitor=false", "diff", "--", file], { cwd: Instance.directory })).text()
       if (!diff.trim()) {
         diff = (
-          await git(["-c", "core.fsmonitor=false", "diff", "--staged", "--", file], { cwd: Instance.directory })
+          await Git.run(["-c", "core.fsmonitor=false", "diff", "--staged", "--", file], { cwd: Instance.directory })
         ).text()
       }
       if (diff.trim()) {
-        const original = (await git(["show", `HEAD:${file}`], { cwd: Instance.directory })).text()
+        const original = (await Git.run(["show", `HEAD:${file}`], { cwd: Instance.directory })).text()
         const patch = structuredPatch(file, file, original, content, "old", "new", {
           context: Infinity,
           ignoreWhitespace: true,

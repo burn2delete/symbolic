@@ -3673,9 +3673,7 @@ export class Vcs extends HeyApiClient {
     parameters: {
       directory?: string
       workspace?: string
-      mode: "working_tree" | "range"
-      base?: string
-      head?: string
+      mode: "git" | "branch"
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3687,8 +3685,6 @@ export class Vcs extends HeyApiClient {
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
             { in: "query", key: "mode" },
-            { in: "query", key: "base" },
-            { in: "query", key: "head" },
           ],
         },
       ],

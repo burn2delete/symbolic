@@ -6,12 +6,10 @@ export type ReviewSource = (typeof REVIEW_SOURCES)[number]
 
 export type ReviewRepoQuery =
   | {
-      mode: "working_tree"
+      mode: "git"
     }
   | {
-      mode: "range"
-      base: string
-      head: string
+      mode: "branch"
     }
 
 export type ReviewResolved =
@@ -31,8 +29,7 @@ export type ReviewResolved =
       reason: "non_git" | "missing_default_branch" | "missing_branch" | "pr"
     }
 
-const repoKey = (input: { directory: string; mode: string; base?: string; head?: string }) =>
-  [input.directory, input.mode, input.base ?? "", input.head ?? ""].join("\n")
+const repoKey = (input: { directory: string; mode: string }) => [input.directory, input.mode].join("\n")
 
 export function resolveReview(input: { source: ReviewSource; vcs?: VcsInfo; directory: string }): ReviewResolved {
   if (input.source === "session") {
@@ -44,7 +41,7 @@ export function resolveReview(input: { source: ReviewSource; vcs?: VcsInfo; dire
   }
 
   if (input.source === "working_tree") {
-    const query = { mode: "working_tree" } as const
+    const query = { mode: "git" } as const
     return { kind: "repo", source: input.source, query, key: repoKey({ directory: input.directory, mode: query.mode }) }
   }
 
@@ -52,16 +49,11 @@ export function resolveReview(input: { source: ReviewSource; vcs?: VcsInfo; dire
     if (!input.vcs.default_branch) {
       return { kind: "unsupported", source: input.source, reason: "missing_default_branch" }
     }
-    const query = {
-      mode: "range",
-      base: input.vcs.default_branch,
-      head: input.vcs.head ?? "HEAD",
-    } as const
     return {
       kind: "repo",
       source: input.source,
-      query,
-      key: repoKey({ directory: input.directory, mode: query.mode, base: query.base, head: query.head }),
+      query: { mode: "branch" },
+      key: repoKey({ directory: input.directory, mode: "branch" }),
     }
   }
 
@@ -72,16 +64,11 @@ export function resolveReview(input: { source: ReviewSource; vcs?: VcsInfo; dire
     if (!input.vcs.branch) {
       return { kind: "unsupported", source: input.source, reason: "missing_branch" }
     }
-    const query = {
-      mode: "range",
-      base: input.vcs.default_branch,
-      head: input.vcs.branch,
-    } as const
     return {
       kind: "repo",
       source: input.source,
-      query,
-      key: repoKey({ directory: input.directory, mode: query.mode, base: query.base, head: query.head }),
+      query: { mode: "branch" },
+      key: repoKey({ directory: input.directory, mode: "branch" }),
     }
   }
 

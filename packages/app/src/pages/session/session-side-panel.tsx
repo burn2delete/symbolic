@@ -27,14 +27,13 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import type { FileDiff } from "@symbolic-agent/sdk/v2"
 
 export function SessionSidePanel(props: {
+  canReview: () => boolean
+  diffs: () => FileDiff[]
+  diffsReady: () => boolean
+  empty: () => string
+  hasReview: () => boolean
+  reviewCount: () => number
   reviewPanel: () => JSX.Element
-  review: {
-    diffs: () => FileDiff[]
-    count: () => number
-    hasReview: () => boolean
-    ready: () => boolean
-    emptyKey: () => string
-  }
   activeDiff?: string
   focusReviewDiff: (path: string) => void
   reviewSnap: boolean
@@ -60,7 +59,7 @@ export function SessionSidePanel(props: {
   })
   const treeWidth = createMemo(() => (fileOpen() ? `${layout.fileTree.width()}px` : "0px"))
 
-  const diffFiles = createMemo(() => props.review.diffs().map((d) => d.file))
+  const diffFiles = createMemo(() => props.diffs().map((d) => d.file))
   const kinds = createMemo(() => {
     const merge = (a: "add" | "del" | "mix" | undefined, b: "add" | "del" | "mix") => {
       if (!a) return b
@@ -71,7 +70,7 @@ export function SessionSidePanel(props: {
     const normalize = (p: string) => p.replaceAll("\\\\", "/").replace(/\/+$/, "")
 
     const out = new Map<string, "add" | "del" | "mix">()
-    for (const diff of props.review.diffs()) {
+    for (const diff of props.diffs()) {
       const file = normalize(diff.file)
       const kind = diff.status === "added" ? "add" : diff.status === "deleted" ? "del" : "mix"
 
@@ -125,7 +124,7 @@ export function SessionSidePanel(props: {
     pathFromTab: file.pathFromTab,
     normalizeTab,
     review: reviewTab,
-    hasReview: props.review.hasReview,
+    hasReview: props.canReview,
   })
   const contextOpen = tabState.contextOpen
   const openedTabs = tabState.openedTabs
@@ -230,12 +229,12 @@ export function SessionSidePanel(props: {
                         onCleanup(stop)
                       }}
                     >
-                      <Show when={reviewTab()}>
+                      <Show when={reviewTab() && props.canReview()}>
                       <Tabs.Trigger value="review">
                         <div class="flex items-center gap-1.5">
                           <div>{language.t("session.tab.review")}</div>
-                            <Show when={props.review.hasReview()}>
-                              <div>{props.review.count()}</div>
+                            <Show when={props.hasReview()}>
+                              <div>{props.reviewCount()}</div>
                             </Show>
                           </div>
                         </Tabs.Trigger>
@@ -292,7 +291,7 @@ export function SessionSidePanel(props: {
                     </Tabs.List>
                   </div>
 
-                  <Show when={reviewTab()}>
+                  <Show when={reviewTab() && props.canReview()}>
                     <Tabs.Content value="review" class="flex flex-col h-full overflow-hidden contain-strict">
                       <Show when={activeTab() === "review"}>{props.reviewPanel()}</Show>
                     </Tabs.Content>
@@ -366,8 +365,8 @@ export function SessionSidePanel(props: {
               >
                 <Tabs.List>
                   <Tabs.Trigger value="changes" class="flex-1" classes={{ button: "w-full" }}>
-                    {props.review.count()}{" "}
-                    {language.t(props.review.count() === 1 ? "session.review.change.one" : "session.review.change.other")}
+                    {props.reviewCount()}{" "}
+                    {language.t(props.reviewCount() === 1 ? "session.review.change.one" : "session.review.change.other")}
                   </Tabs.Trigger>
                   <Tabs.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
                     {language.t("session.files.all")}
@@ -375,9 +374,9 @@ export function SessionSidePanel(props: {
                 </Tabs.List>
                 <Tabs.Content value="changes" class="bg-background-stronger px-3 py-0">
                   <Switch>
-                    <Match when={props.review.hasReview()}>
+                    <Match when={props.hasReview()}>
                       <Show
-                        when={props.review.ready()}
+                        when={props.diffsReady()}
                         fallback={
                           <div class="px-2 py-2 text-12-regular text-text-weak">
                             {language.t("common.loading")}
@@ -397,7 +396,7 @@ export function SessionSidePanel(props: {
                       </Show>
                     </Match>
                     <Match when={true}>
-                      {empty(language.t(props.review.emptyKey()))}
+                      {empty(props.empty())}
                     </Match>
                   </Switch>
                 </Tabs.Content>
