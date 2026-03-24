@@ -1,6 +1,6 @@
 {
   "name": "@symbolic-agent/app",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Symbolic web app",
   "type": "module",
   "exports": {

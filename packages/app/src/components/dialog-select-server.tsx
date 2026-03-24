@@ -150,7 +150,7 @@ function ServerForm(props: ServerFormProps) {
           <TextField
             type="text"
             label={language.t("dialog.server.add.username")}
-            placeholder="username"
+            placeholder={language.t("dialog.server.add.usernamePlaceholder")}
             value={props.username}
             disabled={props.busy}
             onChange={props.onUsernameChange}
@@ -159,7 +159,7 @@ function ServerForm(props: ServerFormProps) {
           <TextField
             type="password"
             label={language.t("dialog.server.add.password")}
-            placeholder="password"
+            placeholder={language.t("dialog.server.add.passwordPlaceholder")}
             value={props.password}
             disabled={props.busy}
             onChange={props.onPasswordChange}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "name": "symbolic",
   "description": "Symbolic CLI and agent runtime",
   "type": "module",
