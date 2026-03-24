@@ -779,14 +779,9 @@ test("serializes concurrent config dependency installs", async () => {
     await new Promise((resolve) => setTimeout(resolve, 25))
     active--
     return {
-      exited: Promise.resolve(0),
-      stdin: null,
-      stdout: null,
-      stderr: null,
-      pid: 0,
-      kill: () => true,
-      ref: () => undefined,
-      unref: () => undefined,
+      code: 0,
+      stdout: Buffer.alloc(0),
+      stderr: Buffer.alloc(0),
     } as Awaited<ReturnType<typeof BunProc.run>>
   })
 

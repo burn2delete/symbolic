@@ -73,6 +73,7 @@ const serverEnv = {
   SYMBOLIC_E2E_MESSAGE: "Seeded for UI e2e",
   SYMBOLIC_E2E_MODEL: "symbolic/gpt-5-nano",
   SYMBOLIC_CLIENT: "app",
+  SYMBOLIC_STRICT_CONFIG_DEPS: "true",
 } satisfies Record<string, string>
 
 const runnerEnv = {

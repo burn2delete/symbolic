@@ -18,6 +18,11 @@ const ctx = {
   ask: async () => {},
 }
 
+async function touch(file: string, time: number) {
+  const date = new Date(time)
+  await fs.utimes(file, date, date)
+}
+
 describe("tool.edit", () => {
   describe("creating new files", () => {
     test("creates new file when oldString is empty", async () => {
@@ -230,20 +235,15 @@ describe("tool.edit", () => {
       await using tmp = await tmpdir()
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "original content", "utf-8")
+      await touch(filepath, 1_000)
 
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
-          // Read first
           await FileTime.read(ctx.sessionID, filepath)
-
-          // Wait a bit to ensure different timestamps
-          await new Promise((resolve) => setTimeout(resolve, 100))
-
-          // Simulate external modification
           await fs.writeFile(filepath, "modified externally", "utf-8")
+          await touch(filepath, 2_000)
 
-          // Try to edit with the new content
           const edit = await EditTool.init()
           await expect(
             edit.execute(

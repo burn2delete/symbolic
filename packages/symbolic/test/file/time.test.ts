@@ -7,6 +7,19 @@ import { SessionID } from "../../src/session/schema"
 import { Filesystem } from "../../src/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
 
+async function touch(file: string, time: number) {
+  const date = new Date(time)
+  await fs.utimes(file, date, date)
+}
+
+function gate() {
+  let open!: () => void
+  const wait = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  return { open, wait }
+}
+
 describe("file/time", () => {
   const sessionID = SessionID.make("test-session-123")
   const session1 = SessionID.make("session1")
@@ -109,17 +122,14 @@ describe("file/time", () => {
       await using tmp = await tmpdir()
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "content", "utf-8")
+      await touch(filepath, 1_000)
 
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
           await FileTime.read(sessionID, filepath)
-
-          // Wait to ensure different timestamps
-          await new Promise((resolve) => setTimeout(resolve, 100))
-
-          // Modify file after reading
           await fs.writeFile(filepath, "modified content", "utf-8")
+          await touch(filepath, 2_000)
 
           await expect(FileTime.assert(sessionID, filepath)).rejects.toThrow("modified since it was last read")
         },
@@ -130,13 +140,14 @@ describe("file/time", () => {
       await using tmp = await tmpdir()
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "content", "utf-8")
+      await touch(filepath, 1_000)
 
       await Instance.provide({
         directory: tmp.path,
         fn: async () => {
           await FileTime.read(sessionID, filepath)
-          await new Promise((resolve) => setTimeout(resolve, 100))
           await fs.writeFile(filepath, "modified", "utf-8")
+          await touch(filepath, 2_000)
 
           let error: Error | undefined
           try {
@@ -215,25 +226,27 @@ describe("file/time", () => {
         directory: tmp.path,
         fn: async () => {
           const order: number[] = []
+          const hold = gate()
+          const ready = gate()
 
           const op1 = FileTime.withLock(filepath, async () => {
             order.push(1)
-            await new Promise((resolve) => setTimeout(resolve, 10))
+            ready.open()
+            await hold.wait
             order.push(2)
           })
+
+          await ready.wait
 
           const op2 = FileTime.withLock(filepath, async () => {
             order.push(3)
             order.push(4)
           })
 
-          await Promise.all([op1, op2])
+          hold.open()
 
-          // Operations should be serialized
-          expect(order).toContain(1)
-          expect(order).toContain(2)
-          expect(order).toContain(3)
-          expect(order).toContain(4)
+          await Promise.all([op1, op2])
+          expect(order).toEqual([1, 2, 3, 4])
         },
       })
     })
@@ -248,15 +261,21 @@ describe("file/time", () => {
         fn: async () => {
           let started1 = false
           let started2 = false
+          const hold = gate()
+          const ready = gate()
 
           const op1 = FileTime.withLock(filepath1, async () => {
             started1 = true
-            await new Promise((resolve) => setTimeout(resolve, 50))
-            expect(started2).toBe(true) // op2 should have started while op1 is running
+            ready.open()
+            await hold.wait
+            expect(started2).toBe(true)
           })
+
+          await ready.wait
 
           const op2 = FileTime.withLock(filepath2, async () => {
             started2 = true
+            hold.open()
           })
 
           await Promise.all([op1, op2])
@@ -341,6 +360,7 @@ describe("file/time", () => {
       await using tmp = await tmpdir()
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "original", "utf-8")
+      await touch(filepath, 1_000)
 
       await Instance.provide({
         directory: tmp.path,
@@ -349,9 +369,8 @@ describe("file/time", () => {
 
           const originalStat = Filesystem.stat(filepath)
 
-          // Wait and modify
-          await new Promise((resolve) => setTimeout(resolve, 100))
           await fs.writeFile(filepath, "modified", "utf-8")
+          await touch(filepath, 2_000)
 
           const newStat = Filesystem.stat(filepath)
           expect(newStat!.mtime.getTime()).toBeGreaterThan(originalStat!.mtime.getTime())

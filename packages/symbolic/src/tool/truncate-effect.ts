@@ -3,7 +3,7 @@ import path from "path"
 import { Duration, Effect, Layer, ServiceMap } from "effect"
 import type { Agent } from "../agent/agent"
 import { Identifier } from "../id/id"
-import { PermissionNext } from "../permission/next"
+import { evaluate } from "@/permission/evaluate"
 import { Filesystem } from "../util/filesystem"
 import { Glob } from "../util/glob"
 import { ToolID } from "./schema"
@@ -28,7 +28,7 @@ export namespace TruncateEffect {
 
   function has(agent?: Agent.Info) {
     if (!agent?.permission) return false
-    return PermissionNext.evaluate("task", "*", agent.permission).action !== "deny"
+    return evaluate("task", "*", agent.permission).action !== "deny"
   }
 
   export interface Interface {

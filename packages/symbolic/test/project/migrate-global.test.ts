@@ -94,7 +94,7 @@ describe("migrateFromGlobal", () => {
     expect(row!.project_id).toBe(project.id)
   })
 
-  test("migrates sessions with empty directory", async () => {
+  test("does not claim sessions with empty directory", async () => {
     await using tmp = await tmpdir({ git: true })
     const { project } = await Project.fromDirectory(tmp.path)
     expect(project.id).not.toBe(ProjectID.global)
@@ -108,7 +108,7 @@ describe("migrateFromGlobal", () => {
 
     const row = Database.use((db) => db.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
     expect(row).toBeDefined()
-    expect(row!.project_id).toBe(project.id)
+    expect(row!.project_id).toBe(ProjectID.global)
   })
 
   test("does not steal sessions from unrelated directories", async () => {

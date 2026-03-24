@@ -64,6 +64,7 @@ export namespace Flag {
   export const SYMBOLIC_DB = process.env["SYMBOLIC_DB"]
   export const SYMBOLIC_DISABLE_CHANNEL_DB = truthy("SYMBOLIC_DISABLE_CHANNEL_DB")
   export const SYMBOLIC_SKIP_MIGRATIONS = truthy("SYMBOLIC_SKIP_MIGRATIONS")
+  export const SYMBOLIC_STRICT_CONFIG_DEPS = truthy("SYMBOLIC_STRICT_CONFIG_DEPS")
 
   function number(key: string) {
     const value = process.env[key]

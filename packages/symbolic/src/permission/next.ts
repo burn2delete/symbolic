@@ -13,6 +13,7 @@ import { Wildcard } from "@/util/wildcard"
 import { Effect, Layer, ServiceMap } from "effect"
 import os from "os"
 import z from "zod"
+import { evaluate as evalRule } from "./evaluate"
 
 export namespace PermissionNext {
   const log = Log.create({ service: "permission" })
@@ -278,10 +279,7 @@ export namespace PermissionNext {
   export function evaluate(permission: string, pattern: string, ...rulesets: Ruleset[]): Rule {
     const merged = merge(...rulesets)
     log.info("evaluate", { permission, pattern, ruleset: merged })
-    const match = merged.findLast(
-      (rule) => Wildcard.match(permission, rule.permission) && Wildcard.match(pattern, rule.pattern),
-    )
-    return match ?? { action: "ask", permission, pattern: "*" }
+    return evalRule(permission, pattern, ...rulesets)
   }
 
   const EDIT_TOOLS = ["edit", "write", "patch", "apply_patch", "multiedit"]
