@@ -1,10 +1,11 @@
-import { Hono } from "hono"
+import { Hono, type Context } from "hono"
 import { describeRoute, resolver, validator } from "hono-openapi"
 import { streamSSE } from "hono/streaming"
 import z from "zod"
 import { BusEvent } from "@/bus/bus-event"
 import { GlobalBus } from "@/bus/global"
 import { AsyncQueue } from "@/util/queue"
+import { SyncEvent } from "@/sync"
 import { Instance } from "../../project/instance"
 import { Installation } from "@/installation"
 import { Log } from "../../util/log"
@@ -15,6 +16,55 @@ import { errors } from "../error"
 const log = Log.create({ service: "server" })
 
 export const GlobalDisposedEvent = BusEvent.define("global.disposed", z.object({}))
+
+async function streamEvents(c: Context, subscribe: (q: AsyncQueue<string | null>) => () => void) {
+  return streamSSE(c, async (stream) => {
+    const q = new AsyncQueue<string | null>()
+    let done = false
+
+    q.push(
+      JSON.stringify({
+        payload: {
+          type: "server.connected",
+          properties: {},
+        },
+      }),
+    )
+
+    const heartbeat = setInterval(() => {
+      q.push(
+        JSON.stringify({
+          payload: {
+            type: "server.heartbeat",
+            properties: {},
+          },
+        }),
+      )
+    }, 10_000)
+
+    const stop = () => {
+      if (done) return
+      done = true
+      clearInterval(heartbeat)
+      unsub()
+      q.push(null)
+      log.info("global event disconnected")
+    }
+
+    const unsub = subscribe(q)
+
+    stream.onAbort(stop)
+
+    try {
+      for await (const data of q) {
+        if (data === null) return
+        await stream.writeSSE({ data })
+      }
+    } finally {
+      stop()
+    }
+  })
+}
 
 export const GlobalRoutes = lazy(() =>
   new Hono()
@@ -69,54 +119,55 @@ export const GlobalRoutes = lazy(() =>
         log.info("global event connected")
         c.header("X-Accel-Buffering", "no")
         c.header("X-Content-Type-Options", "nosniff")
-        return streamSSE(c, async (stream) => {
-          const q = new AsyncQueue<string | null>()
-          let done = false
-
-          q.push(
-            JSON.stringify({
-              payload: {
-                type: "server.connected",
-                properties: {},
-              },
-            }),
-          )
-          async function handler(event: any) {
+        return streamEvents(c, (q) => {
+          const handler = (event: unknown) => {
             q.push(JSON.stringify(event))
           }
           GlobalBus.on("event", handler)
-
-          // Send heartbeat every 10s to prevent stalled proxy streams.
-          const heartbeat = setInterval(() => {
+          return () => GlobalBus.off("event", handler)
+        })
+      },
+    )
+    .get(
+      "/sync-event",
+      describeRoute({
+        summary: "Subscribe to global sync events",
+        description: "Get global sync events",
+        operationId: "global.sync-event.subscribe",
+        responses: {
+          200: {
+            description: "Event stream",
+            content: {
+              "text/event-stream": {
+                schema: resolver(
+                  z
+                    .object({
+                      payload: SyncEvent.payloads(),
+                    })
+                    .meta({
+                      ref: "SyncEvent",
+                    }),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        log.info("global sync event connected")
+        c.header("X-Accel-Buffering", "no")
+        c.header("X-Content-Type-Options", "nosniff")
+        return streamEvents(c, (q) => {
+          return SyncEvent.subscribeAll(({ def, event }) => {
             q.push(
               JSON.stringify({
                 payload: {
-                  type: "server.heartbeat",
-                  properties: {},
+                  ...event,
+                  type: SyncEvent.versionedType(def.type, def.version),
                 },
               }),
             )
-          }, 10_000)
-
-          const stop = () => {
-            if (done) return
-            done = true
-            clearInterval(heartbeat)
-            GlobalBus.off("event", handler)
-            q.push(null)
-            log.info("global event disconnected")
-          }
-
-          stream.onAbort(stop)
-
-          try {
-            for await (const data of q) {
-              if (data === null) return
-              await stream.writeSSE({ data })
-            }
-          } finally {
-            stop()
-          }
+          })
         })
       },
     )

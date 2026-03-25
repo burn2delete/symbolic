@@ -69,7 +69,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     return true
   }
 
-  const addImageAttachment = (file: File) => add(file)
+  const addAttachment = (file: File) => add(file)
 
   const addAttachments = async (files: File[], toast = true) => {
     let found = false
@@ -83,7 +83,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     return found
   }
 
-  const removeImageAttachment = (id: string) => {
+  const removeAttachment = (id: string) => {
     const current = prompt.current()
     const next = current.filter((part) => part.type !== "image" || part.id !== id)
     prompt.set(next, prompt.cursor())
@@ -113,7 +113,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     if (input.readClipboardImage && !plainText) {
       const file = await input.readClipboardImage()
       if (file) {
-        await addImageAttachment(file)
+        await addAttachment(file)
         return
       }
     }
@@ -193,9 +193,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   })
 
   return {
-    addImageAttachment,
+    addAttachment,
     addAttachments,
-    removeImageAttachment,
+    removeAttachment,
     handlePaste,
   }
 }

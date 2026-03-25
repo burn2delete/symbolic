@@ -1619,6 +1619,44 @@ describe("ProviderTransform.message - claude w/bedrock custom inference profile"
       }),
     )
   })
+
+  test("adds cachePoint when the provider npm package is amazon-bedrock", () => {
+    const model = {
+      id: "custom-provider/custom-claude-sonnet-4.5",
+      providerID: "custom-provider",
+      api: {
+        id: "arn:aws:bedrock:xxx:yyy:application-inference-profile/zzz",
+        url: "https://api.test.com",
+        npm: "@ai-sdk/amazon-bedrock",
+      },
+      name: "Custom inference profile",
+      capabilities: {},
+      options: {},
+      headers: {},
+    } as any
+
+    const msgs = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Hello",
+          },
+        ],
+      },
+    ] as any[]
+
+    const result = ProviderTransform.message(msgs, model, {}) as any[]
+
+    expect(result[0].providerOptions?.bedrock).toEqual(
+      expect.objectContaining({
+        cachePoint: {
+          type: "default",
+        },
+      }),
+    )
+  })
 })
 
 describe("ProviderTransform.message - cache control on gateway", () => {

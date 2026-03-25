@@ -924,7 +924,18 @@ export function MessageTimeline(props: {
                 {(messageID) => {
                   const active = createMemo(() => activeMessageID() === messageID)
                   const comments = createMemo(() => messageComments(sync.data.part[messageID] ?? []), [], {
-                    equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+                    equals: (a, b) =>
+                      a.length === b.length &&
+                      a.every((c, i) => {
+                        const next = b[i]
+                        if (!next) return false
+                        return (
+                          c.path === next.path &&
+                          c.comment === next.comment &&
+                          c.selection?.startLine === next.selection?.startLine &&
+                          c.selection?.endLine === next.selection?.endLine
+                        )
+                      }),
                   })
                   const commentCount = createMemo(() => comments().length)
                   return (
@@ -980,6 +991,7 @@ export function MessageTimeline(props: {
                       <SessionTurn
                         sessionID={sessionID() ?? ""}
                         messageID={messageID}
+                        messages={sessionMessages()}
                         actions={props.actions}
                         active={active()}
                         status={active() ? sessionStatus() : undefined}

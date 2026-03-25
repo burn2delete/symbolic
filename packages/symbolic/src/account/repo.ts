@@ -8,6 +8,7 @@ import { AccessToken, Account, AccountID, AccountRepoError, OrgID, RefreshToken 
 export type AccountRow = (typeof AccountTable)["$inferSelect"]
 
 type DbClient = Parameters<typeof Database.use>[0] extends (db: infer T) => unknown ? T : never
+type DbTransactionCallback<A> = (db: DbClient) => A
 
 const ACCOUNT_STATE_ID = 1
 
@@ -42,13 +43,13 @@ export class AccountRepo extends ServiceMap.Service<AccountRepo, AccountRepo.Ser
     Effect.gen(function* () {
       const decode = Schema.decodeUnknownSync(Account)
 
-      const query = <A>(f: (db: DbClient) => A) =>
+      const query = <A>(f: DbTransactionCallback<A>) =>
         Effect.try({
           try: () => Database.use(f),
           catch: (cause) => new AccountRepoError({ message: "Database operation failed", cause }),
         })
 
-      const tx = <A>(f: (db: DbClient) => A) =>
+      const tx = <A>(f: DbTransactionCallback<A>) =>
         Effect.try({
           try: () => Database.transaction(f),
           catch: (cause) => new AccountRepoError({ message: "Database operation failed", cause }),

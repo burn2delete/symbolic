@@ -12,6 +12,7 @@ import { makeRunPromise } from "@/effect/run-service"
 
 export namespace Snapshot {
   const log = Log.create({ service: "snapshot" })
+  const limit = 2 * 1024 * 1024
   const hour = 60 * 60 * 1000
   const prune = "7.days"
   const runFs = makeRunPromise(AppFileSystem.Service, AppFileSystem.defaultLayer)
@@ -368,8 +369,77 @@ export namespace Snapshot {
   }
 
   async function add(git: string) {
-    await syncExclude(git)
-    await Process.run(
+    const [diff, other] = await Promise.all([
+      Process.text(
+        [
+          "git",
+          "-c",
+          "core.autocrlf=false",
+          "-c",
+          "core.longpaths=true",
+          "-c",
+          "core.symlinks=true",
+          "-c",
+          "core.quotepath=false",
+          ...args(git, ["diff-files", "--name-only", "-z", "--", "."]),
+        ],
+        {
+          cwd: Instance.directory,
+          nothrow: true,
+        },
+      ),
+      Process.text(
+        [
+          "git",
+          "-c",
+          "core.autocrlf=false",
+          "-c",
+          "core.longpaths=true",
+          "-c",
+          "core.symlinks=true",
+          "-c",
+          "core.quotepath=false",
+          ...args(git, ["ls-files", "--others", "--exclude-standard", "-z", "--", "."]),
+        ],
+        {
+          cwd: Instance.directory,
+          nothrow: true,
+        },
+      ),
+    ])
+
+    if (diff.code !== 0 || other.code !== 0) {
+      log.warn("failed to list snapshot files", {
+        diffCode: diff.code,
+        diffStderr: diff.stderr.toString(),
+        otherCode: other.code,
+        otherStderr: other.stderr.toString(),
+      })
+      await syncExclude(git)
+      return
+    }
+
+    const tracked = diff.text.split("\0").filter(Boolean)
+    const files = Array.from(new Set([...tracked, ...other.text.split("\0").filter(Boolean)]))
+    if (!files.length) {
+      await syncExclude(git)
+      return
+    }
+
+    const large = (
+      await Promise.all(
+        files.map(async (file) => {
+          const stat = await runFs((fs) => fs.stat(path.join(Instance.directory, file))).catch(() => undefined)
+          if (!stat || stat.type !== "File") return
+          const size = typeof stat.size === "bigint" ? Number(stat.size) : stat.size
+          if (size <= limit) return
+          return file
+        }),
+      )
+    ).filter((file): file is string => Boolean(file))
+
+    await syncExclude(git, large)
+    const result = await Process.run(
       [
         "git",
         "-c",
@@ -385,19 +455,42 @@ export namespace Snapshot {
         nothrow: true,
       },
     )
+    if (large.length > 0) {
+      await Process.run(
+        [
+          "git",
+          "-c",
+          "core.autocrlf=false",
+          "-c",
+          "core.longpaths=true",
+          "-c",
+          "core.symlinks=true",
+          ...args(git, ["rm", "--cached", "--ignore-unmatch", "--", ...large]),
+        ],
+        {
+          cwd: Instance.directory,
+          nothrow: true,
+        },
+      )
+    }
+
+    if (result.code !== 0) {
+      log.warn("failed to add snapshot files", {
+        exitCode: result.code,
+        stderr: result.stderr.toString(),
+      })
+    }
   }
 
-  async function syncExclude(git: string) {
+  async function syncExclude(git: string, list: string[] = []) {
     const file = await excludes()
     const target = path.join(git, "info", "exclude")
+    const text = [file ? await runFs((fs) => fs.readFileString(file)).catch(() => "") : "", ...list.map((item) => `/${item}`)]
+      .map((item) => item.trimEnd())
+      .filter(Boolean)
+      .join("\n")
     await runFs((fs) => fs.ensureDir(path.join(git, "info")))
-    if (!file) {
-      await runFs((fs) => fs.writeFileString(target, ""))
-      return
-    }
-    const text = await runFs((fs) => fs.readFileString(file)).catch(() => "")
-
-    await runFs((fs) => fs.writeFileString(target, text))
+    await runFs((fs) => fs.writeFileString(target, text ? `${text}\n` : ""))
   }
 
   async function excludes() {

@@ -124,4 +124,45 @@ describe("plugin.auth-override", () => {
       },
     })
   }, 30000)
+
+  test("plugin config hook errors do not block auth loading", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const pluginDir = path.join(dir, ".symbolic", "plugin")
+        await fs.mkdir(pluginDir, { recursive: true })
+
+        await Bun.write(
+          path.join(pluginDir, "throwing-config.ts"),
+          [
+            "export default async () => ({",
+            "  config: async () => {",
+            "    throw new Error('config boom')",
+            "  },",
+            "  auth: {",
+            '    provider: "config-error-provider",',
+            "    methods: [",
+            '      { type: "api", label: "Config Error" },',
+            "    ],",
+            "    loader: async () => ({ access: 'test-token' }),",
+            "  },",
+            "})",
+            "",
+          ].join("\n"),
+        )
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const methods = await ProviderAuth.methods()
+        expect(methods["config-error-provider"]).toEqual([
+          {
+            type: "api",
+            label: "Config Error",
+          },
+        ])
+      },
+    })
+  }, 30000)
 })

@@ -1043,7 +1043,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return true
   }
 
-  const { addAttachments, removeImageAttachment, handlePaste } = createPromptAttachments({
+  const { addAttachment, removeAttachment, handlePaste } = createPromptAttachments({
     editor: () => editorRef,
     isDialogActive: () => !!dialog.active,
     setDraggingType: (type) => setStore("draggingType", type),
@@ -1306,7 +1306,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
           onOpen={(attachment) =>
             dialog.show(() => <ImagePreview src={attachment.dataUrl} alt={attachment.filename} />)
           }
-          onRemove={removeImageAttachment}
+          onRemove={removeAttachment}
           removeLabel={language.t("prompt.attachment.remove")}
         />
         <div
@@ -1386,8 +1386,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               accept={ACCEPTED_FILE_TYPES.join(",")}
               class="hidden"
               onChange={(e) => {
-                const list = e.currentTarget.files
-                if (list) void addAttachments(Array.from(list))
+                const file = e.currentTarget.files?.[0]
+                if (file) void addAttachment(file)
                 e.currentTarget.value = ""
               }}
             />
@@ -1487,7 +1487,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                         size="normal"
                         class="min-w-0 max-w-[320px] text-13-regular text-text-base group"
                         style={control()}
-                        onClick={() => dialog.show(() => <DialogSelectModelUnpaid />)}
+                        onClick={() => dialog.show(() => <DialogSelectModelUnpaid model={local.model} />)}
                       >
                         <Show when={local.model.current()?.provider?.id}>
                           <ProviderIcon
@@ -1511,6 +1511,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     keybind={command.keybind("model.choose")}
                   >
                     <ModelSelectorPopover
+                      model={local.model}
                       triggerAs={Button}
                       triggerProps={{
                         variant: "ghost",

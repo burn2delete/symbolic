@@ -139,8 +139,12 @@ export namespace Plugin {
             }
 
             for (const hook of hooks) {
-              // @ts-expect-error plugin sdk v2 migration is still pending
-              await hook.config?.(cfg)
+              try {
+                // @ts-expect-error plugin sdk v2 migration is still pending
+                await hook.config?.(cfg)
+              } catch (err) {
+                log.error("plugin config hook failed", { error: err })
+              }
             }
           })
 

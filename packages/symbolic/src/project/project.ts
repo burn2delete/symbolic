@@ -15,6 +15,8 @@ import { Git } from "@/git"
 import { Glob } from "../util/glob"
 import { which } from "../util/which"
 import { ProjectID } from "./schema"
+import { Effect, Layer, ServiceMap } from "effect"
+import { makeRunPromise } from "@/effect/run-service"
 
 export namespace Project {
   const log = Log.create({ service: "project" })
@@ -65,6 +67,17 @@ export namespace Project {
     Updated: BusEvent.define("project.updated", Info),
   }
 
+  export const UpdateInput = z
+    .object({
+      projectID: ProjectID.zod,
+      name: z.string().optional(),
+      icon: Info.shape.icon.optional(),
+      commands: Info.shape.commands.optional(),
+    })
+    .meta({
+      ref: "ProjectUpdateInput",
+    })
+
   type Row = typeof ProjectTable.$inferSelect
 
   export function fromRow(row: Row): Info {
@@ -95,7 +108,7 @@ export namespace Project {
       .catch(() => undefined)
   }
 
-  export async function fromDirectory(directory: string) {
+  async function fromDirectoryImpl(directory: string) {
     log.info("fromDirectory", { directory })
 
     const data = await iife(async () => {
@@ -230,7 +243,7 @@ export namespace Project {
           },
         }
 
-    if (Flag.SYMBOLIC_EXPERIMENTAL_ICON_DISCOVERY) discover(existing)
+    if (Flag.SYMBOLIC_EXPERIMENTAL_ICON_DISCOVERY) void discoverImpl(existing)
 
     const result: Info = {
       ...existing,
@@ -289,7 +302,7 @@ export namespace Project {
     return { project: result, sandbox: data.sandbox }
   }
 
-  export async function discover(input: Info) {
+  async function discoverImpl(input: Info) {
     if (input.vcs !== "git") return
     if (input.icon?.override) return
     if (input.icon?.url) return
@@ -304,7 +317,7 @@ export namespace Project {
     const base64 = buffer.toString("base64")
     const mime = Filesystem.mimeType(shortest) || "image/png"
     const url = `data:${mime};base64,${base64}`
-    await update({
+    await updateImpl({
       projectID: input.id,
       icon: {
         url,
@@ -313,7 +326,7 @@ export namespace Project {
     return
   }
 
-  export function setInitialized(id: ProjectID) {
+  function setInitializedImpl(id: ProjectID) {
     Database.use((db) =>
       db
         .update(ProjectTable)
@@ -325,7 +338,7 @@ export namespace Project {
     )
   }
 
-  export function list() {
+  function listImpl() {
     return Database.use((db) =>
       db
         .select()
@@ -335,13 +348,13 @@ export namespace Project {
     )
   }
 
-  export function get(id: ProjectID): Info | undefined {
+  function getImpl(id: ProjectID): Info | undefined {
     const row = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
     if (!row) return undefined
     return fromRow(row)
   }
 
-  export async function initGit(input: { directory: string; project: Info }) {
+  async function initGitImpl(input: { directory: string; project: Info }) {
     if (input.project.vcs === "git") return input.project
     if (!which("git")) throw new Error("Git is not installed")
 
@@ -356,13 +369,8 @@ export namespace Project {
     return (await fromDirectory(input.directory)).project
   }
 
-  export const update = fn(
-    z.object({
-      projectID: ProjectID.zod,
-      name: z.string().optional(),
-      icon: Info.shape.icon.optional(),
-      commands: Info.shape.commands.optional(),
-    }),
+  const updateImpl = fn(
+    UpdateInput,
     async (input) => {
       const id = ProjectID.make(input.projectID)
       const result = Database.use((db) =>
@@ -391,7 +399,7 @@ export namespace Project {
     },
   )
 
-  export async function sandboxes(id: ProjectID) {
+  async function sandboxesImpl(id: ProjectID) {
     const row = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
     if (!row) return []
     const data = fromRow(row)
@@ -403,7 +411,7 @@ export namespace Project {
     return valid
   }
 
-  export async function addSandbox(id: ProjectID, directory: string) {
+  async function addSandboxImpl(id: ProjectID, directory: string) {
     const row = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
     if (!row) throw new Error(`Project not found: ${id}`)
     const sandboxes = [...row.sandboxes]
@@ -427,7 +435,7 @@ export namespace Project {
     return data
   }
 
-  export async function removeSandbox(id: ProjectID, directory: string) {
+  async function removeSandboxImpl(id: ProjectID, directory: string) {
     const row = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get())
     if (!row) throw new Error(`Project not found: ${id}`)
     const sandboxes = row.sandboxes.filter((s) => s !== directory)
@@ -448,5 +456,78 @@ export namespace Project {
       },
     })
     return data
+  }
+
+  export interface Interface {
+    readonly fromDirectory: (directory: string) => Effect.Effect<{ project: Info; sandbox: string }>
+    readonly discover: (input: Info) => Effect.Effect<void>
+    readonly setInitialized: (id: ProjectID) => Effect.Effect<void>
+    readonly list: () => Effect.Effect<Info[]>
+    readonly get: (id: ProjectID) => Effect.Effect<Info | undefined>
+    readonly initGit: (input: { directory: string; project: Info }) => Effect.Effect<Info>
+    readonly update: (input: z.input<typeof UpdateInput>) => Effect.Effect<Info>
+    readonly sandboxes: (id: ProjectID) => Effect.Effect<string[]>
+    readonly addSandbox: (id: ProjectID, directory: string) => Effect.Effect<Info>
+    readonly removeSandbox: (id: ProjectID, directory: string) => Effect.Effect<Info>
+  }
+
+  export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Project") {}
+
+  export const layer = Layer.succeed(
+    Service,
+    Service.of({
+      fromDirectory: (directory) => Effect.promise(() => fromDirectoryImpl(directory)),
+      discover: (input) => Effect.promise(() => discoverImpl(input)),
+      setInitialized: (id) => Effect.sync(() => setInitializedImpl(id)),
+      list: () => Effect.sync(() => listImpl()),
+      get: (id) => Effect.sync(() => getImpl(id)),
+      initGit: (input) => Effect.promise(() => initGitImpl(input)),
+      update: (input) => Effect.promise(() => updateImpl.force(input)),
+      sandboxes: (id) => Effect.promise(() => sandboxesImpl(id)),
+      addSandbox: (id, directory) => Effect.promise(() => addSandboxImpl(id, directory)),
+      removeSandbox: (id, directory) => Effect.promise(() => removeSandboxImpl(id, directory)),
+    }),
+  )
+
+  const runPromise = makeRunPromise(Service, layer)
+
+  export async function fromDirectory(directory: string) {
+    return runPromise((svc) => svc.fromDirectory(directory))
+  }
+
+  export async function discover(input: Info) {
+    return runPromise((svc) => svc.discover(input))
+  }
+
+  export function setInitialized(id: ProjectID) {
+    return setInitializedImpl(id)
+  }
+
+  export function list() {
+    return listImpl()
+  }
+
+  export function get(id: ProjectID) {
+    return getImpl(id)
+  }
+
+  export async function initGit(input: { directory: string; project: Info }) {
+    return runPromise((svc) => svc.initGit(input))
+  }
+
+  export async function update(input: z.input<typeof UpdateInput>) {
+    return runPromise((svc) => svc.update(input))
+  }
+
+  export async function sandboxes(id: ProjectID) {
+    return runPromise((svc) => svc.sandboxes(id))
+  }
+
+  export async function addSandbox(id: ProjectID, directory: string) {
+    return runPromise((svc) => svc.addSandbox(id, directory))
+  }
+
+  export async function removeSandbox(id: ProjectID, directory: string) {
+    return runPromise((svc) => svc.removeSandbox(id, directory))
   }
 }

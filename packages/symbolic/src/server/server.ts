@@ -1,10 +1,8 @@
-import { BusEvent } from "@/bus/bus-event"
-import { Bus } from "@/bus"
+import { createHash } from "node:crypto"
 import { Log } from "../util/log"
 import { describeRoute, generateSpecs, validator, resolver, openAPIRouteHandler } from "hono-openapi"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
-import { streamSSE } from "hono/streaming"
 import { proxy } from "hono/proxy"
 import { basicAuth } from "hono/basic-auth"
 import z from "zod"
@@ -43,12 +41,18 @@ import { Filesystem } from "@/util/filesystem"
 import { QuestionRoutes } from "./routes/question"
 import { PermissionRoutes } from "./routes/permission"
 import { GlobalRoutes } from "./routes/global"
+import { EventRoutes } from "./routes/event"
 import { MDNS } from "./mdns"
 import { lazy } from "@/util/lazy"
-import { AsyncQueue } from "@/util/queue"
+import { initProjectors } from "./projectors"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
 globalThis.AI_SDK_LOG_WARNINGS = false
+
+const csp = (hash = "") =>
+  `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'${hash ? ` 'sha256-${hash}'` : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data:; connect-src 'self' data:`
+
+initProjectors()
 
 export namespace Server {
   const log = Log.create({ service: "server" })
@@ -130,6 +134,7 @@ export namespace Server {
         }),
       )
       .route("/global", GlobalRoutes())
+      .route("/event", EventRoutes())
       .put(
         "/auth/:providerID",
         describeRoute({
@@ -523,76 +528,6 @@ export namespace Server {
           return c.json(await Format.status())
         },
       )
-      .get(
-        "/event",
-        describeRoute({
-          summary: "Subscribe to events",
-          description: "Get events",
-          operationId: "event.subscribe",
-          responses: {
-            200: {
-              description: "Event stream",
-              content: {
-                "text/event-stream": {
-                  schema: resolver(BusEvent.payloads()),
-                },
-              },
-            },
-          },
-        }),
-        async (c) => {
-          log.info("event connected")
-          c.header("X-Accel-Buffering", "no")
-          c.header("X-Content-Type-Options", "nosniff")
-          return streamSSE(c, async (stream) => {
-            const q = new AsyncQueue<string | null>()
-            let done = false
-
-            q.push(
-              JSON.stringify({
-                type: "server.connected",
-                properties: {},
-              }),
-            )
-            const unsub = Bus.subscribeAll((event) => {
-              q.push(JSON.stringify(event))
-              if (event.type === Bus.InstanceDisposed.type) {
-                stop()
-              }
-            })
-
-            // Send heartbeat every 10s to prevent stalled proxy streams.
-            const heartbeat = setInterval(() => {
-              q.push(
-                JSON.stringify({
-                  type: "server.heartbeat",
-                  properties: {},
-                }),
-              )
-            }, 10_000)
-
-            const stop = () => {
-              if (done) return
-              done = true
-              clearInterval(heartbeat)
-              unsub()
-              q.push(null)
-              log.info("event disconnected")
-            }
-
-            stream.onAbort(stop)
-
-            try {
-              for await (const data of q) {
-                if (data === null) return
-                await stream.writeSSE({ data })
-              }
-            } finally {
-              stop()
-            }
-          })
-        },
-      )
       .all("/*", async (c) => {
         const path = c.req.path
 
@@ -603,10 +538,13 @@ export namespace Server {
             host: "app.symbolic.computer",
           },
         })
-        response.headers.set(
-          "Content-Security-Policy",
-          "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data:; connect-src 'self' data:",
-        )
+        const match = response.headers.get("content-type")?.includes("text/html")
+          ? (await response.clone().text()).match(
+              /<script\b(?![^>]*\bsrc\s*=)[^>]*\bid=(['"])oc-theme-preload-script\1[^>]*>([\s\S]*?)<\/script>/i,
+            )
+          : undefined
+        const hash = match ? createHash("sha256").update(match[2]).digest("base64") : ""
+        response.headers.set("Content-Security-Policy", csp(hash))
         return response
       })
   }

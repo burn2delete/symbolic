@@ -15,6 +15,8 @@ import { Process } from "../util/process"
 import { Git } from "@/git"
 import { BusEvent } from "@/bus/bus-event"
 import { GlobalBus } from "@/bus/global"
+import { Effect, Layer, ServiceMap } from "effect"
+import { makeRunPromise } from "@/effect/run-service"
 
 export namespace Worktree {
   const log = Log.create({ service: "worktree" })
@@ -335,7 +337,7 @@ export namespace Worktree {
     }, 0)
   }
 
-  export async function makeWorktreeInfo(name?: string): Promise<Info> {
+  async function makeWorktreeInfoImpl(name?: string): Promise<Info> {
     if (Instance.project.vcs !== "git") {
       throw new NotGitError({ message: "Worktrees are only supported for git projects" })
     }
@@ -347,7 +349,7 @@ export namespace Worktree {
     return candidate(root, base || undefined)
   }
 
-  export async function createFromInfo(info: Info, startCommand?: string) {
+  async function createFromInfoImpl(info: Info, startCommand?: string) {
     const created = await Git.run(["worktree", "add", "--no-checkout", "-b", info.branch, info.directory], {
       cwd: Instance.worktree,
     })
@@ -359,13 +361,32 @@ export namespace Worktree {
 
     const projectID = Instance.project.id
     const extra = startCommand?.trim()
+    const start = async () => {
+      const populated = await Git.run(["reset", "--hard"], { cwd: info.directory })
+      if (populated.exitCode !== 0) {
+        const message = errorText(populated) || "Failed to populate worktree"
+        log.error("worktree checkout failed", { directory: info.directory, message })
+        GlobalBus.emit("event", {
+          directory: info.directory,
+          payload: {
+            type: Event.Failed.type,
+            properties: {
+              message,
+            },
+          },
+        })
+        return
+      }
 
-    return () => {
-      const start = async () => {
-        const populated = await Git.run(["reset", "--hard"], { cwd: info.directory })
-        if (populated.exitCode !== 0) {
-          const message = errorText(populated) || "Failed to populate worktree"
-          log.error("worktree checkout failed", { directory: info.directory, message })
+      const booted = await Instance.provide({
+        directory: info.directory,
+        init: InstanceBootstrap,
+        fn: () => undefined,
+      })
+        .then(() => true)
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error)
+          log.error("worktree bootstrap failed", { directory: info.directory, message })
           GlobalBus.emit("event", {
             directory: info.directory,
             payload: {
@@ -375,63 +396,38 @@ export namespace Worktree {
               },
             },
           })
-          return
-        }
-
-        const booted = await Instance.provide({
-          directory: info.directory,
-          init: InstanceBootstrap,
-          fn: () => undefined,
+          return false
         })
-          .then(() => true)
-          .catch((error) => {
-            const message = error instanceof Error ? error.message : String(error)
-            log.error("worktree bootstrap failed", { directory: info.directory, message })
-            GlobalBus.emit("event", {
-              directory: info.directory,
-              payload: {
-                type: Event.Failed.type,
-                properties: {
-                  message,
-                },
-              },
-            })
-            return false
-          })
-        if (!booted) return
+      if (!booted) return
 
-        GlobalBus.emit("event", {
-          directory: info.directory,
-          payload: {
-            type: Event.Ready.type,
-            properties: {
-              name: info.name,
-              branch: info.branch,
-            },
+      GlobalBus.emit("event", {
+        directory: info.directory,
+        payload: {
+          type: Event.Ready.type,
+          properties: {
+            name: info.name,
+            branch: info.branch,
           },
-        })
+        },
+      })
 
-        await runStartScripts(info.directory, { projectID, extra })
-      }
+      await runStartScripts(info.directory, { projectID, extra })
+    }
 
-      return start().catch((error) => {
+    setTimeout(() => {
+      void start().catch((error) => {
         log.error("worktree start task failed", { directory: info.directory, error })
       })
-    }
+    }, 0)
   }
 
-  export const create = fn(CreateInput.optional(), async (input) => {
-    const info = await makeWorktreeInfo(input?.name)
-    const bootstrap = await createFromInfo(info, input?.startCommand)
-    // This is needed due to how worktrees currently work in the
-    // desktop app
-    setTimeout(() => {
-      bootstrap()
-    }, 0)
+  const createImpl = fn(CreateInput.optional(), async (input) => {
+    const info = await makeWorktreeInfoImpl(input?.name)
+    await createFromInfoImpl(info, input?.startCommand)
     return info
   })
 
-  export const remove = fn(RemoveInput, async (input) => {
+  const removeImpl = fn(RemoveInput, async (input) => {
     if (Instance.project.vcs !== "git") {
       throw new NotGitError({ message: "Worktrees are only supported for git projects" })
     }
@@ -529,7 +525,7 @@ export namespace Worktree {
     return true
   })
 
-  export const reset = fn(ResetInput, async (input) => {
+  const resetImpl = fn(ResetInput, async (input) => {
     if (Instance.project.vcs !== "git") {
       throw new NotGitError({ message: "Worktrees are only supported for git projects" })
     }
@@ -669,4 +665,47 @@ export namespace Worktree {
 
     return true
   })
+
+  export interface Interface {
+    readonly makeWorktreeInfo: (name?: string) => Effect.Effect<Info>
+    readonly createFromInfo: (info: Info, startCommand?: string) => Effect.Effect<void>
+    readonly create: (input?: z.input<typeof CreateInput>) => Effect.Effect<Info>
+    readonly remove: (input: z.input<typeof RemoveInput>) => Effect.Effect<boolean>
+    readonly reset: (input: z.input<typeof ResetInput>) => Effect.Effect<boolean>
+  }
+
+  export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Worktree") {}
+
+  export const layer = Layer.succeed(
+    Service,
+    Service.of({
+      makeWorktreeInfo: (name) => Effect.promise(() => makeWorktreeInfoImpl(name)),
+      createFromInfo: (info, startCommand) => Effect.promise(() => createFromInfoImpl(info, startCommand)),
+      create: (input) => Effect.promise(() => createImpl.force(input)),
+      remove: (input) => Effect.promise(() => removeImpl.force(input)),
+      reset: (input) => Effect.promise(() => resetImpl.force(input)),
+    }),
+  )
+
+  const runPromise = makeRunPromise(Service, layer)
+
+  export async function makeWorktreeInfo(name?: string) {
+    return runPromise((svc) => svc.makeWorktreeInfo(name))
+  }
+
+  export async function createFromInfo(info: Info, startCommand?: string) {
+    return runPromise((svc) => svc.createFromInfo(info, startCommand))
+  }
+
+  export async function create(input?: z.input<typeof CreateInput>) {
+    return runPromise((svc) => svc.create(input))
+  }
+
+  export async function remove(input: z.input<typeof RemoveInput>) {
+    return runPromise((svc) => svc.remove(input))
+  }
+
+  export async function reset(input: z.input<typeof ResetInput>) {
+    return runPromise((svc) => svc.reset(input))
+  }
 }

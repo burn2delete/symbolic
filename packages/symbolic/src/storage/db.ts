@@ -32,16 +32,20 @@ const runtime: "bun" | "node" = process.versions.bun ? "bun" : "node"
 export namespace Database {
   export const Runtime = runtime
 
-  export const Path = iife(() => {
-    if (Flag.SYMBOLIC_DB) {
-      if (path.isAbsolute(Flag.SYMBOLIC_DB)) return Flag.SYMBOLIC_DB
-      return path.join(Global.Path.data, Flag.SYMBOLIC_DB)
-    }
+  export function getChannelPath() {
     const channel = Installation.CHANNEL
     if (["latest", "beta"].includes(channel) || Flag.SYMBOLIC_DISABLE_CHANNEL_DB)
       return path.join(Global.Path.data, "symbolic.db")
     const safe = channel.replace(/[^a-zA-Z0-9._-]/g, "-")
     return path.join(Global.Path.data, `symbolic-${safe}.db`)
+  }
+
+  export const Path = iife(() => {
+    if (Flag.SYMBOLIC_DB) {
+      if (Flag.SYMBOLIC_DB === ":memory:" || path.isAbsolute(Flag.SYMBOLIC_DB)) return Flag.SYMBOLIC_DB
+      return path.join(Global.Path.data, Flag.SYMBOLIC_DB)
+    }
+    return getChannelPath()
   })
 
   const state = {
@@ -150,19 +154,27 @@ export namespace Database {
     }
   }
 
-  export function transaction<T>(callback: (tx: TxOrDb) => T): T {
+  type NotPromise<T> = T extends Promise<any> ? never : T
+
+  export function transaction<T>(
+    callback: (tx: TxOrDb) => NotPromise<T>,
+    options?: {
+      behavior?: "deferred" | "immediate" | "exclusive"
+    },
+  ): NotPromise<T> {
     try {
       return callback(ctx.use().tx)
     } catch (err) {
       if (err instanceof Context.NotFound) {
         const effects: (() => void | Promise<void>)[] = []
-        const db = Client()
-        const run = db.transaction.bind(db) as unknown as (fn: (tx: Transaction) => T) => T
-        const result = run((tx) => {
-          return ctx.provide({ tx, effects }, () => callback(tx))
-        })
+        const result = (Client().transaction as any)(
+          (tx: TxOrDb) => {
+            return ctx.provide({ tx, effects }, () => callback(tx))
+          },
+          { behavior: options?.behavior },
+        )
         for (const effect of effects) effect()
-        return result
+        return result as NotPromise<T>
       }
       throw err
     }

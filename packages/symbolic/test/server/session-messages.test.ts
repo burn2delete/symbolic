@@ -114,3 +114,38 @@ describe("session messages endpoint", () => {
     })
   })
 })
+
+describe("session prompt async", () => {
+  test("returns 204 and handles prompt failures asynchronously", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+        const app = Server.Default()
+        const err = new Promise((resolve) => {
+          process.once("unhandledRejection", resolve)
+        })
+
+        const res = await app.request(`/session/${session.id}/prompt_async`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            agent: "missing-agent",
+            parts: [{ type: "text", text: "hello" }],
+          }),
+        })
+
+        expect(res.status).toBe(204)
+
+        const winner = await Promise.race([
+          err.then(() => "rejected"),
+          new Promise<string>((resolve) => setTimeout(() => resolve("timeout"), 100)),
+        ])
+        expect(winner).toBe("timeout")
+      },
+    })
+  })
+})

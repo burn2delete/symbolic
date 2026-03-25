@@ -4,10 +4,8 @@ import { Snapshot } from "../snapshot"
 import { MessageV2 } from "./message-v2"
 import { Session } from "."
 import { Log } from "../util/log"
-import { Database, eq } from "../storage/db"
-import { MessageTable, PartTable } from "./session.sql"
-import { Storage } from "@/storage/storage"
 import { Bus } from "../bus"
+import { Storage } from "@/storage/storage"
 import { SessionPrompt } from "./prompt"
 import { SessionSummary } from "./summary"
 
@@ -93,12 +91,10 @@ export namespace SessionRevert {
     const sessionID = session.id
     const msgs = await Session.messages({ sessionID })
     const messageID = session.revert.messageID
-    const preserve = [] as MessageV2.WithParts[]
     const remove = [] as MessageV2.WithParts[]
     let target: MessageV2.WithParts | undefined
     for (const msg of msgs) {
       if (msg.info.id < messageID) {
-        preserve.push(msg)
         continue
       }
       if (msg.info.id > messageID) {
@@ -106,15 +102,13 @@ export namespace SessionRevert {
         continue
       }
       if (session.revert.partID) {
-        preserve.push(msg)
         target = msg
         continue
       }
       remove.push(msg)
     }
     for (const msg of remove) {
-      Database.use((db) => db.delete(MessageTable).where(eq(MessageTable.id, msg.info.id)).run())
-      await Bus.publish(MessageV2.Event.Removed, { sessionID: sessionID, messageID: msg.info.id })
+      await Session.sync(MessageV2.Event.Removed, { sessionID: sessionID, messageID: msg.info.id })
     }
     if (session.revert.partID && target) {
       const partID = session.revert.partID
@@ -124,8 +118,7 @@ export namespace SessionRevert {
         const removeParts = target.parts.slice(removeStart)
         target.parts = preserveParts
         for (const part of removeParts) {
-          Database.use((db) => db.delete(PartTable).where(eq(PartTable.id, part.id)).run())
-          await Bus.publish(MessageV2.Event.PartRemoved, {
+          await Session.sync(MessageV2.Event.PartRemoved, {
             sessionID: sessionID,
             messageID: target.info.id,
             partID: part.id,
