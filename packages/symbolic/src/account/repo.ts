@@ -8,7 +8,8 @@ import { AccessToken, Account, AccountID, AccountRepoError, OrgID, RefreshToken 
 export type AccountRow = (typeof AccountTable)["$inferSelect"]
 
 type DbClient = Parameters<typeof Database.use>[0] extends (db: infer T) => unknown ? T : never
-type DbTransactionCallback<A> = (db: DbClient) => A
+type NotPromise<T> = T extends Promise<any> ? never : T
+type DbTransactionCallback<A> = (db: DbClient) => NotPromise<A>
 
 const ACCOUNT_STATE_ID = 1
 

@@ -25,7 +25,6 @@ const AVAILABLE_TOOLS = [
   "webfetch",
   "task",
   "todowrite",
-  "todoread",
 ]
 
 const AgentCreateCommand = cmd({

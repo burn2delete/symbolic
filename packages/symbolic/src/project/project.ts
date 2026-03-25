@@ -108,7 +108,7 @@ export namespace Project {
       .catch(() => undefined)
   }
 
-  async function fromDirectoryImpl(directory: string) {
+  async function fromDirectoryImpl(directory: string): Promise<{ project: Info; sandbox: string }> {
     log.info("fromDirectory", { directory })
 
     const data = await iife(async () => {
@@ -302,7 +302,7 @@ export namespace Project {
     return { project: result, sandbox: data.sandbox }
   }
 
-  async function discoverImpl(input: Info) {
+  async function discoverImpl(input: Info): Promise<void> {
     if (input.vcs !== "git") return
     if (input.icon?.override) return
     if (input.icon?.url) return
@@ -354,7 +354,7 @@ export namespace Project {
     return fromRow(row)
   }
 
-  async function initGitImpl(input: { directory: string; project: Info }) {
+  async function initGitImpl(input: { directory: string; project: Info }): Promise<Info> {
     if (input.project.vcs === "git") return input.project
     if (!which("git")) throw new Error("Git is not installed")
 
@@ -473,7 +473,7 @@ export namespace Project {
 
   export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Project") {}
 
-  export const layer = Layer.succeed(
+  export const layer: Layer.Layer<Service> = Layer.succeed(
     Service,
     Service.of({
       fromDirectory: (directory) => Effect.promise(() => fromDirectoryImpl(directory)),
@@ -482,7 +482,7 @@ export namespace Project {
       list: () => Effect.sync(() => listImpl()),
       get: (id) => Effect.sync(() => getImpl(id)),
       initGit: (input) => Effect.promise(() => initGitImpl(input)),
-      update: (input) => Effect.promise(() => updateImpl.force(input)),
+      update: (input) => Effect.promise(() => updateImpl.force(UpdateInput.parse(input))),
       sandboxes: (id) => Effect.promise(() => sandboxesImpl(id)),
       addSandbox: (id, directory) => Effect.promise(() => addSandboxImpl(id, directory)),
       removeSandbox: (id, directory) => Effect.promise(() => removeSandboxImpl(id, directory)),
@@ -491,11 +491,11 @@ export namespace Project {
 
   const runPromise = makeRunPromise(Service, layer)
 
-  export async function fromDirectory(directory: string) {
+  export async function fromDirectory(directory: string): Promise<{ project: Info; sandbox: string }> {
     return runPromise((svc) => svc.fromDirectory(directory))
   }
 
-  export async function discover(input: Info) {
+  export async function discover(input: Info): Promise<void> {
     return runPromise((svc) => svc.discover(input))
   }
 
@@ -511,23 +511,23 @@ export namespace Project {
     return getImpl(id)
   }
 
-  export async function initGit(input: { directory: string; project: Info }) {
+  export async function initGit(input: { directory: string; project: Info }): Promise<Info> {
     return runPromise((svc) => svc.initGit(input))
   }
 
-  export async function update(input: z.input<typeof UpdateInput>) {
+  export async function update(input: z.input<typeof UpdateInput>): Promise<Info> {
     return runPromise((svc) => svc.update(input))
   }
 
-  export async function sandboxes(id: ProjectID) {
+  export async function sandboxes(id: ProjectID): Promise<string[]> {
     return runPromise((svc) => svc.sandboxes(id))
   }
 
-  export async function addSandbox(id: ProjectID, directory: string) {
+  export async function addSandbox(id: ProjectID, directory: string): Promise<Info> {
     return runPromise((svc) => svc.addSandbox(id, directory))
   }
 
-  export async function removeSandbox(id: ProjectID, directory: string) {
+  export async function removeSandbox(id: ProjectID, directory: string): Promise<Info> {
     return runPromise((svc) => svc.removeSandbox(id, directory))
   }
 }

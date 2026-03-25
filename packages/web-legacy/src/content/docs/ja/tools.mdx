@@ -248,26 +248,6 @@ Symbolic で利用可能なすべての組み込みツールを次に示しま�
 
 ---
 
-### todoread
-
-既存の ToDo リストを読み取ります。
-
-```json title="symbolic.json" {4}
-{
-  "$schema": "https://symbolic.computer/config.json",
-  "permission": {
-    "todoread": "allow"
-  }
-}
-```
-
-現在の Todo リストの状態を読み取ります。どのタスクが保留中または完了しているかを追跡するために LLM によって使用されます。
-
-:::note
-このツールはデフォルトではサブエージェントに対して無効になっていますが、手動で有効にすることができます。 [詳細はこちら](/docs/agents/#permissions)
-:::
-
----
 
 ### webfetch
 

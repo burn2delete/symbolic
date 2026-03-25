@@ -1,9 +1,7 @@
 import { usePlatform } from "@/context/platform"
 import type { ServerConnection } from "@/context/server"
-import { createSdkForServer } from "./server"
 
 export type ServerHealth = { healthy: boolean; version?: string }
-type HealthResult = Awaited<ReturnType<ReturnType<typeof createSdkForServer>["global"]["health"]>>
 
 interface CheckServerHealthOptions {
   timeoutMs?: number
@@ -72,14 +70,17 @@ export async function checkServerHealth(
       .then(() => attempt(count + 1))
       .catch(() => ({ healthy: false }))
   }
+  const headers = new Headers()
+  if (server.password) {
+    headers.set("Authorization", `Basic ${btoa(`${server.username ?? "symbolic"}:${server.password}`)}`)
+  }
   const attempt = (count: number): Promise<ServerHealth> =>
-    createSdkForServer({
-      server,
-      fetch,
+    fetch(`${server.url}/global/health`, {
       signal,
+      headers,
     })
-      .global.health()
-      .then((x: HealthResult) => ({ healthy: x.data?.healthy === true, version: x.data?.version }))
+      .then((res) => (res.ok ? res.json() : { healthy: false }))
+      .then((x: ServerHealth) => ({ healthy: x.healthy === true, version: x.version }))
       .catch((error) => next(count, error))
   return attempt(0).finally(() => timeout?.clear?.())
 }

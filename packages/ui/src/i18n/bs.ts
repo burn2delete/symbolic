@@ -103,7 +103,6 @@ export const dict = {
   "ui.tool.shell": "Shell",
   "ui.tool.patch": "Patch",
   "ui.tool.todos": "Lista zadataka",
-  "ui.tool.todos.read": "Čitanje liste zadataka",
   "ui.tool.questions": "Pitanja",
   "ui.tool.agent": "{{type}} agent",
   "ui.tool.agent.default": "agent",

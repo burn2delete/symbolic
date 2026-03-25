@@ -31,20 +31,26 @@ function emit(directory: string) {
   })
 }
 
-function boot(input: { directory: string; init?: () => Promise<any>; project?: Project.Info; worktree?: string }) {
+function boot(input: { directory: string; init?: () => Promise<void>; project?: Project.Info; worktree?: string }): Promise<Shape> {
   return iife(async () => {
-    const ctx =
-      input.project && input.worktree
-        ? {
-            directory: input.directory,
-            worktree: input.worktree,
-            project: input.project,
-          }
-        : await Project.fromDirectory(input.directory).then(({ project, sandbox }) => ({
-            directory: input.directory,
-            worktree: sandbox,
-            project,
-          }))
+    if (input.project && input.worktree) {
+      const ctx = {
+        directory: input.directory,
+        worktree: input.worktree,
+        project: input.project,
+      }
+      await context.provide(ctx, async () => {
+        await input.init?.()
+      })
+      return ctx
+    }
+
+    const next = await Project.fromDirectory(input.directory)
+    const ctx = {
+      directory: input.directory,
+      worktree: next.sandbox,
+      project: next.project,
+    }
     await context.provide(ctx, async () => {
       await input.init?.()
     })
