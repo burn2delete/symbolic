@@ -284,6 +284,30 @@ test("env variable takes precedence, config merges options", async () => {
   })
 })
 
+test("chunk timeout is disabled by default", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "symbolic.json"),
+        JSON.stringify({
+          $schema: "https://symbolic.computer/config.json",
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    init: async () => {
+      Env.set("ANTHROPIC_API_KEY", "env-api-key")
+    },
+    fn: async () => {
+      const providers = await Provider.list()
+      expect(providers["anthropic"]).toBeDefined()
+      expect(providers["anthropic"].options.chunkTimeout).toBeUndefined()
+    },
+  })
+})
+
 test("getModel returns model for valid provider/model", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

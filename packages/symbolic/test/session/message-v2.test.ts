@@ -873,6 +873,42 @@ describe("session.message-v2.fromError", () => {
     })
   })
 
+  test("classifies ZlibError from fetch as retryable APIError", () => {
+    const error = Object.assign(
+      new Error(
+        'ZlibError fetching "https://example.com/messages". For more information, pass `verbose: true` in the second argument to fetch()',
+      ),
+      {
+        code: "ZlibError" as const,
+        errno: 0,
+        path: "",
+      },
+    )
+
+    const result = MessageV2.fromError(error, { providerID })
+
+    expect(MessageV2.APIError.isInstance(result)).toBe(true)
+    expect((result as MessageV2.APIError).data.isRetryable).toBe(true)
+    expect((result as MessageV2.APIError).data.message).toInclude("decompression")
+  })
+
+  test("classifies ZlibError as AbortedError when aborted context is provided", () => {
+    const error = Object.assign(
+      new Error(
+        'ZlibError fetching "https://example.com/messages". For more information, pass `verbose: true` in the second argument to fetch()',
+      ),
+      {
+        code: "ZlibError" as const,
+        errno: 0,
+        path: "",
+      },
+    )
+
+    const result = MessageV2.fromError(error, { providerID, aborted: true })
+
+    expect(result.name).toBe("MessageAbortedError")
+  })
+
   test("detects context overflow from context_length_exceeded code in APICallError body", () => {
     const error = new APICallError({
       message: "Request failed",

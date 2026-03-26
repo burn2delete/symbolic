@@ -176,6 +176,18 @@ describe("session.message-v2.fromError", () => {
     expect(retryable).toBe("Connection reset by server")
   })
 
+  test("retries ZlibError decompression failures", () => {
+    const error = new MessageV2.APIError({
+      message: "Response decompression failed",
+      isRetryable: true,
+      metadata: { code: "ZlibError" },
+    }).toObject() as MessageV2.APIError
+
+    const retryable = SessionRetry.retryable(error)
+    expect(retryable).toBeDefined()
+    expect(retryable).toBe("Response decompression failed")
+  })
+
   test("marks OpenAI 404 status codes as retryable", () => {
     const error = new APICallError({
       message: "boom",
