@@ -48,7 +48,7 @@ const defaultSettings: Settings = {
     releaseNotes: true,
     followup: "steer",
     showReasoningSummaries: false,
-    shellToolPartsExpanded: true,
+    shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
   },
   updates: {
