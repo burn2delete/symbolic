@@ -223,13 +223,14 @@ export namespace ProviderAuth {
         }
 
         if ("refresh" in result) {
+          const { type: _, provider: __, refresh, access, expires, ...extra } = result
           yield* Effect.promise(() =>
             Auth.set(input.providerID, {
               type: "oauth",
-              access: result.access,
-              refresh: result.refresh,
-              expires: result.expires,
-              ...(result.accountId ? { accountId: result.accountId } : {}),
+              access,
+              refresh,
+              expires,
+              ...extra,
             }),
           )
         }

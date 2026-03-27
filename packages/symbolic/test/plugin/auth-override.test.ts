@@ -3,7 +3,9 @@ import path from "path"
 import fs from "fs/promises"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
+import { Auth } from "../../src/auth"
 import { ProviderAuth } from "../../src/provider/auth"
+import { ProviderID } from "../../src/provider/schema"
 
 describe("plugin.auth-override", () => {
   test("user plugin overrides built-in github-copilot auth", async () => {
@@ -164,5 +166,75 @@ describe("plugin.auth-override", () => {
         ])
       },
     })
+  }, 30000)
+
+  test("oauth callback preserves enterprise url when saving auth", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const pluginDir = path.join(dir, ".symbolic", "plugin")
+        await fs.mkdir(pluginDir, { recursive: true })
+
+        await Bun.write(
+          path.join(pluginDir, "enterprise-auth.ts"),
+          [
+            "export default async () => ({",
+            "  auth: {",
+            '    provider: "enterprise-auth-provider",',
+            "    methods: [",
+            "      {",
+            '        type: "oauth",',
+            '        label: "Enterprise Auth",',
+            "        async authorize() {",
+            '          return { url: "https://example.com", instructions: "ok", method: "code", async callback(code) {',
+            "            return {",
+            '              type: "success",',
+            '              access: `access-${code}`,',
+            '              refresh: "refresh-token",',
+            "              expires: 123,",
+            '              enterpriseUrl: "https://ghe.example.com",',
+            "            }",
+            "          } }",
+            "        },",
+            "      },",
+            "    ],",
+            "    loader: async () => ({}),",
+            "  },",
+            "})",
+            "",
+          ].join("\n"),
+        )
+      },
+    })
+
+    await Auth.remove("enterprise-auth-provider").catch(() => undefined)
+
+    try {
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const id = ProviderID.make("enterprise-auth-provider")
+          await ProviderAuth.authorize({
+            providerID: id,
+            method: 0,
+          })
+          await ProviderAuth.callback({
+            providerID: id,
+            method: 0,
+            code: "code",
+          })
+
+          const auth = await Auth.get("enterprise-auth-provider")
+          expect(auth).toEqual({
+            type: "oauth",
+            access: "access-code",
+            refresh: "refresh-token",
+            expires: 123,
+            enterpriseUrl: "https://ghe.example.com",
+          })
+        },
+      })
+    } finally {
+      await Auth.remove("enterprise-auth-provider").catch(() => undefined)
+    }
   }, 30000)
 })
