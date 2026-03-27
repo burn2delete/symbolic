@@ -442,6 +442,14 @@ export default function Page() {
   const activeFileTab = tabState.activeFileTab
   const revertMessageID = createMemo(() => info()?.revert?.messageID)
   const messages = createMemo(() => (params.id ? (sync.data.message[params.id] ?? []) : []))
+  createEffect(
+    on(
+      () => params.id,
+      (id) => {
+        if (!id) requestAnimationFrame(() => inputRef?.focus())
+      },
+    ),
+  )
   const messagesReady = createMemo(() => {
     const id = params.id
     if (!id) return true
