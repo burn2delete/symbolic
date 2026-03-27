@@ -117,6 +117,40 @@ export namespace MCP {
     })
   }
 
+  type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport
+
+  async function closeTransport(transport: Transport, key: string) {
+    await transport.close().catch((error) => {
+      log.error("Failed to close MCP transport", {
+        key,
+        error,
+      })
+    })
+  }
+
+  async function connectClient(
+    key: string,
+    transport: Transport,
+    timeout: number,
+    keepOpenOnError: (error: Error) => boolean,
+  ) {
+    const client = new Client({
+      name: "symbolic",
+      version: Installation.VERSION,
+    })
+
+    try {
+      await withTimeout(client.connect(transport), timeout)
+      return client
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      if (!keepOpenOnError(err)) {
+        await closeTransport(transport, key)
+      }
+      throw err
+    }
+  }
+
   // Convert MCP tool definition to AI SDK Tool type
   async function convertMcpTool(mcpTool: MCPToolDef, client: MCPClient, timeout?: number): Promise<Tool> {
     const inputSchema = mcpTool.inputSchema
@@ -380,11 +414,12 @@ export namespace MCP {
       const connectTimeout = mcp.timeout ?? DEFAULT_TIMEOUT
       for (const { name, transport } of transports) {
         try {
-          const client = new Client({
-            name: "symbolic",
-            version: Installation.VERSION,
-          })
-          await withTimeout(client.connect(transport), connectTimeout)
+          const client = await connectClient(
+            key,
+            transport,
+            connectTimeout,
+            (error) => error instanceof UnauthorizedError || (!!authProvider && error.message.includes("OAuth")),
+          )
           registerNotificationHandlers(client, key)
           mcpClient = client
           log.info("connected", { key, transport: name })
@@ -398,8 +433,7 @@ export namespace MCP {
           // but may also throw plain Errors when auth() fails internally
           // (e.g. during discovery, registration, or state generation).
           // When an authProvider is attached, treat both cases as auth-related.
-          const isAuthError =
-            error instanceof UnauthorizedError || (authProvider && lastError.message.includes("OAuth"))
+          const isAuthError = error instanceof UnauthorizedError || (!!authProvider && lastError.message.includes("OAuth"))
           if (isAuthError) {
             log.info("mcp server requires authentication", { key, transport: name })
 
@@ -465,11 +499,7 @@ export namespace MCP {
 
       const connectTimeout = mcp.timeout ?? DEFAULT_TIMEOUT
       try {
-        const client = new Client({
-          name: "symbolic",
-          version: Installation.VERSION,
-        })
-        await withTimeout(client.connect(transport), connectTimeout)
+        const client = await connectClient(key, transport, connectTimeout, () => false)
         registerNotificationHandlers(client, key)
         mcpClient = client
         status = {
@@ -802,11 +832,9 @@ export namespace MCP {
 
     // Try to connect - this will trigger the OAuth flow
     try {
-      const client = new Client({
-        name: "symbolic",
-        version: Installation.VERSION,
+      await connectClient(mcpName, transport, mcpConfig.timeout ?? DEFAULT_TIMEOUT, (error) => {
+        return error instanceof UnauthorizedError && !!capturedUrl
       })
-      await client.connect(transport)
       // If we get here, we're already authenticated
       return { authorizationUrl: "" }
     } catch (error) {
