@@ -50,7 +50,8 @@ export function setTitlebar(win: BrowserWindow, theme: Partial<TitlebarTheme> = 
 
 export function setDockIcon() {
   if (process.platform !== "darwin") return
-  app.dock?.setIcon(nativeImage.createFromPath(join(iconsDir(), "128x128@2x.png")))
+  const icon = nativeImage.createFromPath(join(iconsDir(), "dock.png"))
+  if (!icon.isEmpty()) app.dock?.setIcon(icon)
 }
 
 export function createMainWindow(globals: Globals) {
@@ -66,7 +67,7 @@ export function createMainWindow(globals: Globals) {
     width: state.width,
     height: state.height,
     show: true,
-    title: "Symbolic",
+    title: "OpenCode",
     icon: iconPath(),
     backgroundColor,
     ...(process.platform === "darwin"
@@ -145,7 +146,7 @@ function injectGlobals(win: BrowserWindow, globals: Globals) {
       deepLinks: Array.isArray(deepLinks) ? deepLinks.splice(0) : deepLinks,
     }
     void win.webContents.executeJavaScript(
-      `window.__SYMBOLIC__ = Object.assign(window.__SYMBOLIC__ ?? {}, ${JSON.stringify(data)})`,
+      `window.__OPENCODE__ = Object.assign(window.__OPENCODE__ ?? {}, ${JSON.stringify(data)})`,
     )
   })
 }
