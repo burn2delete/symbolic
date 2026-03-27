@@ -245,6 +245,35 @@ test("preserves env variables when adding $schema to config", async () => {
   }
 })
 
+test("reloads global config after updateGlobal", async () => {
+  await using tmp = await tmpdir()
+
+  const prev = Global.Path.config
+  ;(Global.Path as { config: string }).config = tmp.path
+  Config.global.reset()
+
+  try {
+    await Filesystem.write(
+      path.join(tmp.path, "symbolic.json"),
+      JSON.stringify({
+        $schema: "https://symbolic.computer/config.json",
+        username: "old",
+      }),
+    )
+
+    expect((await Config.global()).username).toBe("old")
+
+    await Config.updateGlobal({
+      username: "new",
+    })
+
+    expect((await Config.global()).username).toBe("new")
+  } finally {
+    ;(Global.Path as { config: string }).config = prev
+    Config.global.reset()
+  }
+})
+
 test("resolves env templates in account config with account token", async () => {
   const originalActive = Account.active
   const originalConfig = Account.config

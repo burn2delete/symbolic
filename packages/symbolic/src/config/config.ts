@@ -10,6 +10,7 @@ import { Global } from "../global"
 import fs from "fs/promises"
 import { lazy } from "../util/lazy"
 import { NamedError } from "@symbolic-agent/util/error"
+import { Duration, Effect } from "effect"
 import { Flag } from "../flag/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -43,6 +44,56 @@ export namespace Config {
   const ModelId = z.string().meta({ $ref: "https://models.dev/model-schema.json#/$defs/Model" })
 
   const log = Log.create({ service: "config" })
+  type GlobalCache = readonly [Effect.Effect<Info>, Effect.Effect<void>]
+
+  let globalCache: GlobalCache | undefined
+
+  async function loadGlobalCache() {
+    if (globalCache) return globalCache
+
+    const loadGlobal = Effect.promise(async () => {
+      let result: Info = pipe(
+        {},
+        mergeDeep(await loadFile(path.join(Global.Path.config, "config.json"))),
+        mergeDeep(await loadFile(path.join(Global.Path.config, "symbolic.json"))),
+        mergeDeep(await loadFile(path.join(Global.Path.config, "symbolic.jsonc"))),
+      )
+
+      const legacy = path.join(Global.Path.config, "config")
+      if (existsSync(legacy)) {
+        await import(pathToFileURL(legacy).href, {
+          with: {
+            type: "toml",
+          },
+        })
+          .then(async (mod) => {
+            const { provider, model, ...rest } = mod.default
+            if (provider && model) result.model = `${provider}/${model}`
+            result["$schema"] = "https://symbolic.computer/config.json"
+            result = mergeDeep(result, rest)
+            await Filesystem.writeJson(path.join(Global.Path.config, "config.json"), result)
+            await fs.unlink(legacy)
+          })
+          .catch(() => {})
+      }
+
+      return result
+    })
+
+    globalCache = await Effect.runPromise(
+      Effect.cachedInvalidateWithTTL(
+        loadGlobal.pipe(
+          Effect.tapError((error) =>
+            Effect.sync(() => log.error("failed to load global config, using defaults", { error: String(error) })),
+          ),
+          Effect.orElseSucceed((): Info => ({})),
+        ),
+        Duration.infinity,
+      ),
+    )
+
+    return globalCache
+  }
 
   // Managed settings directory for enterprise deployments (highest priority, admin-controlled)
   // These settings override all user and project settings
@@ -1254,33 +1305,15 @@ export namespace Config {
   export type Info = z.output<typeof Info>
 
   export const global = lazy(async () => {
-    let result: Info = pipe(
-      {},
-      mergeDeep(await loadFile(path.join(Global.Path.config, "config.json"))),
-      mergeDeep(await loadFile(path.join(Global.Path.config, "symbolic.json"))),
-      mergeDeep(await loadFile(path.join(Global.Path.config, "symbolic.jsonc"))),
-    )
-
-    const legacy = path.join(Global.Path.config, "config")
-    if (existsSync(legacy)) {
-      await import(pathToFileURL(legacy).href, {
-        with: {
-          type: "toml",
-        },
-      })
-        .then(async (mod) => {
-          const { provider, model, ...rest } = mod.default
-          if (provider && model) result.model = `${provider}/${model}`
-          result["$schema"] = "https://symbolic.computer/config.json"
-          result = mergeDeep(result, rest)
-          await Filesystem.writeJson(path.join(Global.Path.config, "config.json"), result)
-          await fs.unlink(legacy)
-        })
-        .catch(() => {})
-    }
-
-    return result
+    const cache = await loadGlobalCache()
+    return Effect.runPromise(cache[0])
   })
+
+  const resetGlobal = global.reset
+  global.reset = () => {
+    globalCache = undefined
+    resetGlobal()
+  }
 
   export const { readFile } = ConfigPaths
 
@@ -1457,6 +1490,8 @@ export namespace Config {
       return merged
     })()
 
+    const cache = await loadGlobalCache()
+    await Effect.runPromise(cache[1])
     global.reset()
 
     void Instance.disposeAll()
