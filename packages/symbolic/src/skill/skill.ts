@@ -55,11 +55,7 @@ export namespace Skill {
   type State = {
     skills: Record<string, Info>
     dirs: Set<string>
-    task?: Promise<void>
-  }
-
-  type Cache = State & {
-    ensure: () => Promise<void>
+    load: () => Effect.Effect<void>
   }
 
   export interface Interface {
@@ -116,62 +112,52 @@ export namespace Skill {
       })
   }
 
-  function create(directory: string, worktree: string): Cache {
-    const state: State = {
-      skills: {},
-      dirs: new Set<string>(),
+  async function loadSkills(state: State, directory: string, worktree: string) {
+    if (!Flag.SYMBOLIC_DISABLE_EXTERNAL_SKILLS) {
+      for (const dir of external) {
+        const root = path.join(Global.Path.home, dir)
+        if (!(await Filesystem.isDir(root))) continue
+        await scan(state, root, externalPattern, { dot: true, scope: "global" })
+      }
+
+      for await (const root of Filesystem.up({
+        targets: external,
+        start: directory,
+        stop: worktree,
+      })) {
+        await scan(state, root, externalPattern, { dot: true, scope: "project" })
+      }
     }
 
-    const load = async () => {
-      if (!Flag.SYMBOLIC_DISABLE_EXTERNAL_SKILLS) {
-        for (const dir of external) {
-          const root = path.join(Global.Path.home, dir)
-          if (!(await Filesystem.isDir(root))) continue
-          await scan(state, root, externalPattern, { dot: true, scope: "global" })
-        }
+    for (const dir of await Config.directories()) {
+      await scan(state, dir, symbolicPattern)
+    }
 
-        for await (const root of Filesystem.up({
-          targets: external,
-          start: directory,
-          stop: worktree,
-        })) {
-          await scan(state, root, externalPattern, { dot: true, scope: "project" })
-        }
+    const cfg = await Config.get()
+    for (const item of cfg.skills?.paths ?? []) {
+      const expanded = item.startsWith("~/") ? path.join(os.homedir(), item.slice(2)) : item
+      const dir = path.isAbsolute(expanded) ? expanded : path.join(directory, expanded)
+      if (!(await Filesystem.isDir(dir))) {
+        log.warn("skill path not found", { path: dir })
+        continue
       }
+      await scan(state, dir, skillPattern)
+    }
 
-      for (const dir of await Config.directories()) {
-        await scan(state, dir, symbolicPattern)
-      }
-
-      const cfg = await Config.get()
-      for (const item of cfg.skills?.paths ?? []) {
-        const expanded = item.startsWith("~/") ? path.join(os.homedir(), item.slice(2)) : item
-        const dir = path.isAbsolute(expanded) ? expanded : path.join(directory, expanded)
-        if (!(await Filesystem.isDir(dir))) {
-          log.warn("skill path not found", { path: dir })
-          continue
-        }
+    for (const url of cfg.skills?.urls ?? []) {
+      for (const dir of await Discovery.pull(url)) {
+        state.dirs.add(dir)
         await scan(state, dir, skillPattern)
       }
-
-      for (const url of cfg.skills?.urls ?? []) {
-        for (const dir of await Discovery.pull(url)) {
-          state.dirs.add(dir)
-          await scan(state, dir, skillPattern)
-        }
-      }
     }
+  }
 
-    const ensure = () => {
-      if (state.task) return state.task
-      state.task = load().catch((err) => {
-        state.task = undefined
-        throw err
-      })
-      return state.task
+  function create(): State {
+    return {
+      skills: {},
+      dirs: new Set<string>(),
+      load: () => Effect.void,
     }
-
-    return { ...state, ensure }
   }
 
   export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Skill") {}
@@ -180,12 +166,20 @@ export namespace Skill {
     Service,
     Effect.gen(function* () {
       const state = yield* InstanceState.make(
-        Effect.fn("Skill.state")((ctx) => Effect.sync(() => create(ctx.directory, ctx.worktree))),
+        Effect.fn("Skill.state")((ctx) =>
+          Effect.gen(function* () {
+            const s = create()
+            s.load = () => Effect.promise(() => loadSkills(s, ctx.directory, ctx.worktree)).pipe(Effect.catchCause(() => Effect.void))
+            return s
+          }),
+        ),
       )
 
+      const cache = yield* InstanceState.get(state)
+      let cached = yield* Effect.cached(cache.load())
+
       const ensure = Effect.fn("Skill.ensure")(function* () {
-        const cache = yield* InstanceState.get(state)
-        yield* Effect.promise(() => cache.ensure())
+        yield* cached
         return cache
       })
 

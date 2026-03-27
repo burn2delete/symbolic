@@ -1,6 +1,10 @@
 import { test, expect } from "bun:test"
+import { setTimeout as sleep } from "node:timers/promises"
+import "../../src/session"
 import { Skill } from "../../src/skill"
 import { Instance } from "../../src/project/instance"
+import { Config } from "../../src/config/config"
+import { Glob } from "../../src/util/glob"
 import { tmpdir } from "../fixture/fixture"
 import path from "path"
 import fs from "fs/promises"
@@ -385,4 +389,55 @@ description: A skill in the .symbolic/skills directory.
       expect(dirs.length).toBe(4)
     },
   })
+})
+
+test("deduplicates concurrent skill loads", async () => {
+  await using tmp = await tmpdir({
+    git: true,
+    init: async (dir) => {
+      const skillDir = path.join(dir, ".symbolic", "skill", "cached-skill")
+      await Bun.write(
+        path.join(skillDir, "SKILL.md"),
+        `---
+name: cached-skill
+description: A skill used to verify load deduplication.
+---
+
+# Cached Skill
+`,
+      )
+    },
+  })
+
+  const scan = Glob.scan
+  const dirs = Config.directories
+  let count = 0
+  let release: (() => void) | undefined
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+
+  Glob.scan = async function (pattern, options) {
+    count += 1
+    await gate
+    return scan(pattern, options)
+  }
+  Config.directories = async () => [path.join(tmp.path, ".symbolic")]
+
+  try {
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const one = Skill.all()
+        const two = Skill.all()
+        await sleep(20)
+        expect(count).toBe(1)
+        release?.()
+        await Promise.all([one, two])
+      },
+    })
+  } finally {
+    Glob.scan = scan
+    Config.directories = dirs
+  }
 })

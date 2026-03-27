@@ -1,7 +1,9 @@
 import { describe, test, expect } from "bun:test"
 import path from "path"
 import fs from "fs/promises"
+import { setTimeout as sleep } from "node:timers/promises"
 import { File } from "../../src/file"
+import { Ripgrep } from "../../src/file/ripgrep"
 import { Instance } from "../../src/project/instance"
 import { Filesystem } from "../../src/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
@@ -365,6 +367,46 @@ describe("file/index Filesystem patterns", () => {
           expect(result.mimeType).toBe("image/jpeg")
         },
       })
+    })
+
+    test("deduplicates concurrent File.init calls", async () => {
+      await using tmp = await tmpdir({
+        git: true,
+        init: async (dir) => {
+          const root = path.join(dir, "src")
+          await fs.mkdir(root, { recursive: true })
+          await fs.writeFile(path.join(root, "file.txt"), "hello", "utf-8")
+        },
+      })
+
+      const orig = Ripgrep.files
+      let count = 0
+      let release: (() => void) | undefined
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+
+      Ripgrep.files = async function* (input) {
+        count += 1
+        await gate
+        yield* orig(input)
+      }
+
+      try {
+        await Instance.provide({
+          directory: tmp.path,
+          fn: async () => {
+            File.init()
+            File.init()
+            await sleep(20)
+            expect(count).toBe(1)
+            release?.()
+            await sleep(20)
+          },
+        })
+      } finally {
+        Ripgrep.files = orig
+      }
     })
   })
 

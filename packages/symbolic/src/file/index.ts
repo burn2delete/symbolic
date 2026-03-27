@@ -413,8 +413,6 @@ export namespace File {
       state.cache = next
       state.fetching = false
     }
-
-    void state.init()
     return state
   }
 
@@ -429,10 +427,16 @@ export namespace File {
     Service,
     Effect.gen(function* () {
       const state = yield* InstanceState.make(Effect.fn("File.search")((ctx) => Effect.sync(() => create(ctx))))
+      const search = yield* InstanceState.get(state)
+      let cachedInit = yield* Effect.cached(
+        Effect.promise(() => search.init()).pipe(Effect.catchCause(() => Effect.void)),
+      )
 
       const init = Effect.fn("File.init")(function* () {
-        const search = yield* InstanceState.get(state)
-        yield* Effect.promise(() => search.init())
+        yield* cachedInit
+        cachedInit = yield* Effect.cached(
+          Effect.promise(() => search.init()).pipe(Effect.catchCause(() => Effect.void)),
+        )
       })
 
       const files = Effect.fn("File.files")(function* () {
