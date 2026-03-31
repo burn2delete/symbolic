@@ -1,41 +1,38 @@
 import { Schema } from "effect"
 import z from "zod"
 
-import { withStatics } from "@/util/schema"
 import { Identifier } from "@/id/id"
+import { withStatics } from "@/util/schema"
 
-const sessionIdSchema = Schema.String.pipe(Schema.brand("SessionID"))
-
-export type SessionID = typeof sessionIdSchema.Type
-
-export const SessionID = sessionIdSchema.pipe(
-  withStatics((schema: typeof sessionIdSchema) => ({
+export const SessionID = Schema.String.pipe(
+  Schema.brand("SessionID"),
+  withStatics((schema) => ({
     make: (id: string) => schema.makeUnsafe(id),
     descending: (id?: string) => schema.makeUnsafe(Identifier.descending("session", id)),
-    zod: Identifier.schema("session").pipe(z.custom<SessionID>()),
+    zod: Identifier.schema("session").pipe(z.custom<Schema.Schema.Type<typeof schema>>()),
   })),
 )
 
-const messageIdSchema = Schema.String.pipe(Schema.brand("MessageID"))
+export type SessionID = Schema.Schema.Type<typeof SessionID>
 
-export type MessageID = typeof messageIdSchema.Type
-
-export const MessageID = messageIdSchema.pipe(
-  withStatics((schema: typeof messageIdSchema) => ({
+export const MessageID = Schema.String.pipe(
+  Schema.brand("MessageID"),
+  withStatics((schema) => ({
     make: (id: string) => schema.makeUnsafe(id),
     ascending: (id?: string) => schema.makeUnsafe(Identifier.ascending("message", id)),
-    zod: Identifier.schema("message").pipe(z.custom<MessageID>()),
+    zod: Identifier.schema("message").pipe(z.custom<Schema.Schema.Type<typeof schema>>()),
   })),
 )
 
-const partIdSchema = Schema.String.pipe(Schema.brand("PartID"))
+export type MessageID = Schema.Schema.Type<typeof MessageID>
 
-export type PartID = typeof partIdSchema.Type
-
-export const PartID = partIdSchema.pipe(
-  withStatics((schema: typeof partIdSchema) => ({
+export const PartID = Schema.String.pipe(
+  Schema.brand("PartID"),
+  withStatics((schema) => ({
     make: (id: string) => schema.makeUnsafe(id),
     ascending: (id?: string) => schema.makeUnsafe(Identifier.ascending("part", id)),
-    zod: Identifier.schema("part").pipe(z.custom<PartID>()),
+    zod: Identifier.schema("part").pipe(z.custom<Schema.Schema.Type<typeof schema>>()),
   })),
 )
+
+export type PartID = Schema.Schema.Type<typeof PartID>

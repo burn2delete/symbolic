@@ -235,7 +235,7 @@ async function cfgFile(input: PatchInput) {
 
 export async function installPlugin(spec: string): Promise<InstallResult> {
   const parsed = parseSpec(spec)
-  const target = await BunProc.install(parsed.pkg, parsed.version).then(
+  const target = await BunProc.install(parsed.pkg, parsed.version, { ignoreScripts: true }).then(
     (item) => ({
       ok: true as const,
       item,

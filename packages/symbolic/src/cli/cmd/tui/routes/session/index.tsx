@@ -62,6 +62,7 @@ import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
+import { SubagentFooter } from "./subagent-footer"
 import { Flag } from "@/flag/flag"
 import { LANGUAGE_EXTENSIONS } from "@/lsp/language"
 import parsers from "../../../../../../parsers-config.ts"
@@ -1070,6 +1071,7 @@ export function Session() {
               flexGrow={1}
               scrollAcceleration={scrollAcceleration()}
             >
+              <box height={1} />
               <For each={messages()}>
                 {(message, index) => (
                   <Switch>
@@ -1172,6 +1174,9 @@ export function Session() {
               </Show>
               <Show when={permissions().length === 0 && questions().length > 0}>
                 <QuestionPrompt request={questions()[0]} />
+              </Show>
+              <Show when={session()?.parentID}>
+                <SubagentFooter />
               </Show>
               <Prompt
                 visible={!session()?.parentID && permissions().length === 0 && questions().length === 0}

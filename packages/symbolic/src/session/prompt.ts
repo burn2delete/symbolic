@@ -882,7 +882,7 @@ export namespace SessionPrompt {
       messages: input.messages,
       metadata: async (val: { title?: string; metadata?: any }) => {
         const match = input.processor.partFromToolCall(options.toolCallId)
-        if (match && match.state.status === "running") {
+        if (match && ["running", "pending"].includes(match.state.status)) {
           await Session.updatePart({
             ...match,
             state: {

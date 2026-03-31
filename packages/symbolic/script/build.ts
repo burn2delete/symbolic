@@ -69,14 +69,20 @@ const embeddedWebUI = async () => {
   const dist = path.join(app, "dist")
   await $`bun run --cwd ${app} build`
 
-  const files = await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: dist }))
+  const files = (await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: dist })))
+    .map((file) => file.replaceAll("\\", "/"))
+    .sort()
   if (!files.length) {
     console.log("Embedded Web UI bundle is empty, using proxy fallback")
     return null
   }
 
   return [
-    ...files.map((item, i) => `import file_${i} from "${path.join(dist, item).replaceAll("\\", "/")}" with { type: "file" }`),
+    ...files.map((item, i) => {
+      const spec = path.relative(dir, path.join(dist, item)).replaceAll("\\", "/")
+      const file = spec.startsWith(".") ? spec : `./${spec}`
+      return `import file_${i} from ${JSON.stringify(file)} with { type: "file" }`
+    }),
     "export default {",
     ...files.map((item, i) => `  ${JSON.stringify(item)}: file_${i},`),
     "}",

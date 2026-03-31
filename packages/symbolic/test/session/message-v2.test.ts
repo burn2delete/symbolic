@@ -857,6 +857,9 @@ describe("session.message-v2.fromError", () => {
       "The model's maximum context length is 8192 tokens",
       "This model's maximum context length is only 16384 tokens",
       "Input length of 20000 exceeds context length of 16384",
+      "prompt too long; exceeded max context length",
+      "Request too large for model with 131072 maximum context length",
+      "model_context_window_exceeded",
     ]
 
     cases.forEach((message) => {

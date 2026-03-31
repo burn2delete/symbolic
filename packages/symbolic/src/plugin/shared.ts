@@ -48,11 +48,12 @@ export async function resolvePathPluginTarget(spec: string) {
   }
 
   const pkg = await Filesystem.readJson<Record<string, unknown>>(path.join(file, "package.json")).catch(() => undefined)
-  if (!pkg) throw new Error(`Plugin directory ${file} is missing package.json`)
-  if (typeof pkg.main !== "string" || !pkg.main.trim()) {
-    throw new Error(`Plugin directory ${file} must define package.json main`)
+  if (!pkg) {
+    const index = await resolveIndex(file)
+    if (index) return pathToFileURL(index).href
+    throw new Error(`Plugin directory ${file} is missing package.json`)
   }
-
+  if (typeof pkg.main !== "string" || !pkg.main.trim()) return pathToFileURL(file).href
   return pathToFileURL(path.resolve(file, pkg.main)).href
 }
 
@@ -87,9 +88,16 @@ function hasEntrypoint(json: Record<string, unknown>, kind: PluginKind) {
 }
 
 function resolveExport(raw: string, dir: string) {
-  if (raw.startsWith("./") || raw.startsWith("../")) return path.resolve(dir, raw)
   if (raw.startsWith("file://")) return fileURLToPath(raw)
-  return raw
+  if (path.isAbsolute(raw)) return raw
+  return path.resolve(dir, raw)
+}
+
+async function resolveIndex(dir: string) {
+  for (const name of ["index.ts", "index.tsx", "index.js", "index.mjs", "index.cjs"]) {
+    const file = path.join(dir, name)
+    if (await Filesystem.exists(file)) return file
+  }
 }
 
 export async function resolvePluginEntrypoint(spec: string, target: string, kind: PluginKind) {

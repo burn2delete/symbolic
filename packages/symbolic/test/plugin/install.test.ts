@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, spyOn, test } from "bun:test"
 import path from "path"
 import { parse as parseJsonc } from "jsonc-parser"
-import { patchPluginConfig, readPluginManifest } from "../../src/plugin/install"
+import { installPlugin, patchPluginConfig, readPluginManifest } from "../../src/plugin/install"
+import { BunProc } from "../../src/bun"
 import { Filesystem } from "../../src/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
 
@@ -218,5 +219,17 @@ describe("plugin.install", () => {
         { kind: "tui", opts: { compact: true } },
       ],
     })
+  })
+
+  test("installs plugins with lifecycle scripts disabled", async () => {
+    using install = spyOn(BunProc, "install").mockResolvedValue("/tmp/acme")
+
+    const out = await installPlugin("seed@1.0.0")
+
+    expect(out).toEqual({
+      ok: true,
+      target: "/tmp/acme",
+    })
+    expect(install.mock.calls).toEqual([["seed", "1.0.0", { ignoreScripts: true }]])
   })
 })

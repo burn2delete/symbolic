@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test"
 import { WorkspaceID } from "../../src/control-plane/schema"
-import { Hono } from "hono"
 import { tmpdir } from "../fixture/fixture"
 import { Project } from "../../src/project/project"
 import { WorkspaceTable } from "../../src/control-plane/workspace.sql"
@@ -91,6 +90,7 @@ async function setup(state: State) {
   )
 
   const { WorkspaceRouterMiddleware } = await import("../../src/control-plane/workspace-router-middleware")
+  const { Hono } = await import("hono")
   const app = new Hono().use(WorkspaceRouterMiddleware)
 
   return {
@@ -119,7 +119,6 @@ describe("control-plane/session-proxy-middleware", () => {
 
     const ctx = await setup(state)
 
-    ctx.app.post("/session/foo", (c) => c.text("local", 200))
     const response = await ctx.request("http://workspace.test/session/foo?x=1", {
       method: "POST",
       body: JSON.stringify({ hello: "world" }),
@@ -137,6 +136,22 @@ describe("control-plane/session-proxy-middleware", () => {
         body: '{"hello":"world"}',
       },
     ])
+  })
+
+  test("handles local worktree requests directly", async () => {
+    const state: State = {
+      workspace: "second",
+      calls: [],
+    }
+
+    const ctx = await setup(state)
+    const response = await ctx.request("http://workspace.test/path")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      directory: expect.any(String),
+    })
+    expect(state.calls).toEqual([])
   })
 
   // It will behave this way when we have syncing

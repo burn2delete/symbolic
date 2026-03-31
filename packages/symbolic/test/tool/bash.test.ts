@@ -40,6 +40,18 @@ describe("tool.bash", () => {
       },
     })
   })
+
+  test("description stays stable across directories", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const bash = await BashTool.init()
+        expect(bash.description).toContain("current working directory")
+        expect(bash.description).not.toContain(tmp.path)
+      },
+    })
+  })
 })
 
 describe("tool.bash permissions", () => {

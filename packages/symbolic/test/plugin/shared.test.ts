@@ -75,6 +75,112 @@ describe("plugin.shared", () => {
     )
   })
 
+  test("falls back to index files for path plugin directories without package.json", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const root = path.join(dir, "demo")
+        await Filesystem.write(path.join(root, "index.ts"), "export default {}\n")
+      },
+    })
+
+    const dir = path.join(tmp.path, "demo")
+    const file = path.join(dir, "index.ts")
+    expect(await resolvePathPluginTarget(dir)).toBe(pathToFileURL(file).href)
+    expect(await resolvePluginEntrypoint("demo", pathToFileURL(file).href, "tui")).toBe(pathToFileURL(file).href)
+  })
+
+  test("resolves package server exports without a leading dot", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const root = path.join(dir, "demo")
+        await Filesystem.write(
+          path.join(root, "package.json"),
+          JSON.stringify(
+            {
+              name: "demo",
+              type: "module",
+              main: "dist/index.js",
+              exports: {
+                "./server": "dist/server.js",
+              },
+            },
+            null,
+            2,
+          ),
+        )
+        await Filesystem.write(path.join(root, "dist", "index.js"), "export default {}\n")
+        await Filesystem.write(path.join(root, "dist", "server.js"), "export default {}\n")
+      },
+    })
+
+    const dir = path.join(tmp.path, "demo")
+    const file = path.join(dir, "dist", "index.js")
+
+    expect(await resolvePluginEntrypoint("demo", pathToFileURL(file).href, "server")).toBe(
+      pathToFileURL(path.join(dir, "dist", "server.js")).href,
+    )
+  })
+
+  test("resolves package tui exports without a leading dot", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const root = path.join(dir, "demo")
+        await Filesystem.write(
+          path.join(root, "package.json"),
+          JSON.stringify(
+            {
+              name: "demo",
+              type: "module",
+              main: "dist/index.js",
+              exports: {
+                "./tui": "dist/tui.js",
+              },
+            },
+            null,
+            2,
+          ),
+        )
+        await Filesystem.write(path.join(root, "dist", "index.js"), "export default {}\n")
+        await Filesystem.write(path.join(root, "dist", "tui.js"), "export default {}\n")
+      },
+    })
+
+    const dir = path.join(tmp.path, "demo")
+    const file = path.join(dir, "dist", "index.js")
+
+    expect(await resolvePluginEntrypoint("demo", pathToFileURL(file).href, "tui")).toBe(
+      pathToFileURL(path.join(dir, "dist", "tui.js")).href,
+    )
+  })
+
+  test("resolves package main without a leading dot", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const root = path.join(dir, "demo")
+        await Filesystem.write(
+          path.join(root, "package.json"),
+          JSON.stringify(
+            {
+              name: "demo",
+              type: "module",
+              main: "dist/index.js",
+            },
+            null,
+            2,
+          ),
+        )
+        await Filesystem.write(path.join(root, "dist", "index.js"), "export default {}\n")
+      },
+    })
+
+    const dir = path.join(tmp.path, "demo")
+    const file = path.join(dir, "dist", "index.js")
+
+    expect(await resolvePluginEntrypoint("demo", pathToFileURL(file).href, "server")).toBe(
+      pathToFileURL(path.join(dir, "dist", "index.js")).href,
+    )
+  })
+
   test("validates v1 plugin shapes", () => {
     const ok = {
       default: {

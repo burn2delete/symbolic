@@ -21,20 +21,14 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { createEffect, onCleanup, onMount, type JSX, type ParentProps } from "solid-js"
 import { mapValues, pipe } from "remeda"
-import { BunProc } from "@/bun"
 import { Config } from "@/config/config"
 import { Global } from "@/global"
 import { Installation } from "@/installation"
 import { installPlugin as installModulePlugin, patchPluginConfig, readPluginManifest } from "@/plugin/install"
+import { PluginLoader } from "@/plugin/loader"
 import { PluginMeta } from "@/plugin/meta"
 import {
-  checkPluginCompatibility,
-  isDeprecatedPlugin,
   isPathPluginSpec,
-  parsePluginSpecifier,
-  pluginSource,
-  resolvePathPluginTarget,
-  resolvePluginEntrypoint,
   resolvePluginId,
   readV1Plugin,
   type PluginSource,
@@ -225,35 +219,25 @@ function createKeybinds(defaults: TuiKeybindMap, overrides?: Record<string, unkn
   }
 }
 
-async function resolveTarget(spec: string) {
-  if (isPathPluginSpec(spec)) return resolvePathPluginTarget(spec)
-  const parsed = parsePluginSpecifier(spec)
-  return BunProc.install(parsed.pkg, parsed.version)
-}
-
 async function loadPlugin(item: Config.PluginSpec) {
-  const spec = Config.pluginSpec(item)
-  if (isDeprecatedPlugin(spec)) return
-  const source = isPathPluginSpec(spec) ? "file" : pluginSource(spec)
-  const target = await resolveTarget(spec)
-  if (source === "npm") await checkPluginCompatibility(target, Installation.VERSION)
-  const entry = await resolvePluginEntrypoint(spec, target, "tui")
-  const raw = (await import(entry)) as Record<string, unknown>
-  const mod = readV1Plugin(raw, spec, "tui") as TuiPluginModule
-  const id = await resolvePluginId(source, spec, target, readId(mod.id, spec))
-  const meta = await PluginMeta.touch(spec, target, id)
+  const plan = PluginLoader.plan(item)
+  if (plan.deprecated) return
+  const loaded = await PluginLoader.load(await PluginLoader.resolve(plan, "tui"))
+  const mod = readV1Plugin(loaded.mod, loaded.spec, "tui") as TuiPluginModule
+  const id = await resolvePluginId(loaded.source, loaded.spec, loaded.target, readId(mod.id, loaded.spec))
+  const meta = await PluginMeta.touch(loaded.spec, loaded.target, id)
   return {
     id,
-    spec,
-    target,
-    root: resolveRoot(source, spec, target),
-    source,
+    spec: loaded.spec,
+    target: loaded.target,
+    root: resolveRoot(loaded.source, loaded.spec, loaded.target),
+    source: loaded.source,
     mod,
     meta: {
       state: meta.state,
       ...meta.entry,
     },
-    opts: Config.pluginOptions(item),
+    opts: loaded.opts,
     enabled: true as boolean,
     themes: meta.entry.themes ? { ...meta.entry.themes } : {},
   } satisfies Entry

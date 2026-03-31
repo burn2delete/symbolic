@@ -102,6 +102,18 @@ export default {
       },
     },
     {
+      filetype: "kotlin",
+      wasm: "https://github.com/fwcd/tree-sitter-kotlin/releases/download/0.3.8/tree-sitter-kotlin.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/fwcd/tree-sitter-kotlin/0.3.8/queries/highlights.scm",
+        ],
+        locals: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/kotlin/locals.scm",
+        ],
+      },
+    },
+    {
       filetype: "ruby",
       wasm: "https://github.com/tree-sitter/tree-sitter-ruby/releases/download/v0.23.1/tree-sitter-ruby.wasm",
       queries: {
@@ -159,11 +171,32 @@ export default {
       // },
     },
     {
+      filetype: "hcl",
+      wasm: "https://github.com/tree-sitter-grammars/tree-sitter-hcl/releases/download/v1.2.0/tree-sitter-hcl.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/hcl/highlights.scm",
+        ],
+      },
+    },
+    {
       filetype: "json",
       wasm: "https://github.com/tree-sitter/tree-sitter-json/releases/download/v0.24.8/tree-sitter-json.wasm",
       queries: {
         highlights: [
           "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/refs/heads/master/queries/json/highlights.scm",
+        ],
+      },
+    },
+    {
+      filetype: "lua",
+      wasm: "https://github.com/tree-sitter-grammars/tree-sitter-lua/releases/download/v0.5.0/tree-sitter-lua.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-lua/v0.5.0/queries/highlights.scm",
+        ],
+        locals: [
+          "https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-lua/v0.5.0/queries/locals.scm",
         ],
       },
     },
@@ -209,6 +242,15 @@ export default {
       queries: {
         highlights: [
           "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/refs/heads/master/queries/ocaml/highlights.scm",
+        ],
+      },
+    },
+    {
+      filetype: "toml",
+      wasm: "https://github.com/tree-sitter-grammars/tree-sitter-toml/releases/download/v0.7.0/tree-sitter-toml.wasm",
+      queries: {
+        highlights: [
+          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/toml/highlights.scm",
         ],
       },
     },
