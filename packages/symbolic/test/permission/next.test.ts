@@ -509,6 +509,7 @@ test("ask - returns pending promise when action is ask", async () => {
         always: [],
         ruleset: [{ permission: "bash", pattern: "*", action: "ask" }],
       })
+      promise.catch(() => {})
       // Promise should be pending, not resolved
       expect(promise).toBeInstanceOf(Promise)
       // Don't await - just verify it returns a promise

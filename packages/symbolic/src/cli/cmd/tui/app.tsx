@@ -13,6 +13,7 @@ import { SDKProvider, useSDK } from "@tui/context/sdk"
 import { SyncProvider, useSync } from "@tui/context/sync"
 import { LocalProvider, useLocal } from "@tui/context/local"
 import { DialogModel, useConnected } from "@tui/component/dialog-model"
+import { DialogVariant } from "@tui/component/dialog-variant"
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
@@ -40,6 +41,8 @@ import { writeHeapSnapshot } from "v8"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { TuiConfigProvider } from "./context/tui-config"
 import { TuiConfig } from "@/config/tui"
+import { TuiPluginRuntime } from "./plugin"
+import { PluginRouteMissing } from "./component/plugin-route-missing"
 
 async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
   // can't set raw mode if not a TTY
@@ -157,7 +160,9 @@ export function tui(input: {
                                         <FrecencyProvider>
                                           <PromptHistoryProvider>
                                             <PromptRefProvider>
-                                              <App />
+                                              <TuiPluginRuntime.Provider>
+                                                <App />
+                                              </TuiPluginRuntime.Provider>
                                             </PromptRefProvider>
                                           </PromptHistoryProvider>
                                         </FrecencyProvider>
@@ -508,6 +513,18 @@ function App() {
       },
     },
     {
+      title: "Switch model variant",
+      value: "variant.list",
+      category: "Agent",
+      hidden: local.model.variant.list().length === 0,
+      slash: {
+        name: "variants",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogVariant />)
+      },
+    },
+    {
       title: "Agent cycle reverse",
       value: "agent.cycle.reverse",
       keybind: "agent_cycle_reverse",
@@ -752,14 +769,24 @@ function App() {
       }}
       onMouseUp={Flag.SYMBOLIC_EXPERIMENTAL_DISABLE_COPY_ON_SELECT ? undefined : () => Selection.copy(renderer, toast)}
     >
-      <Switch>
-        <Match when={route.data.type === "home"}>
-          <Home />
-        </Match>
-        <Match when={route.data.type === "session"}>
-          <Session />
-        </Match>
-      </Switch>
+      <TuiPluginRuntime.Slot name="app">
+        <Switch>
+          <Match when={route.data.type === "home"}>
+            <Home />
+          </Match>
+          <Match when={route.data.type === "session"}>
+            <Session />
+          </Match>
+          <Match when={route.data.type === "plugin"}>
+            {route.render() ?? (
+              <PluginRouteMissing
+                id={route.data.type === "plugin" ? route.data.name : ""}
+                onHome={() => route.navigate({ type: "home" })}
+              />
+            )}
+          </Match>
+        </Switch>
+      </TuiPluginRuntime.Slot>
     </box>
   )
 }

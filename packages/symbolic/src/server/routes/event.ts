@@ -12,7 +12,7 @@ const log = Log.create({ service: "server" })
 
 export const EventRoutes = lazy(() =>
   new Hono().get(
-    "/event",
+    "/",
     describeRoute({
       summary: "Subscribe to events",
       description: "Get events",

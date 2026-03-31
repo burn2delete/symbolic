@@ -5,6 +5,7 @@ import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
+import { DialogVariant } from "./dialog-variant"
 import { useKeybind } from "../context/keybind"
 import * as fuzzysort from "fuzzysort"
 
@@ -49,10 +50,6 @@ export function DialogModel(props: { providerID?: string }) {
             category,
             disabled: provider.id === "symbolic" && model.id.includes("-nano"),
             footer: model.cost?.input === 0 && provider.id === "symbolic" ? "Free" : undefined,
-            onSelect: () => {
-              dialog.clear()
-              local.model.set({ providerID: provider.id, modelID: model.id }, { recent: true })
-            },
           },
         ]
       })
@@ -87,10 +84,6 @@ export function DialogModel(props: { providerID?: string }) {
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "symbolic" && model.includes("-nano"),
             footer: info.cost?.input === 0 && provider.id === "symbolic" ? "Free" : undefined,
-            onSelect() {
-              dialog.clear()
-              local.model.set({ providerID: provider.id, modelID: model }, { recent: true })
-            },
           })),
           filter((x) => {
             if (!showSections) return true
@@ -135,6 +128,21 @@ export function DialogModel(props: { providerID?: string }) {
 
   const title = createMemo(() => provider()?.name ?? "Select model")
 
+  function pick(providerID: string, modelID: string) {
+    local.model.set({ providerID, modelID }, { recent: true })
+    const list = local.model.variant.list()
+    const cur = local.model.variant.current()
+    if (cur === undefined || list.includes(cur)) {
+      dialog.clear()
+      return
+    }
+    if (list.length > 0) {
+      dialog.replace(() => <DialogVariant />)
+      return
+    }
+    dialog.clear()
+  }
+
   return (
     <DialogSelect<ReturnType<typeof options>[number]["value"]>
       options={options()}
@@ -160,6 +168,11 @@ export function DialogModel(props: { providerID?: string }) {
       skipFilter={true}
       title={title()}
       current={local.model.current()}
+      onSelect={(option) => {
+        const value = option.value
+        if (typeof value !== "object" || value === null) return
+        pick(value.providerID, value.modelID)
+      }}
     />
   )
 }

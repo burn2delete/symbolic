@@ -1,7 +1,7 @@
 import z from "zod"
 import { Filesystem } from "../util/filesystem"
 import path from "path"
-import { and, Database, eq } from "../storage/db"
+import { and, Database, eq, or } from "../storage/db"
 import { ProjectTable } from "./project.sql"
 import { SessionTable } from "../session/session.sql"
 import { Log } from "../util/log"
@@ -289,7 +289,12 @@ export namespace Project {
         db
           .update(SessionTable)
           .set({ project_id: data.id })
-          .where(and(eq(SessionTable.project_id, ProjectID.global), eq(SessionTable.directory, data.worktree)))
+          .where(
+            and(
+              eq(SessionTable.project_id, ProjectID.global),
+              or(eq(SessionTable.directory, data.worktree), eq(SessionTable.directory, "")),
+            ),
+          )
           .run(),
       )
     }

@@ -37,7 +37,6 @@ import { LayoutProvider } from "@/context/layout"
 import { ModelsProvider } from "@/context/models"
 import { NotificationProvider } from "@/context/notification"
 import { PermissionProvider } from "@/context/permission"
-import { usePlatform } from "@/context/platform"
 import { PromptProvider } from "@/context/prompt"
 import { ServerConnection, ServerProvider, serverName, useServer } from "@/context/server"
 import { SettingsProvider } from "@/context/settings"
@@ -48,8 +47,13 @@ import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
 
 const Home = lazy(() => import("@/pages/home"))
-const Session = lazy(() => import("@/pages/session"))
+const loadSession = () => import("@/pages/session")
+const Session = lazy(loadSession)
 const Loading = () => <div class="size-full" />
+
+if (typeof location === "object" && /\/session(?:\/|$)/.test(location.pathname)) {
+  void loadSession()
+}
 
 const HomeRoute = () => (
   <Suspense fallback={<Loading />}>
@@ -81,11 +85,6 @@ declare global {
       setTitlebar?: (theme: { mode: "light" | "dark" }) => Promise<void>
     }
   }
-}
-
-function MarkedProviderWithNativeParser(props: ParentProps) {
-  const platform = usePlatform()
-  return <MarkedProvider nativeParser={platform.parseMarkdown}>{props.children}</MarkedProvider>
 }
 
 function QueryProvider(props: ParentProps) {
@@ -136,6 +135,11 @@ function RouterRoot(props: ParentProps<{ appChildren?: JSX.Element }>) {
   )
 }
 
+function ServerKey(props: ParentProps) {
+  const server = useServer()
+  return <Show when={server.key} keyed>{props.children}</Show>
+}
+
 export function AppBaseProviders(props: ParentProps) {
   return (
     <MetaProvider>
@@ -150,9 +154,9 @@ export function AppBaseProviders(props: ParentProps) {
             <ErrorBoundary fallback={(error) => <ErrorPage error={error} />}>
               <QueryProvider>
                 <DialogProvider>
-                  <MarkedProviderWithNativeParser>
+                  <MarkedProvider>
                     <FileComponentProvider component={File}>{props.children}</FileComponentProvider>
-                  </MarkedProviderWithNativeParser>
+                  </MarkedProvider>
                 </DialogProvider>
               </QueryProvider>
             </ErrorBoundary>
@@ -270,15 +274,6 @@ function ConnectionError(props: { onRetry?: () => void; onServerSelected?: (key:
         </div>
       </Show>
     </div>
-  )
-}
-
-function ServerKey(props: ParentProps) {
-  const server = useServer()
-  return (
-    <Show when={server.key} keyed>
-      {props.children}
-    </Show>
   )
 }
 

@@ -97,7 +97,9 @@ export namespace Plugin {
               plugins = [...BUILTIN, ...plugins]
             }
 
-            for (let plugin of plugins) {
+            for (const item of plugins) {
+              let plugin = Config.pluginSpec(item)
+              const opts = Config.pluginOptions(item)
               if (DEPRECATED_PLUGIN_PACKAGES.some((pkg) => plugin.includes(pkg))) continue
               log.info("loading plugin", { path: plugin })
               if (!plugin.startsWith("file://")) {
@@ -124,7 +126,7 @@ export namespace Plugin {
                   for (const [_name, fn] of Object.entries<PluginInstance>(mod)) {
                     if (seen.has(fn)) continue
                     seen.add(fn)
-                    hooks.push(await fn(input))
+                    hooks.push(await fn(input, opts))
                   }
                 })
                 .catch((err) => {

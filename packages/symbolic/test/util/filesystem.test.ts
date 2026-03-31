@@ -320,6 +320,15 @@ describe("filesystem", () => {
     })
   })
 
+  describe("normalizePathPattern()", () => {
+    test("preserves drive root globs on Windows", async () => {
+      if (process.platform !== "win32") return
+      await using tmp = await tmpdir()
+      const root = path.parse(tmp.path).root
+      expect(Filesystem.normalizePathPattern(path.join(root, "*"))).toBe(path.join(root, "*"))
+    })
+  })
+
   describe("writeStream()", () => {
     test("writes from Web ReadableStream", async () => {
       await using tmp = await tmpdir()

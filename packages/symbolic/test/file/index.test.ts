@@ -396,12 +396,12 @@ describe("file/index Filesystem patterns", () => {
         await Instance.provide({
           directory: tmp.path,
           fn: async () => {
-            File.init()
-            File.init()
+            const first = File.init()
+            const second = File.init()
             await sleep(20)
             expect(count).toBe(1)
             release?.()
-            await sleep(20)
+            await Promise.all([first, second])
           },
         })
       } finally {

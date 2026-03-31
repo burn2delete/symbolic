@@ -297,7 +297,7 @@ describe("session.getUsage", () => {
     expect(result.tokens.cache.write).toBe(300)
   })
 
-  test("does not subtract cached tokens for anthropic provider", () => {
+  test("subtracts cached tokens for anthropic provider", () => {
     const model = createModel({ context: 100_000, output: 32_000 })
     const result = Session.getUsage({
       model,
@@ -312,7 +312,7 @@ describe("session.getUsage", () => {
       },
     })
 
-    expect(result.tokens.input).toBe(1000)
+    expect(result.tokens.input).toBe(800)
     expect(result.tokens.cache.read).toBe(200)
   })
 
@@ -397,10 +397,10 @@ describe("session.getUsage", () => {
           },
         })
 
-        expect(result.tokens.input).toBe(1000)
+        expect(result.tokens.input).toBe(500)
         expect(result.tokens.cache.read).toBe(200)
         expect(result.tokens.cache.write).toBe(300)
-        expect(result.tokens.total).toBe(2000)
+        expect(result.tokens.total).toBe(1500)
         return
       }
 
@@ -414,10 +414,10 @@ describe("session.getUsage", () => {
         },
       })
 
-      expect(result.tokens.input).toBe(1000)
+      expect(result.tokens.input).toBe(500)
       expect(result.tokens.cache.read).toBe(200)
       expect(result.tokens.cache.write).toBe(300)
-      expect(result.tokens.total).toBe(2000)
+      expect(result.tokens.total).toBe(1500)
     },
   )
 })

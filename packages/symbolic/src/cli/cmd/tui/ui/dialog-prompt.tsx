@@ -1,7 +1,7 @@
 import { TextareaRenderable, TextAttributes } from "@opentui/core"
 import { useTheme } from "../context/theme"
 import { useDialog, type DialogContext } from "./dialog"
-import { onMount, type JSX } from "solid-js"
+import { onMount, Show, type JSX } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 
 export type DialogPromptProps = {
@@ -9,6 +9,8 @@ export type DialogPromptProps = {
   description?: () => JSX.Element
   placeholder?: string
   value?: string
+  busy?: boolean
+  busyText?: string
   onConfirm?: (value: string) => void
   onCancel?: () => void
 }
@@ -20,6 +22,7 @@ export function DialogPrompt(props: DialogPromptProps) {
 
   useKeyboard((evt) => {
     if (evt.name === "return") {
+      if (props.busy) return
       props.onConfirm?.(textarea.plainText)
     }
   })
@@ -47,6 +50,7 @@ export function DialogPrompt(props: DialogPromptProps) {
         {props.description}
         <textarea
           onSubmit={() => {
+            if (props.busy) return
             props.onConfirm?.(textarea.plainText)
           }}
           height={3}
@@ -54,6 +58,7 @@ export function DialogPrompt(props: DialogPromptProps) {
           ref={(val: TextareaRenderable) => (textarea = val)}
           initialValue={props.value}
           placeholder={props.placeholder ?? "Enter text"}
+          placeholderColor={theme.textMuted}
           textColor={theme.text}
           focusedTextColor={theme.text}
           cursorColor={theme.text}
@@ -61,7 +66,16 @@ export function DialogPrompt(props: DialogPromptProps) {
       </box>
       <box paddingBottom={1} gap={1} flexDirection="row">
         <text fg={theme.text}>
-          enter <span style={{ fg: theme.textMuted }}>submit</span>
+          <Show
+            when={!props.busy}
+            fallback={
+              <>
+                <span style={{ fg: theme.textMuted }}>{props.busyText ?? "Working..."}</span>
+              </>
+            }
+          >
+            enter <span style={{ fg: theme.textMuted }}>submit</span>
+          </Show>
         </text>
       </box>
     </box>

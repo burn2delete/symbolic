@@ -60,7 +60,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const agent = await Agent.get(params.subagent_type)
       if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
 
-      const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
+      const canTask = PermissionNext.evaluate("task", "*", agent.permission).action !== "deny"
+      const canTodo = PermissionNext.evaluate("todowrite", "*", agent.permission).action !== "deny"
 
       const session = await iife(async () => {
         if (params.task_id) {
@@ -72,12 +73,16 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           parentID: ctx.sessionID,
           title: params.description + ` (@${agent.name} subagent)`,
           permission: [
-            {
-              permission: "todowrite",
-              pattern: "*",
-              action: "deny",
-            },
-            ...(hasTaskPermission
+            ...(canTodo
+              ? []
+              : [
+                  {
+                    permission: "todowrite" as const,
+                    pattern: "*" as const,
+                    action: "deny" as const,
+                  },
+                ]),
+            ...(canTask
               ? []
               : [
                   {
@@ -128,8 +133,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         },
         agent: agent.name,
         tools: {
-          todowrite: false,
-          ...(hasTaskPermission ? {} : { task: false }),
+          ...(canTodo ? {} : { todowrite: false }),
+          ...(canTask ? {} : { task: false }),
           ...Object.fromEntries((config.experimental?.primary_tools ?? []).map((t) => [t, false])),
         },
         parts: promptParts,

@@ -1,6 +1,14 @@
-import { describe, expect, mock, test } from "bun:test"
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
+import * as Consumers from "node:stream/consumers"
+import * as Network from "../../../src/cli/network"
+import { TuiConfig } from "@/config/tui"
+import { Instance } from "@/project/instance"
+import { Rpc } from "@/util/rpc"
+import { UI } from "@/cli/ui"
+import * as Timeout from "@/util/timeout"
+import * as Win32 from "../../../src/cli/cmd/tui/win32"
 import { tmpdir } from "../../fixture/fixture"
 
 const stop = new Error("stop")
@@ -12,11 +20,6 @@ const seen = {
 
 let piped = ""
 
-mock.module("node:stream/consumers", () => ({
-  text: async () => piped,
-  buffer: async () => Buffer.alloc(0),
-}))
-
 mock.module("../../../src/cli/cmd/tui/app", () => ({
   tui: async (input: { directory: string; args?: { prompt?: string } }) => {
     seen.tui.push(input.directory)
@@ -25,75 +28,38 @@ mock.module("../../../src/cli/cmd/tui/app", () => ({
   },
 }))
 
-mock.module("@/util/rpc", () => ({
-  Rpc: {
-    client: () => ({
-      call: async () => ({ url: "http://127.0.0.1" }),
-      on: () => {},
-    }),
-  },
-}))
-
-mock.module("@/cli/ui", () => ({
-  UI: {
-    error: () => {},
-  },
-}))
-
-mock.module("@/util/log", () => ({
-  Log: {
-    init: async () => {},
-    create: () => ({
-      error: () => {},
-      info: () => {},
-      warn: () => {},
-      debug: () => {},
-      time: () => ({ stop: () => {} }),
-    }),
-    Default: {
-      error: () => {},
-      info: () => {},
-      warn: () => {},
-      debug: () => {},
-    },
-  },
-}))
-
-mock.module("@/util/timeout", () => ({
-  withTimeout: <T>(input: Promise<T>) => input,
-}))
-
-mock.module("@/cli/network", () => ({
-  withNetworkOptions: <T>(input: T) => input,
-  resolveNetworkOptions: async () => ({
+async function setup() {
+  spyOn(Consumers, "text").mockImplementation(async () => piped)
+  spyOn(Consumers, "buffer").mockImplementation(async () => Buffer.alloc(0))
+  spyOn(Rpc, "client").mockImplementation(() => ({
+    call: async () => ({ url: "http://127.0.0.1" }) as never,
+    on: () => () => undefined,
+  }))
+  spyOn(UI, "error").mockImplementation(() => {})
+  spyOn(Timeout, "withTimeout").mockImplementation((input) => input)
+  spyOn(Network, "resolveNetworkOptions").mockResolvedValue({
     mdns: false,
     port: 0,
     hostname: "127.0.0.1",
-  }),
-}))
-
-mock.module("../../../src/cli/cmd/tui/win32", () => ({
-  win32DisableProcessedInput: () => {},
-  win32InstallCtrlCGuard: () => undefined,
-}))
-
-mock.module("@/config/tui", () => ({
-  TuiConfig: {
-    get: () => ({}),
-  },
-}))
-
-mock.module("@/project/instance", () => ({
-  Instance: {
-    provide: async (input: { directory: string; fn: () => Promise<unknown> | unknown }) => {
-      seen.inst.push(input.directory)
-      return input.fn()
-    },
-  },
-}))
+    mdnsDomain: "symbolic.local",
+    cors: [],
+  })
+  spyOn(Win32, "win32DisableProcessedInput").mockImplementation(() => {})
+  spyOn(Win32, "win32InstallCtrlCGuard").mockReturnValue(undefined)
+  spyOn(TuiConfig, "get").mockImplementation(async () => ({}))
+  spyOn(Instance, "provide").mockImplementation(async (input) => {
+    seen.inst.push(input.directory)
+    return input.fn()
+  })
+}
 
 describe("tui thread", () => {
+  afterEach(() => {
+    mock.restore()
+  })
+
   async function call(project?: string) {
+    await setup()
     const { TuiThreadCommand } = await import("../../../src/cli/cmd/tui/thread")
     const args: Parameters<NonNullable<typeof TuiThreadCommand.handler>>[0] = {
       _: [],

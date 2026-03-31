@@ -207,7 +207,33 @@ describe("session.prompt command", () => {
         ).rejects.toMatchObject({
           name: "UnknownError",
           data: {
-            message: 'Command not found: "missing-command"',
+            message: expect.stringContaining('Command not found: "missing-command". Available commands:'),
+          },
+        })
+      },
+    })
+  })
+})
+
+describe("session.prompt agent", () => {
+  test("throws a clear error for unknown agents", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+
+        await expect(
+          SessionPrompt.prompt({
+            sessionID: session.id,
+            agent: "missing-agent",
+            noReply: true,
+            parts: [{ type: "text", text: "hello" }],
+          }),
+        ).rejects.toMatchObject({
+          name: "UnknownError",
+          data: {
+            message: expect.stringContaining('Agent not found: "missing-agent". Available agents:'),
           },
         })
       },

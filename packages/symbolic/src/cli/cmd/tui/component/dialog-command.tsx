@@ -3,6 +3,7 @@ import { DialogSelect, type DialogSelectOption, type DialogSelectRef } from "@tu
 import {
   createContext,
   createMemo,
+  getOwner,
   createSignal,
   onCleanup,
   useContext,
@@ -100,11 +101,12 @@ function init() {
       dialog.replace(() => <DialogCommand options={visibleOptions()} suggestedOptions={suggestedOptions()} />)
     },
     register(cb: () => CommandOption[]) {
-      const results = createMemo(cb)
-      setRegistrations((arr) => [results, ...arr])
-      onCleanup(() => {
-        setRegistrations((arr) => arr.filter((x) => x !== results))
-      })
+      setRegistrations((arr) => [cb, ...arr])
+      const off = () => {
+        setRegistrations((arr) => arr.filter((x) => x !== cb))
+      }
+      if (getOwner()) onCleanup(off)
+      return off
     },
   }
   return result

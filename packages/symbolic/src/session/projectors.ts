@@ -1,9 +1,10 @@
 import { NotFoundError, and, eq } from "../storage/db"
 import { SyncEvent } from "@/sync"
-import { Session } from "./index"
 import { MessageV2 } from "./message-v2"
 import { SessionTable, MessageTable, PartTable } from "./session.sql"
 
+type Info = import("./index").Session.Info
+type Session = Pick<typeof import("./index").Session, "Event" | "toRow">
 export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> | null } : T
 
 function grab<T extends object, K1 extends keyof T, X>(
@@ -21,7 +22,7 @@ function grab<T extends object, K1 extends keyof T, X>(
   return val as X | undefined
 }
 
-export function toPartialRow(info: DeepPartial<Session.Info>) {
+export function toPartialRow(info: DeepPartial<Info>) {
   const obj = {
     id: grab(info, "id"),
     project_id: grab(info, "projectID"),
@@ -47,49 +48,51 @@ export function toPartialRow(info: DeepPartial<Session.Info>) {
   return Object.fromEntries(Object.entries(obj).filter(([_, val]) => val !== undefined))
 }
 
-export default [
-  SyncEvent.project(Session.Event.Created, (db, data) => {
-    db.insert(SessionTable).values(Session.toRow(data.info)).run()
-  }),
+export function createProjectors(session: Session) {
+  return [
+    SyncEvent.project(session.Event.Created, (db, data) => {
+      db.insert(SessionTable).values(session.toRow(data.info)).run()
+    }),
 
-  SyncEvent.project(Session.Event.Updated, (db, data) => {
-    const row = db
-      .update(SessionTable)
-      .set(toPartialRow(data.info))
-      .where(eq(SessionTable.id, data.sessionID))
-      .returning()
-      .get()
-    if (!row) throw new NotFoundError({ message: `Session not found: ${data.sessionID}` })
-  }),
+    SyncEvent.project(session.Event.Updated, (db, data) => {
+      const row = db
+        .update(SessionTable)
+        .set(toPartialRow(data.info))
+        .where(eq(SessionTable.id, data.sessionID))
+        .returning()
+        .get()
+      if (!row) throw new NotFoundError({ message: `Session not found: ${data.sessionID}` })
+    }),
 
-  SyncEvent.project(Session.Event.Deleted, (db, data) => {
-    db.delete(SessionTable).where(eq(SessionTable.id, data.sessionID)).run()
-  }),
+    SyncEvent.project(session.Event.Deleted, (db, data) => {
+      db.delete(SessionTable).where(eq(SessionTable.id, data.sessionID)).run()
+    }),
 
-  SyncEvent.project(MessageV2.Event.Updated, (db, data) => {
-    const time_created = data.info.time.created
-    const { id, sessionID, ...rest } = data.info
+    SyncEvent.project(MessageV2.Event.Updated, (db, data) => {
+      const time_created = data.info.time.created
+      const { id, sessionID, ...rest } = data.info
 
-    db.insert(MessageTable)
-      .values({ id, session_id: sessionID, time_created, data: rest })
-      .onConflictDoUpdate({ target: MessageTable.id, set: { data: rest } })
-      .run()
-  }),
+      db.insert(MessageTable)
+        .values({ id, session_id: sessionID, time_created, data: rest })
+        .onConflictDoUpdate({ target: MessageTable.id, set: { data: rest } })
+        .run()
+    }),
 
-  SyncEvent.project(MessageV2.Event.Removed, (db, data) => {
-    db.delete(MessageTable).where(and(eq(MessageTable.id, data.messageID), eq(MessageTable.session_id, data.sessionID))).run()
-  }),
+    SyncEvent.project(MessageV2.Event.Removed, (db, data) => {
+      db.delete(MessageTable).where(and(eq(MessageTable.id, data.messageID), eq(MessageTable.session_id, data.sessionID))).run()
+    }),
 
-  SyncEvent.project(MessageV2.Event.PartRemoved, (db, data) => {
-    db.delete(PartTable).where(and(eq(PartTable.id, data.partID), eq(PartTable.session_id, data.sessionID))).run()
-  }),
+    SyncEvent.project(MessageV2.Event.PartRemoved, (db, data) => {
+      db.delete(PartTable).where(and(eq(PartTable.id, data.partID), eq(PartTable.session_id, data.sessionID))).run()
+    }),
 
-  SyncEvent.project(MessageV2.Event.PartUpdated, (db, data) => {
-    const { id, messageID, sessionID, ...rest } = data.part
+    SyncEvent.project(MessageV2.Event.PartUpdated, (db, data) => {
+      const { id, messageID, sessionID, ...rest } = data.part
 
-    db.insert(PartTable)
-      .values({ id, message_id: messageID, session_id: sessionID, time_created: data.time, data: rest })
-      .onConflictDoUpdate({ target: PartTable.id, set: { data: rest } })
-      .run()
-  }),
-]
+      db.insert(PartTable)
+        .values({ id, message_id: messageID, session_id: sessionID, time_created: data.time, data: rest })
+        .onConflictDoUpdate({ target: PartTable.id, set: { data: rest } })
+        .run()
+    }),
+  ]
+}

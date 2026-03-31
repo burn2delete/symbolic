@@ -6,10 +6,18 @@ import { Glob } from "../../../../util/glob"
 import { themes } from "./theme-data"
 import { useKV } from "./kv"
 import { useRenderer } from "@opentui/solid"
-import { createStore, produce } from "solid-js/store"
+import { createStore } from "solid-js/store"
 import { Global } from "@/global"
 import { Filesystem } from "@/util/filesystem"
 import { useTuiConfig } from "./tui-config"
+import {
+  addTheme as addPluginTheme,
+  bindThemeStore,
+  setCustomThemes,
+  setSystemTheme,
+  themes as pluginThemes,
+  upsertTheme as upsertPluginTheme,
+} from "@/plugin/theme"
 
 type ThemeColors = {
   primary: RGBA
@@ -107,6 +115,26 @@ type ThemeJson = {
 }
 
 export const DEFAULT_THEMES: Record<string, ThemeJson> = themes
+
+export function allThemes() {
+  return {
+    ...DEFAULT_THEMES,
+    ...pluginThemes(),
+  }
+}
+
+export function hasTheme(name: string) {
+  if (!name) return false
+  return allThemes()[name] !== undefined
+}
+
+export function addTheme(name: string, theme: unknown) {
+  return addPluginTheme(name, theme)
+}
+
+export function upsertTheme(name: string, theme: unknown) {
+  return upsertPluginTheme(name, theme)
+}
 
 function resolveTheme(theme: ThemeJson, mode: "dark" | "light") {
   const defs = theme.defs ?? {}
@@ -217,11 +245,12 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     const config = useTuiConfig()
     const kv = useKV()
     const [store, setStore] = createStore({
-      themes: DEFAULT_THEMES,
+      themes: allThemes(),
       mode: kv.get("theme_mode", props.mode),
       active: (config.theme ?? kv.get("theme", "symbolic")) as string,
       ready: false,
     })
+    bindThemeStore((theme) => setStore("themes", { ...DEFAULT_THEMES, ...theme }))
 
     createEffect(() => {
       const theme = config.theme
@@ -232,11 +261,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
       resolveSystemTheme()
       getCustomThemes()
         .then((custom) => {
-          setStore(
-            produce((draft) => {
-              Object.assign(draft.themes, custom)
-            }),
-          )
+          setCustomThemes(custom)
         })
         .catch(() => {
           setStore("active", "symbolic")
@@ -260,23 +285,15 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
           console.log(colors.palette)
           if (!colors.palette[0]) {
             if (store.active === "system") {
-              setStore(
-                produce((draft) => {
-                  draft.active = "symbolic"
-                  draft.ready = true
-                }),
-              )
+              setStore("active", "symbolic")
+              setStore("ready", true)
             }
             return
           }
-          setStore(
-            produce((draft) => {
-              draft.themes.system = generateSystem(colors, store.mode)
-              if (store.active === "system") {
-                draft.ready = true
-              }
-            }),
-          )
+          setSystemTheme(generateSystem(colors, store.mode))
+          if (store.active === "system") {
+            setStore("ready", true)
+          }
         })
     }
 
@@ -287,7 +304,16 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     })
 
     const values = createMemo(() => {
-      return resolveTheme(store.themes[store.active] ?? store.themes.symbolic, store.mode)
+      const active = store.themes[store.active]
+      if (active) return resolveTheme(active as ThemeJson, store.mode)
+
+      const saved = kv.get("theme")
+      if (typeof saved === "string") {
+        const theme = store.themes[saved]
+        if (theme) return resolveTheme(theme as ThemeJson, store.mode)
+      }
+
+      return resolveTheme(store.themes.symbolic as ThemeJson, store.mode)
     })
 
     const syntax = createMemo(() => generateSyntax(values()))
@@ -304,7 +330,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
         return store.active
       },
       all() {
-        return store.themes
+        return allThemes()
       },
       syntax,
       subtleSyntax,
@@ -316,8 +342,10 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
         kv.set("theme_mode", mode)
       },
       set(theme: string) {
+        if (!hasTheme(theme)) return false
         setStore("active", theme)
         kv.set("theme", theme)
+        return true
       },
       get ready() {
         return store.ready

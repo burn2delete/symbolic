@@ -59,6 +59,31 @@ console.log(`Loaded ${migrations.length} migrations`)
 const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
+const skipEmbedWebUI =
+  process.argv.includes("--skip-embed-web-ui") ||
+  ["true", "1"].includes(process.env.SYMBOLIC_DISABLE_EMBEDDED_WEB_UI?.toLowerCase() ?? "")
+
+const embeddedWebUI = async () => {
+  console.log("Preparing embedded Web UI bundle")
+  const app = path.resolve(dir, "../app")
+  const dist = path.join(app, "dist")
+  await $`bun run --cwd ${app} build`
+
+  const files = await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: dist }))
+  if (!files.length) {
+    console.log("Embedded Web UI bundle is empty, using proxy fallback")
+    return null
+  }
+
+  return [
+    ...files.map((item, i) => `import file_${i} from "${path.join(dist, item).replaceAll("\\", "/")}" with { type: "file" }`),
+    "export default {",
+    ...files.map((item, i) => `  ${JSON.stringify(item)}: file_${i},`),
+    "}",
+  ].join("\n")
+}
+
+const embeddedFileMap = skipEmbedWebUI ? null : await embeddedWebUI()
 
 const allTargets: {
   os: string
@@ -178,6 +203,9 @@ for (const item of targets) {
     conditions: ["browser"],
     tsconfig: "./tsconfig.json",
     plugins: [solidPlugin],
+    files: {
+      ...(embeddedFileMap ? { "symbolic-web-ui.gen.ts": embeddedFileMap } : {}),
+    },
     compile: {
       autoloadBunfig: false,
       autoloadDotenv: false,
@@ -188,7 +216,7 @@ for (const item of targets) {
       execArgv: [`--user-agent=symbolic/${Script.version}`, "--use-system-ca", "--"],
       windows: {},
     },
-    entrypoints: ["./src/index.ts", parserWorker, workerPath],
+    entrypoints: ["./src/index.ts", parserWorker, workerPath, ...(embeddedFileMap ? ["symbolic-web-ui.gen.ts"] : [])],
     define: {
       SYMBOLIC_VERSION: `'${Script.version}'`,
       SYMBOLIC_MIGRATIONS: JSON.stringify(migrations),

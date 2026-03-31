@@ -77,8 +77,6 @@ describe("file/time", () => {
           await FileTime.read(sessionID, filepath)
           const first = (await FileTime.get(sessionID, filepath))!
 
-          await new Promise((resolve) => setTimeout(resolve, 10))
-
           await FileTime.read(sessionID, filepath)
           const second = (await FileTime.get(sessionID, filepath))!
 

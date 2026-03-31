@@ -10,18 +10,20 @@ import { EventTable } from "../../src/sync/event.sql"
 import { Identifier } from "../../src/id/id"
 import { Flag } from "../../src/flag/flag"
 import { initProjectors } from "../../src/server/projectors"
+import { resetDatabase } from "../fixture/db"
 
 const original = Flag.SYMBOLIC_EXPERIMENTAL_WORKSPACES
 
-beforeEach(() => {
-  Database.close()
+beforeEach(async () => {
+  await resetDatabase()
   // @ts-expect-error test override
   Flag.SYMBOLIC_EXPERIMENTAL_WORKSPACES = true
 })
 
-afterEach(() => {
+afterEach(async () => {
   // @ts-expect-error test restore
   Flag.SYMBOLIC_EXPERIMENTAL_WORKSPACES = original
+  await resetDatabase()
 })
 
 function withInstance(fn: () => void | Promise<void>) {

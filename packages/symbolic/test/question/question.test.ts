@@ -24,6 +24,7 @@ test("ask - returns pending promise", async () => {
         ],
       })
       expect(promise).toBeInstanceOf(Promise)
+      promise.catch(() => {})
     },
   })
 })
@@ -44,10 +45,11 @@ test("ask - adds to pending list", async () => {
         },
       ]
 
-      Question.ask({
+      const promise = Question.ask({
         sessionID: SessionID.make("ses_test"),
         questions,
       })
+      promise.catch(() => {})
 
       const pending = await Question.list()
       expect(pending.length).toBe(1)
@@ -98,7 +100,7 @@ test("reply - removes from pending list", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      Question.ask({
+      const promise = Question.ask({
         sessionID: SessionID.make("ses_test"),
         questions: [
           {
@@ -111,6 +113,7 @@ test("reply - removes from pending list", async () => {
           },
         ],
       })
+      promise.catch(() => {})
 
       const pending = await Question.list()
       expect(pending.length).toBe(1)
@@ -262,7 +265,7 @@ test("list - returns all pending requests", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      Question.ask({
+      const first = Question.ask({
         sessionID: SessionID.make("ses_test1"),
         questions: [
           {
@@ -272,8 +275,9 @@ test("list - returns all pending requests", async () => {
           },
         ],
       })
+      first.catch(() => {})
 
-      Question.ask({
+      const second = Question.ask({
         sessionID: SessionID.make("ses_test2"),
         questions: [
           {
@@ -283,6 +287,7 @@ test("list - returns all pending requests", async () => {
           },
         ],
       })
+      second.catch(() => {})
 
       const pending = await Question.list()
       expect(pending.length).toBe(2)

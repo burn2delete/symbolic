@@ -15,6 +15,8 @@ import type { FileDiff, Message, Part } from "@symbolic-agent/sdk/v2/client"
 import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } from "./global-sync/session-cache"
 import type { ReviewRepoQuery } from "./review"
 
+const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
+
 function sortParts(parts: Part[]) {
   return parts.filter((part) => !!part?.id).sort((a, b) => cmp(a.id, b.id))
 }
@@ -342,9 +344,19 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           }
           batch(() => {
             input.setStore("message", input.sessionID, reconcile(next.session, { key: "id" }))
-            for (const p of next.part) {
-              input.setStore("part", p.id, p.part)
-            }
+            input.setStore(
+              "part",
+              produce((draft) => {
+                for (const p of next.part) {
+                  const nextPart = p.part.filter((part) => !SKIP_PARTS.has(part.type))
+                  if (nextPart.length) {
+                    draft[p.id] = nextPart
+                    continue
+                  }
+                  delete draft[p.id]
+                }
+              }),
+            )
             setMeta("limit", key, session.length)
             setMeta("cursor", key, next.cursor)
             setMeta("complete", key, next.complete)

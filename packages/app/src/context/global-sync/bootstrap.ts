@@ -40,6 +40,43 @@ export async function bootstrapGlobal(input: {
   formatMoreCount: (count: number) => string
   setGlobalStore: SetStoreFunction<GlobalStore>
 }) {
+  const paint = () =>
+    new Promise<void>((resolve) => {
+      let done = false
+      const end = () => {
+        if (done) return
+        done = true
+        resolve()
+      }
+      const timer = setTimeout(end, 50)
+      if (typeof requestAnimationFrame !== "function") return
+      requestAnimationFrame(() => {
+        clearTimeout(timer)
+        end()
+      })
+    })
+
+  const errs = (list: PromiseSettledResult<unknown>[]) =>
+    list.filter((item): item is PromiseRejectedResult => item.status === "rejected").map((item) => item.reason)
+
+  const runAll = (list: Array<() => Promise<unknown>>) => Promise.allSettled(list.map((item) => item()))
+
+  const showErrs = (input: {
+    errs: unknown[]
+    title: string
+    translate: (key: string, vars?: Record<string, string | number>) => string
+    formatMoreCount: (count: number) => string
+  }) => {
+    if (input.errs.length === 0) return
+    const message = formatServerError(input.errs[0], input.translate)
+    const more = input.errs.length > 1 ? input.formatMoreCount(input.errs.length - 1) : ""
+    showToast({
+      variant: "error",
+      title: input.title,
+      description: message + more,
+    })
+  }
+
   const health = await input.globalSDK.global
     .health()
     .then((x) => x.data)
@@ -54,50 +91,50 @@ export async function bootstrapGlobal(input: {
     return
   }
 
-  const tasks = [
-    retry(() =>
-      input.globalSDK.path.get().then((x) => {
-        input.setGlobalStore("path", x.data!)
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.global.config.get().then((x) => {
-        input.setGlobalStore("config", x.data!)
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.project.list().then((x) => {
-        const projects = (x.data ?? [])
-          .filter((p) => !!p?.id)
-          .filter((p) => !!p.worktree && !p.worktree.includes("symbolic-test"))
-          .slice()
-          .sort((a, b) => cmp(a.id, b.id))
-        input.setGlobalStore("project", projects)
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.provider.list().then((x) => {
-        input.setGlobalStore("provider", normalizeProviderList(x.data!))
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.provider.auth().then((x) => {
-        input.setGlobalStore("provider_auth", x.data ?? {})
-      }),
-    ),
+  const fast = [
+    () =>
+      retry(() =>
+        input.globalSDK.path.get().then((x) => {
+          input.setGlobalStore("path", x.data!)
+        }),
+      ),
+    () =>
+      retry(() =>
+        input.globalSDK.global.config.get().then((x) => {
+          input.setGlobalStore("config", x.data!)
+        }),
+      ),
+    () =>
+      retry(() =>
+        input.globalSDK.provider.list().then((x) => {
+          input.setGlobalStore("provider", normalizeProviderList(x.data!))
+        }),
+      ),
+    () =>
+      retry(() =>
+        input.globalSDK.provider.auth().then((x) => {
+          input.setGlobalStore("provider_auth", x.data ?? {})
+        }),
+      ),
   ]
 
-  const results = await Promise.allSettled(tasks)
-  const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => r.reason)
-  if (errors.length) {
-    const message = formatServerError(errors[0], input.translate)
-    const more = errors.length > 1 ? input.formatMoreCount(errors.length - 1) : ""
-    showToast({
-      variant: "error",
-      title: input.requestFailedTitle,
-      description: message + more,
-    })
-  }
+  const slow = [
+    () =>
+      retry(() =>
+        input.globalSDK.project.list().then((x) => {
+          const projects = (x.data ?? [])
+            .filter((p) => !!p?.id)
+            .filter((p) => !!p.worktree && !p.worktree.includes("symbolic-test"))
+            .slice()
+            .sort((a, b) => cmp(a.id, b.id))
+          input.setGlobalStore("project", projects)
+        }),
+      ),
+  ]
+
+  showErrs({ errs: errs(await runAll(fast)), title: input.requestFailedTitle, translate: input.translate, formatMoreCount: input.formatMoreCount })
+  await paint()
+  showErrs({ errs: errs(await runAll(slow)), title: input.requestFailedTitle, translate: input.translate, formatMoreCount: input.formatMoreCount })
   input.setGlobalStore("ready", true)
 }
 

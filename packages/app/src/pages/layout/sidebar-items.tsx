@@ -9,7 +9,8 @@ import { Tooltip } from "@symbolic-agent/ui/tooltip"
 import { base64Encode } from "@symbolic-agent/util/encode"
 import { getFilename } from "@symbolic-agent/util/path"
 import { A, useNavigate, useParams } from "@solidjs/router"
-import { type Accessor, createMemo, For, type JSX, Match, onCleanup, Show, Switch } from "solid-js"
+import { type Accessor, createEffect, createMemo, For, type JSX, Match, on, onCleanup, Show, Switch } from "solid-js"
+import { createStore } from "solid-js/store"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { getAvatarColors, type LocalProject, useLayout } from "@/context/layout"
@@ -101,46 +102,92 @@ const SessionRow = (props: {
   warmPress: () => void
   warmFocus: () => void
   cancelHoverPrefetch: () => void
-}): JSX.Element => (
-  <A
-    href={`/${props.slug}/session/${props.session.id}`}
-    class={`flex items-center justify-between gap-3 min-w-0 text-left w-full focus:outline-none transition-[padding] ${props.mobile ? "pr-7" : ""} group-hover/session:pr-7 group-focus-within/session:pr-7 group-active/session:pr-7 ${props.dense ? "py-0.5" : "py-1"}`}
-    onPointerDown={props.warmPress}
-    onPointerEnter={props.warmHover}
-    onPointerLeave={props.cancelHoverPrefetch}
-    onFocus={props.warmFocus}
-    onClick={() => {
-      props.setHoverSession(undefined)
-      if (props.sidebarOpened()) return
-      props.clearHoverProjectSoon()
-    }}
-  >
-    <div class="flex items-center gap-1 w-full">
+}): JSX.Element => {
+  const [s, setS] = createStore({
+    open: false,
+    show: false,
+    fade: false,
+  })
+
+  let t: number | undefined
+  const clr = () => {
+    if (t !== undefined) window.clearTimeout(t)
+    t = undefined
+  }
+
+  onCleanup(clr)
+  createEffect(
+    on(
+      () => props.isWorking(),
+      (on, prev) => {
+        clr()
+        if (on) {
+          setS({ open: true, show: true, fade: false })
+          return
+        }
+        if (prev) {
+          setS({ open: false, show: true, fade: true })
+          t = window.setTimeout(() => setS({ show: false, fade: false }), 260)
+          return
+        }
+        setS({ open: false, show: false, fade: false })
+      },
+      { defer: true },
+    ),
+  )
+
+  return (
+    <A
+      href={`/${props.slug}/session/${props.session.id}`}
+      class={`flex items-center gap-1 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
+      onPointerDown={props.warmPress}
+      onPointerEnter={props.warmHover}
+      onPointerLeave={props.cancelHoverPrefetch}
+      onFocus={props.warmFocus}
+      onClick={() => {
+        props.setHoverSession(undefined)
+        if (props.sidebarOpened()) return
+        props.clearHoverProjectSoon()
+      }}
+    >
       <div
-        class="shrink-0 size-6 flex items-center justify-center"
+        class="relative shrink-0 size-6 flex items-center justify-center"
         style={{ color: props.tint() ?? "var(--icon-interactive-base)" }}
+        aria-hidden="true"
       >
-        <Switch fallback={<Icon name="dash" size="small" class="text-icon-weak" />}>
-          <Match when={props.isWorking()}>
+        <Show when={s.show}>
+          <div
+            class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out"
+            classList={{
+              "opacity-0": s.fade,
+            }}
+          >
             <Spinner class="size-[15px]" />
-          </Match>
-          <Match when={props.hasPermissions()}>
-            <div class="size-1.5 rounded-full bg-surface-warning-strong" />
-          </Match>
-          <Match when={props.hasError()}>
-            <div class="size-1.5 rounded-full bg-text-diff-delete-base" />
-          </Match>
-          <Match when={props.unseenCount() > 0}>
-            <div class="size-1.5 rounded-full bg-text-interactive-base" />
-          </Match>
-        </Switch>
+          </div>
+        </Show>
+        <div
+          class="transition-opacity duration-150"
+          classList={{
+            "opacity-0": props.isWorking() || s.show,
+          }}
+        >
+          <Switch fallback={<Icon name="dash" size="small" class="text-icon-weak" />}>
+            <Match when={props.hasPermissions()}>
+              <div class="size-1.5 rounded-full bg-surface-warning-strong" />
+            </Match>
+            <Match when={props.hasError()}>
+              <div class="size-1.5 rounded-full bg-text-diff-delete-base" />
+            </Match>
+            <Match when={props.unseenCount() > 0}>
+              <div class="size-1.5 rounded-full bg-text-interactive-base" />
+            </Match>
+          </Switch>
+        </div>
       </div>
-      <span class="text-14-regular text-text-strong grow-1 min-w-0 overflow-hidden text-ellipsis truncate">
-        {props.session.title}
-      </span>
-    </div>
-  </A>
-)
+      <span class="text-14-regular text-text-strong min-w-0 flex-1 truncate">{props.session.title}</span>
+    </A>
+  )
+}
 
 const SessionHoverPreview = (props: {
   mobile?: boolean
@@ -167,7 +214,11 @@ const SessionHoverPreview = (props: {
       placement="right-start"
       gutter={16}
       shift={-2}
-      trigger={<div ref={ref}>{props.trigger}</div>}
+      trigger={
+        <div ref={ref} class="min-w-0 w-full">
+          {props.trigger}
+        </div>
+      }
       open={props.hoverSession() === props.session.id}
       onOpenChange={(open) => {
         if (!open) {
@@ -311,62 +362,66 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   return (
     <div
       data-session-id={props.session.id}
-      class="group/session relative w-full rounded-md cursor-default transition-colors pl-2 pr-3
+      class="group/session relative w-full min-w-0 rounded-md cursor-default transition-colors pl-2 pr-3
              hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover has-[.active]:bg-surface-base-active"
     >
-      <Show
-        when={hoverEnabled()}
-        fallback={
-          <Tooltip placement={props.mobile ? "bottom" : "right"} value={props.session.title} gutter={10}>
-            {item}
-          </Tooltip>
-        }
-      >
-        <SessionHoverPreview
-          mobile={props.mobile}
-          nav={props.nav}
-          hoverSession={props.hoverSession}
-          session={props.session}
-          sidebarHovering={props.sidebarHovering}
-          hoverReady={hoverReady}
-          hoverMessages={hoverMessages}
-          language={language}
-          isActive={isActive}
-          slug={props.slug}
-          setHoverSession={props.setHoverSession}
-          messageLabel={messageLabel}
-          onMessageSelect={(message) => {
-            if (!isActive())
-              layout.pendingMessage.set(`${base64Encode(props.session.directory)}/${props.session.id}`, message.id)
+      <div class="flex min-w-0 items-center gap-1">
+        <div class="min-w-0 flex-1">
+          <Show
+            when={hoverEnabled()}
+            fallback={
+              <Tooltip placement={props.mobile ? "bottom" : "right"} value={props.session.title} gutter={10} class="min-w-0 w-full">
+                {item}
+              </Tooltip>
+            }
+          >
+            <SessionHoverPreview
+              mobile={props.mobile}
+              nav={props.nav}
+              hoverSession={props.hoverSession}
+              session={props.session}
+              sidebarHovering={props.sidebarHovering}
+              hoverReady={hoverReady}
+              hoverMessages={hoverMessages}
+              language={language}
+              isActive={isActive}
+              slug={props.slug}
+              setHoverSession={props.setHoverSession}
+              messageLabel={messageLabel}
+              onMessageSelect={(message) => {
+                if (!isActive())
+                  layout.pendingMessage.set(`${base64Encode(props.session.directory)}/${props.session.id}`, message.id)
 
-            navigate(`${props.slug}/session/${props.session.id}#message-${message.id}`)
+                navigate(`${props.slug}/session/${props.session.id}#message-${message.id}`)
+              }}
+              trigger={item}
+            />
+          </Show>
+        </div>
+
+        <div
+          class="shrink-0 overflow-hidden transition-[width,opacity]"
+          classList={{
+            "w-6 opacity-100 pointer-events-auto": !!props.mobile,
+            "w-0 opacity-0 pointer-events-none": !props.mobile,
+            "group-hover/session:w-6 group-hover/session:opacity-100 group-hover/session:pointer-events-auto": true,
+            "group-focus-within/session:w-6 group-focus-within/session:opacity-100 group-focus-within/session:pointer-events-auto": true,
           }}
-          trigger={item}
-        />
-      </Show>
-
-      <div
-        class={`absolute ${props.dense ? "top-0.5 right-0.5" : "top-1 right-1"} flex items-center gap-0.5 transition-opacity`}
-        classList={{
-          "opacity-100 pointer-events-auto": !!props.mobile,
-          "opacity-0 pointer-events-none": !props.mobile,
-          "group-hover/session:opacity-100 group-hover/session:pointer-events-auto": true,
-          "group-focus-within/session:opacity-100 group-focus-within/session:pointer-events-auto": true,
-        }}
-      >
-        <Tooltip value={language.t("common.archive")} placement="top">
-          <IconButton
-            icon="archive"
-            variant="ghost"
-            class="size-6 rounded-md"
-            aria-label={language.t("common.archive")}
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              void props.archiveSession(props.session)
-            }}
-          />
-        </Tooltip>
+        >
+          <Tooltip value={language.t("common.archive")} placement="top">
+            <IconButton
+              icon="archive"
+              variant="ghost"
+              class="size-6 rounded-md"
+              aria-label={language.t("common.archive")}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void props.archiveSession(props.session)
+              }}
+            />
+          </Tooltip>
+        </div>
       </div>
     </div>
   )
@@ -411,7 +466,7 @@ export const NewSessionItem = (props: {
       <Show
         when={!tooltip()}
         fallback={
-          <Tooltip placement={props.mobile ? "bottom" : "right"} value={label} gutter={10}>
+          <Tooltip placement={props.mobile ? "bottom" : "right"} value={label} gutter={10} class="min-w-0 w-full">
             {item}
           </Tooltip>
         }

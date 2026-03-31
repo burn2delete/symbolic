@@ -44,7 +44,6 @@ import { GlobalRoutes } from "./routes/global"
 import { EventRoutes } from "./routes/event"
 import { MDNS } from "./mdns"
 import { lazy } from "@/util/lazy"
-import { initProjectors } from "./projectors"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -52,14 +51,30 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 const csp = (hash = "") =>
   `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'${hash ? ` 'sha256-${hash}'` : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data:; connect-src 'self' data:`
 
-initProjectors()
+let projectorInit: Promise<void> | undefined
+
+function initProjectors() {
+  if (projectorInit) return projectorInit
+  projectorInit = import("./projectors").then((mod) => {
+    return mod.initProjectors()
+  })
+  return projectorInit
+}
 
 export namespace Server {
   const log = Log.create({ service: "server" })
+  const defaultCsp = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data:; connect-src 'self' data:"
+  const embeddedUIPromise = Flag.SYMBOLIC_DISABLE_EMBEDDED_WEB_UI
+    ? Promise.resolve(null)
+    // @ts-expect-error generated at build time
+    : import("symbolic-web-ui.gen.ts")
+        .then((mod) => mod.default as Record<string, string>)
+        .catch(() => null)
 
   export const Default = lazy(() => createApp({}))
 
   export const createApp = (opts: { cors?: string[] }): Hono => {
+    void initProjectors()
     const app = new Hono()
     return app
       .onError((err, c) => {
@@ -134,7 +149,6 @@ export namespace Server {
         }),
       )
       .route("/global", GlobalRoutes())
-      .route("/event", EventRoutes())
       .put(
         "/auth/:providerID",
         describeRoute({
@@ -225,6 +239,7 @@ export namespace Server {
         })
       })
       .use(WorkspaceRouterMiddleware)
+      .route("/event", EventRoutes())
       .get(
         "/doc",
         openAPIRouteHandler(app, {
@@ -529,7 +544,27 @@ export namespace Server {
         },
       )
       .all("/*", async (c) => {
+        const embedded = await embeddedUIPromise
         const path = c.req.path
+
+        if (embedded) {
+          const key = path.replace(/^\//, "")
+          const match = embedded[key] ?? embedded["index.html"] ?? null
+          if (!match) return c.json({ error: "Not Found" }, 404)
+          const file = Bun.file(match)
+          if (!(await file.exists())) return c.json({ error: "Not Found" }, 404)
+          c.header("Content-Type", file.type)
+          if (file.type.startsWith("text/html")) {
+            const html = await file.text()
+            const found = html.match(
+              /<script\b(?![^>]*\bsrc\s*=)[^>]*\bid=(['"])oc-theme-preload-script\1[^>]*>([\s\S]*?)<\/script>/i,
+            )
+            const hash = found ? createHash("sha256").update(found[2]).digest("base64") : ""
+            c.header("Content-Security-Policy", hash ? csp(hash) : defaultCsp)
+            return c.body(html)
+          }
+          return c.body(await file.arrayBuffer())
+        }
 
         const response = await proxy(`https://app.symbolic.computer${path}`, {
           ...c.req,

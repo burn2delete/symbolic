@@ -3,6 +3,7 @@ import path from "path"
 import fs from "fs/promises"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
+import { Config } from "../../src/config/config"
 import { TuiConfig } from "../../src/config/tui"
 import { Global } from "../../src/global"
 import { Filesystem } from "../../src/util/filesystem"
@@ -38,6 +39,35 @@ test("loads tui config with the same precedence order as server config paths", a
       expect(config.diff_style).toBe("stacked")
     },
   })
+})
+
+test("parses tuple plugin specs and plugin_enabled in tui config schema", () => {
+  const item: {
+    theme: string
+    plugin: Config.PluginSpec[]
+    plugin_enabled: Record<string, boolean>
+  } = {
+    theme: "symbolic",
+    plugin: [["@scope/plugin", { compact: true }]],
+    plugin_enabled: {
+      "@scope/plugin": false,
+    },
+  }
+
+  const config = TuiConfig.Info.parse(item)
+
+  expect(config.plugin).toEqual(item.plugin)
+  expect(config.plugin_enabled).toEqual(item.plugin_enabled)
+})
+
+test("parses plugin manager keybind in tui config schema", () => {
+  const config = TuiConfig.Info.parse({
+    keybinds: {
+      plugin_manager: "ctrl+k",
+    },
+  })
+
+  expect(config.keybinds?.plugin_manager).toBe("ctrl+k")
 })
 
 test("migrates tui-specific keys from symbolic.json when tui.json does not exist", async () => {
@@ -109,6 +139,69 @@ test("migrates project legacy tui keys even when global tui.json already exists"
       const server = JSON.parse(await Filesystem.readText(path.join(tmp.path, "symbolic.json")))
       expect(server.theme).toBeUndefined()
       expect(server.tui).toBeUndefined()
+    },
+  })
+})
+
+test("merges plugin tuples and plugin_enabled across tui config layers", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      const project = path.join(dir, "project")
+      const symbolic = path.join(project, ".symbolic")
+      await fs.mkdir(symbolic, { recursive: true })
+
+      await Bun.write(
+        path.join(Global.Path.config, "tui.json"),
+        JSON.stringify(
+          {
+            theme: "global",
+            plugin: [
+              "global-plugin@1.0.0",
+              ["shared-plugin@1.0.0", { left: true }],
+            ],
+            plugin_enabled: {
+              "global-plugin": true,
+              "shared-plugin": false,
+            },
+          },
+          null,
+          2,
+        ),
+      )
+
+      await Bun.write(
+        path.join(symbolic, "tui.json"),
+        JSON.stringify(
+          {
+            plugin: [
+              ["shared-plugin@2.0.0", { right: true }],
+              ["local-plugin@1.0.0", { compact: true }],
+            ],
+            plugin_enabled: {
+              "shared-plugin": true,
+              "local-plugin": false,
+            },
+          },
+          null,
+          2,
+        ),
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: path.join(tmp.path, "project"),
+    fn: async () => {
+      const config = await TuiConfig.get()
+      const plugin = (config.plugin ?? []).map((item) => Config.pluginSpec(item))
+
+      expect(plugin).toEqual(["global-plugin@1.0.0", "shared-plugin@2.0.0", "local-plugin@1.0.0"])
+      expect(config.plugin?.[1]).toEqual(["shared-plugin@2.0.0", { right: true }])
+      expect(config.plugin_enabled).toEqual({
+        "global-plugin": true,
+        "shared-plugin": true,
+        "local-plugin": false,
+      })
     },
   })
 })

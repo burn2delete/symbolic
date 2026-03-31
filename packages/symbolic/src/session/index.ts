@@ -33,7 +33,8 @@ import { ModelID, ProviderID } from "@/provider/schema"
 import { Permission as PermissionNext } from "@/permission/service"
 import { Global } from "@/global"
 import type { LanguageModelV2Usage } from "@ai-sdk/provider"
-import { iife } from "@/util/iife"
+import { Effect, Layer, ServiceMap } from "effect"
+import { makeRunPromise } from "@/effect/run-service"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -186,14 +187,10 @@ export namespace Session {
   })
   export type GlobalInfo = z.output<typeof GlobalInfo>
 
-  let projectors: Promise<void> | undefined
-
   export async function ensureProjectors() {
-    if (projectors) return projectors
-    projectors = import("../server/projectors").then(({ initProjectors }) => {
-      initProjectors()
+    return import("../server/projectors").then(({ initProjectors }) => {
+      return initProjectors()
     })
-    return projectors
   }
 
   export async function sync<Def extends SyncEvent.Definition>(def: Def, data: SyncEvent.Event<Def>["data"]) {
@@ -725,27 +722,10 @@ export namespace Session {
           0) as number,
       )
 
-      // OpenRouter provides inputTokens as the total count of input tokens (including cached).
-      // AFAIK other providers (OpenRouter/OpenAI/Gemini etc.) do it the same way e.g. vercel/ai#8794 (comment)
-      // Anthropic does it differently though - inputTokens doesn't include cached tokens.
-      // It looks like Symbolic's cost calculation assumes all providers return inputTokens the same way Anthropic does (I'm guessing getUsage logic was originally implemented with anthropic), so it's causing incorrect cost calculation for OpenRouter and others.
-      const excludesCachedTokens = !!(input.metadata?.["anthropic"] || input.metadata?.["bedrock"])
-      const adjustedInputTokens = safe(
-        excludesCachedTokens ? inputTokens : inputTokens - cacheReadInputTokens - cacheWriteInputTokens,
-      )
-
-      const total = iife(() => {
-        // Anthropic doesn't provide total_tokens, also ai sdk will vastly undercount if we
-        // don't compute from components
-        if (
-          input.model.api.npm === "@ai-sdk/anthropic" ||
-          input.model.api.npm === "@ai-sdk/amazon-bedrock" ||
-          input.model.api.npm === "@ai-sdk/google-vertex/anthropic"
-        ) {
-          return adjustedInputTokens + outputTokens + cacheReadInputTokens + cacheWriteInputTokens
-        }
-        return input.usage.totalTokens
-      })
+      // AI SDK v6 normalizes inputTokens to include cached tokens across providers.
+      // Subtract cache usage once so input stays non-cached while total remains SDK-provided.
+      const adjustedInputTokens = safe(inputTokens - cacheReadInputTokens - cacheWriteInputTokens)
+      const total = input.usage.totalTokens
 
       const tokens = {
         total,
@@ -802,4 +782,109 @@ export namespace Session {
       })
     },
   )
+
+  export interface Interface {
+    readonly create: (input: Parameters<typeof create>[0]) => Effect.Effect<Awaited<ReturnType<typeof create>>>
+    readonly fork: (input: Parameters<typeof fork>[0]) => Effect.Effect<Awaited<ReturnType<typeof fork>>>
+    readonly touch: (input: Parameters<typeof touch>[0]) => Effect.Effect<Awaited<ReturnType<typeof touch>>>
+    readonly get: (input: Parameters<typeof get>[0]) => Effect.Effect<Awaited<ReturnType<typeof get>>>
+    readonly share: (input: Parameters<typeof share>[0]) => Effect.Effect<Awaited<ReturnType<typeof share>>>
+    readonly unshare: (input: Parameters<typeof unshare>[0]) => Effect.Effect<Awaited<ReturnType<typeof unshare>>>
+    readonly setTitle: (input: Parameters<typeof setTitle>[0]) => Effect.Effect<Awaited<ReturnType<typeof setTitle>>>
+    readonly setArchived: (input: Parameters<typeof setArchived>[0]) => Effect.Effect<Awaited<ReturnType<typeof setArchived>>>
+    readonly setPermission: (input: Parameters<typeof setPermission>[0]) => Effect.Effect<Awaited<ReturnType<typeof setPermission>>>
+    readonly setRevert: (input: Parameters<typeof setRevert>[0]) => Effect.Effect<Awaited<ReturnType<typeof setRevert>>>
+    readonly clearRevert: (input: Parameters<typeof clearRevert>[0]) => Effect.Effect<Awaited<ReturnType<typeof clearRevert>>>
+    readonly setSummary: (input: Parameters<typeof setSummary>[0]) => Effect.Effect<Awaited<ReturnType<typeof setSummary>>>
+    readonly diff: (input: Parameters<typeof diff>[0]) => Effect.Effect<Awaited<ReturnType<typeof diff>>>
+    readonly messages: (input: Parameters<typeof messages>[0]) => Effect.Effect<Awaited<ReturnType<typeof messages>>>
+    readonly children: (input: Parameters<typeof children>[0]) => Effect.Effect<Awaited<ReturnType<typeof children>>>
+    readonly remove: (input: Parameters<typeof remove>[0]) => Effect.Effect<Awaited<ReturnType<typeof remove>>>
+    readonly updateMessage: (input: Parameters<typeof updateMessage>[0]) => Effect.Effect<Awaited<ReturnType<typeof updateMessage>>>
+    readonly removeMessage: (input: Parameters<typeof removeMessage>[0]) => Effect.Effect<Awaited<ReturnType<typeof removeMessage>>>
+    readonly removePart: (input: Parameters<typeof removePart>[0]) => Effect.Effect<Awaited<ReturnType<typeof removePart>>>
+    readonly updatePart: (input: Parameters<typeof updatePart>[0]) => Effect.Effect<Awaited<ReturnType<typeof updatePart>>>
+    readonly updatePartDelta: (input: Parameters<typeof updatePartDelta>[0]) => Effect.Effect<Awaited<ReturnType<typeof updatePartDelta>>>
+    readonly getUsage: (input: Parameters<typeof getUsage>[0]) => Effect.Effect<Awaited<ReturnType<typeof getUsage>>>
+    readonly initialize: (input: Parameters<typeof initialize>[0]) => Effect.Effect<Awaited<ReturnType<typeof initialize>>>
+  }
+
+  export class Service extends ServiceMap.Service<Service, Interface>()("@symbolic-agent/Session") {}
+
+  export const layer = Layer.succeed(
+    Service,
+    Service.of({
+      create: Effect.fn("Session.create")(function* (input: Parameters<typeof create>[0]) {
+        return yield* Effect.promise(() => create(input))
+      }),
+      fork: Effect.fn("Session.fork")(function* (input: Parameters<typeof fork>[0]) {
+        return yield* Effect.promise(() => fork(input))
+      }),
+      touch: Effect.fn("Session.touch")(function* (input: Parameters<typeof touch>[0]) {
+        return yield* Effect.promise(() => touch(input))
+      }),
+      get: Effect.fn("Session.get")(function* (input: Parameters<typeof get>[0]) {
+        return yield* Effect.promise(() => get(input))
+      }),
+      share: Effect.fn("Session.share")(function* (input: Parameters<typeof share>[0]) {
+        return yield* Effect.promise(() => share(input))
+      }),
+      unshare: Effect.fn("Session.unshare")(function* (input: Parameters<typeof unshare>[0]) {
+        return yield* Effect.promise(() => unshare(input))
+      }),
+      setTitle: Effect.fn("Session.setTitle")(function* (input: Parameters<typeof setTitle>[0]) {
+        return yield* Effect.promise(() => setTitle(input))
+      }),
+      setArchived: Effect.fn("Session.setArchived")(function* (input: Parameters<typeof setArchived>[0]) {
+        return yield* Effect.promise(() => setArchived(input))
+      }),
+      setPermission: Effect.fn("Session.setPermission")(function* (input: Parameters<typeof setPermission>[0]) {
+        return yield* Effect.promise(() => setPermission(input))
+      }),
+      setRevert: Effect.fn("Session.setRevert")(function* (input: Parameters<typeof setRevert>[0]) {
+        return yield* Effect.promise(() => setRevert(input))
+      }),
+      clearRevert: Effect.fn("Session.clearRevert")(function* (input: Parameters<typeof clearRevert>[0]) {
+        return yield* Effect.promise(() => clearRevert(input))
+      }),
+      setSummary: Effect.fn("Session.setSummary")(function* (input: Parameters<typeof setSummary>[0]) {
+        return yield* Effect.promise(() => setSummary(input))
+      }),
+      diff: Effect.fn("Session.diff")(function* (input: Parameters<typeof diff>[0]) {
+        return yield* Effect.promise(() => diff(input))
+      }),
+      messages: Effect.fn("Session.messages")(function* (input: Parameters<typeof messages>[0]) {
+        return yield* Effect.promise(() => messages(input))
+      }),
+      children: Effect.fn("Session.children")(function* (input: Parameters<typeof children>[0]) {
+        return yield* Effect.promise(() => children(input))
+      }),
+      remove: Effect.fn("Session.remove")(function* (input: Parameters<typeof remove>[0]) {
+        return yield* Effect.promise(() => remove(input))
+      }),
+      updateMessage: Effect.fn("Session.updateMessage")(function* (input: Parameters<typeof updateMessage>[0]) {
+        return yield* Effect.promise(() => updateMessage(input))
+      }),
+      removeMessage: Effect.fn("Session.removeMessage")(function* (input: Parameters<typeof removeMessage>[0]) {
+        return yield* Effect.promise(() => removeMessage(input))
+      }),
+      removePart: Effect.fn("Session.removePart")(function* (input: Parameters<typeof removePart>[0]) {
+        return yield* Effect.promise(() => removePart(input))
+      }),
+      updatePart: Effect.fn("Session.updatePart")(function* (input: Parameters<typeof updatePart>[0]) {
+        return yield* Effect.promise(() => updatePart(input))
+      }),
+      updatePartDelta: Effect.fn("Session.updatePartDelta")(function* (input: Parameters<typeof updatePartDelta>[0]) {
+        return yield* Effect.promise(() => updatePartDelta(input))
+      }),
+      getUsage: Effect.fn("Session.getUsage")(function* (input: Parameters<typeof getUsage>[0]) {
+        return yield* Effect.succeed(getUsage.force(input))
+      }),
+      initialize: Effect.fn("Session.initialize")(function* (input: Parameters<typeof initialize>[0]) {
+        return yield* Effect.promise(() => initialize(input))
+      }),
+    }),
+  )
+
+  const runPromise = makeRunPromise(Service, layer)
 }

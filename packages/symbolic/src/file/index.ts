@@ -451,7 +451,7 @@ export namespace File {
   const runPromise = makeRunPromise(Service, layer)
 
   export function init() {
-    void runPromise((svc) => svc.init())
+    return runPromise((svc) => svc.init())
   }
 
   export async function status() {

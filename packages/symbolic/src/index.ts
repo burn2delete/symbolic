@@ -5,6 +5,7 @@ import { GenerateCommand } from "./cli/cmd/generate"
 import { Log } from "./util/log"
 import { ConsoleCommand } from "./cli/cmd/account"
 import { ProvidersCommand } from "./cli/cmd/providers"
+import { PluginCommand } from "./cli/cmd/plugin"
 import { AgentCommand } from "./cli/cmd/agent"
 import { UpgradeCommand } from "./cli/cmd/upgrade"
 import { UninstallCommand } from "./cli/cmd/uninstall"
@@ -134,6 +135,7 @@ let cli = yargs(hideBin(process.argv))
   .command(DebugCommand)
   .command(ConsoleCommand)
   .command(ProvidersCommand)
+  .command(PluginCommand)
   .command(AgentCommand)
   .command(UpgradeCommand)
   .command(UninstallCommand)
@@ -206,10 +208,4 @@ try {
     process.stderr.write((e instanceof Error ? e.message : String(e)) + EOL)
   }
   process.exitCode = 1
-} finally {
-  // Some subprocesses don't react properly to SIGTERM and similar signals.
-  // Most notably, some docker-container-based MCP servers don't handle such signals unless
-  // run using `docker run --init`.
-  // Explicitly exit to avoid any hanging subprocesses.
-  process.exit()
 }

@@ -118,7 +118,7 @@ export namespace Config {
   function mergeConfigConcatArrays(target: Info, source: Info): Info {
     const merged = mergeDeep(target, source)
     if (target.plugin && source.plugin) {
-      merged.plugin = Array.from(new Set([...target.plugin, ...source.plugin]))
+      merged.plugin = deduplicatePlugins([...target.plugin, ...source.plugin])
     }
     if (target.instructions && source.instructions) {
       merged.instructions = Array.from(new Set([...target.instructions, ...source.instructions]))
@@ -604,6 +604,21 @@ export namespace Config {
     return plugin
   }
 
+  export const PluginSpec = z
+    .union([z.string(), z.tuple([z.string(), z.record(z.string(), z.unknown())])])
+    .meta({
+      ref: "PluginSpec",
+    })
+  export type PluginSpec = z.infer<typeof PluginSpec>
+
+  export function pluginSpec(plugin: PluginSpec) {
+    return typeof plugin === "string" ? plugin : plugin[0]
+  }
+
+  export function pluginOptions(plugin: PluginSpec) {
+    return typeof plugin === "string" ? undefined : plugin[1]
+  }
+
   /**
    * Deduplicates plugins by name, with later entries (higher priority) winning.
    * Priority order (highest to lowest):
@@ -615,20 +630,20 @@ export namespace Config {
    * Since plugins are added in low-to-high priority order,
    * we reverse, deduplicate (keeping first occurrence), then restore order.
    */
-  export function deduplicatePlugins(plugins: string[]): string[] {
+  export function deduplicatePlugins(plugins: PluginSpec[]): PluginSpec[] {
     // seenNames: canonical plugin names for duplicate detection
     // e.g., "oh-my-symbolic", "@scope/pkg"
     const seenNames = new Set<string>()
 
     // uniqueSpecifiers: full plugin specifiers to return
     // e.g., "oh-my-symbolic@2.4.3", "file:///path/to/plugin.js"
-    const uniqueSpecifiers: string[] = []
+    const uniqueSpecifiers: PluginSpec[] = []
 
-    for (const specifier of plugins.toReversed()) {
-      const name = getPluginName(specifier)
+    for (const item of plugins.toReversed()) {
+      const name = getPluginName(pluginSpec(item))
       if (!seenNames.has(name)) {
         seenNames.add(name)
-        uniqueSpecifiers.push(specifier)
+        uniqueSpecifiers.push(item)
       }
     }
 
@@ -878,6 +893,7 @@ export namespace Config {
       app_exit: z.string().optional().default("ctrl+c,ctrl+d,<leader>q").describe("Exit the application"),
       editor_open: z.string().optional().default("<leader>e").describe("Open external editor"),
       theme_list: z.string().optional().default("<leader>t").describe("List available themes"),
+      plugin_manager: z.string().optional().default("none").describe("Open plugin manager dialog"),
       sidebar_toggle: z.string().optional().default("<leader>b").describe("Toggle sidebar"),
       scrollbar_toggle: z.string().optional().default("none").describe("Toggle session scrollbar"),
       username_toggle: z.string().optional().default("none").describe("Toggle username visibility"),
@@ -1125,7 +1141,7 @@ export namespace Config {
           ignore: z.array(z.string()).optional(),
         })
         .optional(),
-      plugin: z.string().array().optional(),
+      plugin: z.array(PluginSpec).optional(),
       snapshot: z.boolean().optional(),
       share: z
         .enum(["manual", "auto", "disabled"])
@@ -1355,15 +1371,18 @@ export namespace Config {
       const data = parsed.data
       if (data.plugin && isFile) {
         for (let i = 0; i < data.plugin.length; i++) {
-          const plugin = data.plugin[i]
+          const item = data.plugin[i]
+          const plugin = pluginSpec(item)
           try {
-            data.plugin[i] = import.meta.resolve!(plugin, options.path)
+            const resolved = import.meta.resolve!(plugin, options.path)
+            data.plugin[i] = typeof item === "string" ? resolved : [resolved, item[1]]
           } catch (e) {
             try {
               // import.meta.resolve sometimes fails with newly created node_modules
               const require = createRequire(options.path)
               const resolvedPath = require.resolve(plugin)
-              data.plugin[i] = pathToFileURL(resolvedPath).href
+              const resolved = pathToFileURL(resolvedPath).href
+              data.plugin[i] = typeof item === "string" ? resolved : [resolved, item[1]]
             } catch {
               // Ignore, plugin might be a generic string identifier like "mcp-server"
             }

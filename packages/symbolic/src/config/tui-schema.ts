@@ -28,6 +28,8 @@ export const TuiInfo = z
   .object({
     $schema: z.string().optional(),
     theme: z.string().optional(),
+    plugin: z.array(Config.PluginSpec).optional(),
+    plugin_enabled: z.object({}).catchall(z.boolean()).optional(),
     keybinds: KeybindOverride.optional(),
   })
   .extend(TuiOptions.shape)

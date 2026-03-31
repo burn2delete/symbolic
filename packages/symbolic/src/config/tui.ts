@@ -1,4 +1,7 @@
 import { existsSync } from "fs"
+import { createRequire } from "module"
+import path from "path"
+import { pathToFileURL } from "url"
 import z from "zod"
 import { mergeDeep, unique } from "remeda"
 import { Config } from "./config"
@@ -18,7 +21,17 @@ export namespace TuiConfig {
   export type Info = z.output<typeof Info>
 
   function mergeInfo(target: Info, source: Info): Info {
-    return mergeDeep(target, source)
+    const merged = mergeDeep(target, source)
+    if (target.plugin && source.plugin) {
+      merged.plugin = Config.deduplicatePlugins([...target.plugin, ...source.plugin])
+    }
+    if (target.plugin_enabled && source.plugin_enabled) {
+      merged.plugin_enabled = {
+        ...target.plugin_enabled,
+        ...source.plugin_enabled,
+      }
+    }
+    return merged
   }
 
   function customPath() {
@@ -87,13 +100,13 @@ export namespace TuiConfig {
   }
 
   async function load(text: string, configFilepath: string): Promise<Info> {
-    const data = await ConfigPaths.parseText(text, configFilepath, "empty")
-    if (!data || typeof data !== "object" || Array.isArray(data)) return {}
+    const raw = await ConfigPaths.parseText(text, configFilepath, "empty")
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
 
     // Flatten a nested "tui" key so users who wrote `{ "tui": { ... } }` inside tui.json
     // (mirroring the old symbolic.json shape) still get their settings applied.
     const normalized = (() => {
-      const copy = { ...(data as Record<string, unknown>) }
+      const copy = { ...(raw as Record<string, unknown>) }
       if (!("tui" in copy)) return copy
       if (!copy.tui || typeof copy.tui !== "object" || Array.isArray(copy.tui)) {
         delete copy.tui
@@ -113,6 +126,29 @@ export namespace TuiConfig {
       return {}
     }
 
-    return parsed.data
+    const data = parsed.data
+    if (data.plugin) {
+      for (let i = 0; i < data.plugin.length; i++) {
+        const item = data.plugin[i]
+        const spec = Config.pluginSpec(item)
+        try {
+          const resolved = import.meta.resolve!(spec, configFilepath)
+          data.plugin[i] = typeof item === "string" ? resolved : [resolved, item[1]]
+        } catch {
+          try {
+            const require = createRequire(configFilepath)
+            const resolved = pathToFileURL(require.resolve(spec)).href
+            data.plugin[i] = typeof item === "string" ? resolved : [resolved, item[1]]
+          } catch {
+            const raw = spec.startsWith("file://") ? spec : pathToFileURL(path.resolve(path.dirname(configFilepath), spec)).href
+            if (spec.startsWith(".") || path.isAbsolute(spec) || /^[A-Za-z]:[\\/]/.test(spec)) {
+              data.plugin[i] = typeof item === "string" ? raw : [raw, item[1]]
+            }
+          }
+        }
+      }
+    }
+
+    return data
   }
 }

@@ -6,6 +6,7 @@ import { Instance } from "../../src/project/instance"
 import { Auth } from "../../src/auth"
 import { ProviderAuth } from "../../src/provider/auth"
 import { ProviderID } from "../../src/provider/schema"
+import { pathToFileURL } from "url"
 
 describe("plugin.auth-override", () => {
   test("user plugin overrides built-in github-copilot auth", async () => {
@@ -162,6 +163,54 @@ describe("plugin.auth-override", () => {
           {
             type: "api",
             label: "Config Error",
+          },
+        ])
+      },
+    })
+  }, 30000)
+
+  test("config plugin tuples pass options to plugin hooks", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        const file = path.join(dir, "tuple-auth.ts")
+        await Bun.write(
+          file,
+          [
+            "export default async (_input, opts) => ({",
+            "  auth: {",
+            '    provider: "tuple-auth-provider",',
+            "    methods: [",
+            '      { type: "api", label: String(opts?.label ?? "missing") },',
+            "    ],",
+            "    loader: async () => ({ access: 'test-token' }),",
+            "  },",
+            "})",
+            "",
+          ].join("\n"),
+        )
+
+        await Bun.write(
+          path.join(dir, "symbolic.json"),
+          JSON.stringify(
+            {
+              $schema: "https://symbolic.computer/config.json",
+              plugin: [[pathToFileURL(file).href, { label: "Tuple Label" }]],
+            },
+            null,
+            2,
+          ),
+        )
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const methods = await ProviderAuth.methods()
+        expect(methods["tuple-auth-provider"]).toEqual([
+          {
+            type: "api",
+            label: "Tuple Label",
           },
         ])
       },

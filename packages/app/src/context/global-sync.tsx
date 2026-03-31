@@ -77,12 +77,16 @@ function createGlobalSync() {
     config: {},
     reload: undefined,
   })
+  let frame: number | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
 
   let active = true
   let projectWritten = false
 
   onCleanup(() => {
     active = false
+    if (frame !== undefined) cancelAnimationFrame(frame)
+    if (timer !== undefined) clearTimeout(timer)
   })
 
   const cacheProjects = () => {
@@ -339,6 +343,20 @@ function createGlobalSync() {
   }
 
   onMount(() => {
+    if (typeof requestAnimationFrame === "function") {
+      frame = requestAnimationFrame(() => {
+        frame = undefined
+        timer = setTimeout(() => {
+          timer = undefined
+          globalSDK.event.start()
+        }, 0)
+      })
+    } else {
+      timer = setTimeout(() => {
+        timer = undefined
+        globalSDK.event.start()
+      }, 0)
+    }
     void bootstrap()
   })
 

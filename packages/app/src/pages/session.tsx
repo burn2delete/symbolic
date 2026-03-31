@@ -254,12 +254,16 @@ function createSessionHistoryWindow(input: SessionHistoryWindowInput) {
     if (growth <= 0) return
     if (turnStart() !== start) return
 
-    const reveal = !opts?.prefetch
+    if (opts?.prefetch) {
+      const current = turnStart()
+      preserveScroll(() => setTurnStart(current + growth))
+      return
+    }
+
     const currentRendered = renderedUserMessages().length
     const base = Math.max(beforeRendered, currentRendered)
-    const target = reveal ? Math.min(afterVisible, base + turnBatch) : base
-    const nextStart = Math.max(0, afterVisible - target)
-    preserveScroll(() => setTurnStart(nextStart))
+    const target = Math.min(afterVisible, base + turnBatch)
+    preserveScroll(() => setTurnStart(Math.max(0, afterVisible - target)))
   }
 
   const onScrollerScroll = () => {
@@ -1709,26 +1713,6 @@ export default function Page() {
   const reverting = createMemo(() => revertMutation.isPending || restoreMutation.isPending)
   const restoring = createMemo(() => (restoreMutation.isPending ? restoreMutation.variables : undefined))
 
-  const fork = (input: { sessionID: string; messageID: string }) => {
-    const value = draft(input.messageID)
-    const dir = base64Encode(sdk.directory)
-    return sdk.client.session
-      .fork(input)
-      .then((result) => {
-        const next = result.data
-        if (!next) {
-          showToast({
-            variant: "error",
-            title: language.t("common.requestFailed"),
-          })
-          return
-        }
-        prompt.set(value, undefined, { dir, id: next.id })
-        navigate(`/${dir}/session/${next.id}`)
-      })
-      .catch(fail)
-  }
-
   const revert = (input: { sessionID: string; messageID: string }) => {
     if (reverting()) return
     return revertMutation.mutateAsync(input)
@@ -1747,7 +1731,7 @@ export default function Page() {
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
-  const actions = { fork, revert }
+  const actions = { revert }
 
   createEffect(() => {
     const sessionID = params.id

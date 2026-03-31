@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import os from "os"
 import path from "path"
-import { BashTool } from "../../src/tool/bash"
+import { BashTool, scanCommand } from "../../src/tool/bash"
 import { Instance } from "../../src/project/instance"
 import { Filesystem } from "../../src/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
@@ -43,6 +43,24 @@ describe("tool.bash", () => {
 })
 
 describe("tool.bash permissions", () => {
+  test("recognizes PowerShell location commands", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    const scan = await scanCommand("Set-Location ../outside", tmp.path, "pwsh")
+    expect(scan.patterns.has("Set-Location ../outside")).toBe(true)
+    expect(scan.always.has("Set-Location *")).toBe(true)
+    expect(scan.dirs.has(path.resolve(tmp.path, "../outside"))).toBe(true)
+  })
+
+  test("recognizes PowerShell path flags", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    const scan = await scanCommand("Get-Content -Path ../outside/file.txt", tmp.path, "powershell")
+    expect(scan.patterns.has("Get-Content -Path ../outside/file.txt")).toBe(true)
+    expect(scan.always.has("Get-Content *")).toBe(true)
+    expect(scan.dirs.has(path.resolve(tmp.path, "../outside"))).toBe(true)
+  })
+
   test("asks for bash permission with correct pattern", async () => {
     await using tmp = await tmpdir({ git: true })
     await Instance.provide({
@@ -147,7 +165,7 @@ describe("tool.bash permissions", () => {
         )
         const extDirReq = requests.find((r) => r.permission === "external_directory")
         expect(extDirReq).toBeDefined()
-        expect(extDirReq!.patterns).toContain(path.join(os.tmpdir(), "*"))
+        expect(extDirReq!.patterns).toContain(path.join(Filesystem.resolve(os.tmpdir()), "*"))
       },
     })
   })

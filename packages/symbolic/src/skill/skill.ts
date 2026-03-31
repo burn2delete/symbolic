@@ -55,6 +55,8 @@ export namespace Skill {
   type State = {
     skills: Record<string, Info>
     dirs: Set<string>
+    ready: boolean
+    loading?: Promise<void>
     load: () => Effect.Effect<void>
   }
 
@@ -156,6 +158,8 @@ export namespace Skill {
     return {
       skills: {},
       dirs: new Set<string>(),
+      ready: false,
+      loading: undefined,
       load: () => Effect.void,
     }
   }
@@ -169,17 +173,27 @@ export namespace Skill {
         Effect.fn("Skill.state")((ctx) =>
           Effect.gen(function* () {
             const s = create()
-            s.load = () => Effect.promise(() => loadSkills(s, ctx.directory, ctx.worktree)).pipe(Effect.catchCause(() => Effect.void))
+            s.load = () =>
+              Effect.promise(() => {
+                if (s.ready) return Promise.resolve()
+                if (s.loading) return s.loading
+                s.loading = loadSkills(s, ctx.directory, ctx.worktree)
+                  .then(() => {
+                    s.ready = true
+                  })
+                  .finally(() => {
+                    s.loading = undefined
+                  })
+                return s.loading
+              }).pipe(Effect.catchCause(() => Effect.void))
             return s
           }),
         ),
       )
 
-      const cache = yield* InstanceState.get(state)
-      let cached = yield* Effect.cached(cache.load())
-
       const ensure = Effect.fn("Skill.ensure")(function* () {
-        yield* cached
+        const cache = yield* InstanceState.get(state)
+        yield* cache.load()
         return cache
       })
 

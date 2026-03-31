@@ -865,15 +865,68 @@ test("resolves scoped npm plugins in config", async () => {
     fn: async () => {
       const config = await Config.get()
       const pluginEntries = config.plugin ?? []
+      const specs = pluginEntries.map((item) => Config.pluginSpec(item))
 
-      const baseUrl = pathToFileURL(path.join(tmp.path, "symbolic.json")).href
       const expected = pathToFileURL(path.join(tmp.path, "node_modules", "@scope", "plugin", "index.js")).href
 
-      expect(pluginEntries.includes(expected)).toBe(true)
+      expect(specs.includes(expected)).toBe(true)
 
-      const scopedEntry = pluginEntries.find((entry) => entry === expected)
-      expect(scopedEntry).toBeDefined()
-      expect(scopedEntry?.includes("/node_modules/@scope/plugin/")).toBe(true)
+      const scoped = specs.find((entry) => entry === expected)
+      expect(scoped).toBeDefined()
+      expect(scoped?.includes("/node_modules/@scope/plugin/")).toBe(true)
+    },
+  })
+})
+
+test("resolves scoped npm plugin tuples in config while preserving options", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      const pluginDir = path.join(dir, "node_modules", "@scope", "plugin")
+      await fs.mkdir(pluginDir, { recursive: true })
+
+      await Filesystem.write(
+        path.join(dir, "package.json"),
+        JSON.stringify({ name: "config-fixture", version: "1.0.0", type: "module" }, null, 2),
+      )
+
+      await Filesystem.write(
+        path.join(pluginDir, "package.json"),
+        JSON.stringify(
+          {
+            name: "@scope/plugin",
+            version: "1.0.0",
+            type: "module",
+            main: "./index.js",
+          },
+          null,
+          2,
+        ),
+      )
+
+      await Filesystem.write(path.join(pluginDir, "index.js"), "export default {}\n")
+
+      await Filesystem.write(
+        path.join(dir, "symbolic.json"),
+        JSON.stringify(
+          {
+            $schema: "https://symbolic.computer/config.json",
+            plugin: [["@scope/plugin", { compact: true }]],
+          },
+          null,
+          2,
+        ),
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      const plugin = config.plugin?.[0]
+      expect(plugin).toBeDefined()
+      expect(plugin && Config.pluginSpec(plugin)).toContain("/node_modules/@scope/plugin/")
+      expect(plugin && Config.pluginOptions(plugin)).toEqual({ compact: true })
     },
   })
 })
@@ -911,14 +964,15 @@ test("merges plugin arrays from global and local configs", async () => {
     fn: async () => {
       const config = await Config.get()
       const plugins = config.plugin ?? []
+      const specs = plugins.map((item) => Config.pluginSpec(item))
 
       // Should contain both global and local plugins
-      expect(plugins.some((p) => p.includes("global-plugin-1"))).toBe(true)
-      expect(plugins.some((p) => p.includes("global-plugin-2"))).toBe(true)
-      expect(plugins.some((p) => p.includes("local-plugin-1"))).toBe(true)
+      expect(specs.some((p) => p.includes("global-plugin-1"))).toBe(true)
+      expect(specs.some((p) => p.includes("global-plugin-2"))).toBe(true)
+      expect(specs.some((p) => p.includes("local-plugin-1"))).toBe(true)
 
       // Should have all 3 plugins (not replaced, but merged)
-      const pluginNames = plugins.filter((p) => p.includes("global-plugin") || p.includes("local-plugin"))
+      const pluginNames = specs.filter((p) => p.includes("global-plugin") || p.includes("local-plugin"))
       expect(pluginNames.length).toBeGreaterThanOrEqual(3)
     },
   })
@@ -1070,18 +1124,19 @@ test("deduplicates duplicate plugins from global and local configs", async () =>
     fn: async () => {
       const config = await Config.get()
       const plugins = config.plugin ?? []
+      const specs = plugins.map((item) => Config.pluginSpec(item))
 
       // Should contain all unique plugins
-      expect(plugins.some((p) => p.includes("global-plugin-1"))).toBe(true)
-      expect(plugins.some((p) => p.includes("local-plugin-1"))).toBe(true)
-      expect(plugins.some((p) => p.includes("duplicate-plugin"))).toBe(true)
+      expect(specs.some((p) => p.includes("global-plugin-1"))).toBe(true)
+      expect(specs.some((p) => p.includes("local-plugin-1"))).toBe(true)
+      expect(specs.some((p) => p.includes("duplicate-plugin"))).toBe(true)
 
       // Should deduplicate the duplicate plugin
-      const duplicatePlugins = plugins.filter((p) => p.includes("duplicate-plugin"))
+      const duplicatePlugins = specs.filter((p) => p.includes("duplicate-plugin"))
       expect(duplicatePlugins.length).toBe(1)
 
       // Should have exactly 3 unique plugins
-      const pluginNames = plugins.filter(
+      const pluginNames = specs.filter(
         (p) => p.includes("global-plugin") || p.includes("local-plugin") || p.includes("duplicate-plugin"),
       )
       expect(pluginNames.length).toBe(3)
@@ -1863,9 +1918,9 @@ describe("deduplicatePlugins", () => {
         const config = await Config.get()
         const plugins = config.plugin ?? []
 
-        const myPlugins = plugins.filter((p) => Config.getPluginName(p) === "my-plugin")
+        const myPlugins = plugins.filter((p) => Config.getPluginName(Config.pluginSpec(p)) === "my-plugin")
         expect(myPlugins.length).toBe(1)
-        expect(myPlugins[0].startsWith("file://")).toBe(true)
+        expect(Config.pluginSpec(myPlugins[0]).startsWith("file://")).toBe(true)
       },
     })
   })

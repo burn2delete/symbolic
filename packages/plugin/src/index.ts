@@ -42,7 +42,9 @@ export type PluginInput = {
   $: BunShell
 }
 
-export type Plugin = (input: PluginInput) => Promise<Hooks>
+export type PluginOptions = Record<string, unknown>
+
+export type Plugin = (input: PluginInput, options?: PluginOptions) => Promise<Hooks>
 
 type Rule = {
   key: string

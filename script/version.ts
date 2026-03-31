@@ -24,10 +24,20 @@ async function view(tag: string) {
   }
 }
 
-if (!Script.preview) {
+async function notes() {
+  const file = Bun.file(`${process.cwd()}/UPCOMING_CHANGELOG.md`)
+  if (await file.exists()) {
+    const text = (await file.text()).trim()
+    if (text) return text
+  }
+
   const previous = await getLatestRelease()
-  const notes = previous ? await buildNotes(previous, "HEAD") : []
-  const body = notes.join("\n") || `Initial ${Script.version} release`
+  const list = previous ? await buildNotes(previous, "HEAD") : []
+  return list.join("\n") || `Initial ${Script.version} release`
+}
+
+if (!Script.preview) {
+  const body = await notes()
   const dir = process.env.RUNNER_TEMP ?? "/tmp"
   const file = `${dir}/symbolic-release-notes.txt`
   await Bun.write(file, body)
